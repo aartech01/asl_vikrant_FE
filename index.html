@@ -135,6 +135,12 @@ this is a planning and control tool, not a design or a professional cost certifi
 <!-- ============ SITE PLAN ============ -->
 <div class="page" id="p_plan">
   <h2>Block plan and zone status</h2>
+  <div class="tools" style="margin-bottom:4px">
+    <button id="mapUpload" class="primary">Upload updated site map</button>
+    <input type="file" id="mapIn" accept="image/*" style="display:none">
+    <span class="small" id="mapMsg"></span>
+  </div>
+  <div id="siteMapBox" style="margin-bottom:14px"></div>
   <div class="plan">
     <div>
       <div id="svgwrap"></div>
@@ -544,6 +550,7 @@ try{ const r=BAKED||JSON.parse(localStorage.getItem(LSK)||"null");
 if(S.cess==null) S.cess=1; if(S.ins==null) S.ins=0.2;
 if(!Array.isArray(S.tasks)) S.tasks=[];
 if(!Array.isArray(S.photos)) S.photos=[];
+if(S.siteMap===undefined) S.siteMap=null;
 if(!Array.isArray(S.extraAreas)) S.extraAreas=[];
 if(!Array.isArray(S.userZones)) S.userZones=[];
 if(!Array.isArray(S.log)) S.log=[];
@@ -754,6 +761,43 @@ function statusOfArea(a){
   const tot=rows.reduce((s,b)=>s+amt(b),0);
   const dn=rows.filter(b=>b.status==="Done").reduce((s,b)=>s+amt(b),0);
   return tot?dn/tot:0;
+}
+/* ---------- uploaded site map (full resolution, replaces nothing — sits above the schematic plan) ---------- */
+async function uploadSiteMap(file){
+  if(!backendConfigured()){ $("#mapMsg").textContent="No backend configured yet — set API_BASE near the top of the script."; return; }
+  $("#mapMsg").textContent="Uploading full-resolution map…";
+  try{
+    const fd=new FormData(); fd.append("map",file,file.name||"site-map.jpg");
+    const r=await fetch(API_BASE+"/api/sitemap",{method:"POST",body:fd});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||("HTTP "+r.status)); }
+    const m=await r.json();
+    S.siteMap=m; save(); drawSiteMap();
+    $("#mapMsg").textContent="Map updated.";
+    logChange('Site map updated ("'+(file.name||"image")+'")'); toast("Site map updated");
+  }catch(e){ $("#mapMsg").textContent="Upload failed — "+e.message; toast("Map upload failed",true); }
+}
+function drawSiteMap(){
+  const el=$("#siteMapBox"); if(!el) return;
+  if(!S.siteMap||!S.siteMap.url){ el.innerHTML=""; return; }
+  const m=S.siteMap;
+  el.innerHTML='<div style="border:1px solid #dfe3e8;border-radius:8px;padding:10px;background:#F6F6F6">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px">'
+    +'<b style="font-size:12px;color:#0C013D">Uploaded site map'+(m.width?(' — '+m.width+' × '+m.height+' px'):'')+'</b>'
+    +'<span><button class="sm" id="mapFull">View full size</button><button class="sm" id="mapRemove">Remove</button></span>'
+    +'</div>'
+    +'<img src="'+attr(m.url)+'" style="width:100%;max-height:640px;object-fit:contain;border-radius:6px;cursor:zoom-in;background:#fff" id="mapImgEl">'
+    +(m.name?'<div class="small" style="margin-top:4px">'+esc(m.name)+'</div>':'')
+    +'</div>';
+  const openFull=()=>window.open(m.url,"_blank");
+  $("#mapImgEl").onclick=openFull;
+  $("#mapFull").onclick=openFull;
+  $("#mapRemove").onclick=async()=>{
+    if(!confirm("Remove the uploaded site map?")) return;
+    try{
+      if(backendConfigured()){ const r=await fetch(API_BASE+"/api/sitemap",{method:"DELETE"}); if(!r.ok) throw new Error("HTTP "+r.status); }
+      S.siteMap=null; save(); drawSiteMap(); logChange("Site map removed"); toast("Site map removed");
+    }catch(e){ toast("Could not remove map — "+e.message,true); }
+  };
 }
 function drawPlan(){
   const SC=3.1, W=PLOT.w*SC, H=PLOT.l*SC, pad=26;
@@ -2040,7 +2084,7 @@ function showTab(id){ S.tab=id; save();
 function drawTabs(){ $("#tabs").innerHTML=TABS.map(t=>'<div class="tab" data-t="'+t[0]+'">'+t[1]+'</div>').join("");
   document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>showTab(t.dataset.t)); }
 
-function redraw(){ drawChangeBar(); drawKPIs(); drawPlan(); drawOpenLand(); drawZone(); drawAreaTable(); drawBOQ(); drawRates();
+function redraw(){ drawChangeBar(); drawKPIs(); drawSiteMap(); drawPlan(); drawOpenLand(); drawZone(); drawAreaTable(); drawBOQ(); drawRates();
   drawTasks(); drawPhotos(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
 
 $("#grpBy").onchange=drawBOQ;
@@ -2097,6 +2141,8 @@ $("#camSwap").onclick=()=>{ camFacing=(camFacing==="environment")?"user":"enviro
       dz.style.borderColor="#BEBDB8"; dz.style.color="#6b7684";
       const fl=[...(e.dataTransfer&&e.dataTransfer.files||[])];
       if(fl.length) handleUpload(fl); }); }); })();
+$("#mapUpload").onclick=()=>$("#mapIn").click();
+$("#mapIn").onchange=e=>{ const f=e.target.files[0]; if(f) uploadSiteMap(f); e.target.value=""; };
 $("#pUpload").onclick=()=>$("#photoIn").click();
 $("#pNewArea").onclick=()=>{ const n=addNewArea(); if(n){ $("#pUpArea").value=n; } };
 $("#photoIn").onchange=e=>{ handleUpload([...e.target.files]); e.target.value=""; };
