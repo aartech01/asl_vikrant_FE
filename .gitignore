@@ -1,0 +1,3 @@
+# backend/ is its own separate git repo (aartech01/ASL_VIKRANT_BE), deployed
+# independently on Render — it does not belong inside this frontend repo.
+backend/

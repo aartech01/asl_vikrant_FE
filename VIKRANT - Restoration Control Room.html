@@ -78,6 +78,32 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 .rateGrid label { display:flex; align-items:center; gap:7px; font-size:11.5px }
 .rateGrid label span { flex:1; color:#42506b }
 @media print { .tabs,.tools,button{display:none} .page{display:block!important} }
+
+/* ---------- animation ---------- */
+button{ transition:background .15s ease,transform .1s ease,box-shadow .15s ease }
+button:hover:not(:disabled){ transform:translateY(-1px) }
+button:active:not(:disabled){ transform:translateY(0) }
+.kpi{ transition:transform .15s ease,box-shadow .15s ease; animation:kpiIn .35s ease }
+.kpi:hover{ transform:translateY(-2px); box-shadow:0 4px 14px rgba(12,1,61,.12) }
+.tab{ transition:background .15s ease,color .15s ease }
+.page.on{ animation:pageIn .25s ease }
+.barrow .fl{ transition:width .6s ease } .gbar{ transition:width .5s ease }
+#syncBar{ display:flex; align-items:center; flex-wrap:wrap }
+.sync-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:none }
+.sync-dot.live{ animation:pulse 2s infinite }
+.toast{ position:fixed; right:16px; bottom:16px; background:#0C013D; color:#fff; padding:9px 16px;
+  border-radius:7px; font-size:12.5px; box-shadow:0 8px 24px rgba(0,0,0,.22); z-index:400;
+  animation:slideIn .3s ease }
+.toast.bad{ background:#B80001 }
+.toast.out{ animation:slideOut .3s ease forwards }
+#modalBox{ animation:popIn .18s ease }
+@keyframes kpiIn{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+@keyframes pageIn{ from{opacity:0} to{opacity:1} }
+@keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(78,122,51,.5)} 70%{box-shadow:0 0 0 8px rgba(78,122,51,0)}
+  100%{box-shadow:0 0 0 0 rgba(78,122,51,0)} }
+@keyframes slideIn{ from{transform:translateX(120%);opacity:0} to{transform:translateX(0);opacity:1} }
+@keyframes slideOut{ to{transform:translateX(120%);opacity:0} }
+@keyframes popIn{ from{transform:scale(.96);opacity:0} to{transform:scale(1);opacity:1} }
 </style>
 </head>
 <body>
@@ -92,6 +118,7 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 <p class="sub">Plot 101.7 × 189.7 ft (0.443 acre) ·
 covered 10,895 sq ft · geometry read from drawing <i>asl unit 3 map</i></p>
 
+<div id="syncBar" style="margin:8px 0 2px"></div>
 <div id="changeBar" style="margin:10px 0 4px"></div>
 <div class="kpis" id="kpis"></div>
 
@@ -134,7 +161,7 @@ this is a planning and control tool, not a design or a professional cost certifi
     <button id="addRow">Add BOQ line</button>
     <button id="newArea">+ New area / room</button>
     <button id="resetBoq" class="warn">Reset to computed defaults</button>
-    <button id="expBoq" class="primary">Export BOQ to Google Sheet</button>
+    <button id="expBoq" class="primary">Download BOQ as CSV</button>
     <label style="margin-left:10px">Group by
       <select id="grpBy"><option value="area">Area</option><option value="trade">Trade</option>
       <option value="phase">Phase</option></select></label>
@@ -239,16 +266,8 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div id="dropZone" style="border:2px dashed #BEBDB8;border-radius:8px;padding:14px;text-align:center;
        color:#6b7684;font-size:12px;margin-bottom:10px">
     …or drag photos straight from a folder and drop them here</div>
-  <div class="tools">
-    <input id="purl" style="width:52%;min-width:260px" placeholder="…or pull from Drive: https://drive.google.com/drive/folders/…">
-    <button id="pgo">Load from Drive</button>
-    <button id="ptest">Test connection</button>
-    <label style="margin-left:6px"><input type="checkbox" id="pdeep" checked> subfolders</label>
-  </div>
   <div id="storeLine" class="note" style="margin-bottom:8px"></div>
-  <div class="tools"><button id="pBackup" class="primary">Back up photos to Drive</button>
-    <button id="pRestore">Restore photos from Drive</button>
-    <button id="pDiag">Check what is wrong</button></div>
+  <div class="tools"><button id="pDiag">Check photo system</button></div>
   <div id="pdiag" class="small" style="margin-bottom:8px"></div>
   <div id="plog" class="small"></div>
   <div class="grid" id="photoGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px;margin-top:12px"></div>
@@ -259,38 +278,30 @@ this is a planning and control tool, not a design or a professional cost certifi
   <h2>Project brief and design basis</h2>
   <div id="briefBody"></div>
   <div class="tools" style="margin-top:14px">
-    <button id="expDoc" class="primary">Export full project report to Google Docs</button>
+    <button id="expDoc" class="primary">Download full report (HTML)</button>
     <button id="doPrint">Print / save as PDF</button>
   </div>
   <div id="expStatus" class="small" style="margin-top:8px"></div>
 
   <h2>Saving, sharing and carrying this forward</h2>
-  <div class="note"><b>Where everything is stored in Drive.</b>
-  <span class="small">VIKRANT Control Room ▸ <b>Photos</b> (every photograph you add) ·
-  <b>Working files</b> (your saved plan, one file per save) ·
-  <b>Reports and BOQ</b> (Google Docs reports, BOQ sheets, shareable copies).
-  <a href="https://drive.google.com/drive/folders/1PZ7cEWCo_tPNFUTASeHpSflT8BxFghXc" target="_blank">Open the folder</a></span></div>
-  <div class="note"><b>Where your work lives.</b> Every edit you make is stored inside this view on this computer.
-  That is convenient but it is not a backup and nobody else can see it. Use the buttons below to put a working file
-  into Drive — that is what makes the plan portable, shareable and safe.</div>
+  <div class="note"><b>Where everything is stored now.</b> Every change you make is saved automatically to a
+  shared database as you type, and every other team member's browser picks it up automatically within about 20
+  seconds. Photographs upload straight to permanent cloud storage the moment you add them. There is nothing to
+  manually back up for the team to stay in sync — the buttons below are for taking an offline copy.</div>
   <div class="tools">
-    <button id="saveDrive" class="primary">Save working file to Drive</button>
-    <button id="loadDrive">Restore from Drive</button>
-    <button id="dlBackup">Download backup to this computer</button>
-    <button id="upBackup">Restore from a file</button>
+    <button id="dlBackup">Download local backup (.json)</button>
+    <button id="upBackup">Restore from a local file</button>
     <div style="margin-top:9px;padding-top:9px;border-top:1px solid #e1e4e8">
       <b style="font-size:12px">Share one file that already contains everything</b>
-      <div class="small" style="margin:3px 0 6px">Builds a fresh copy of the whole tool with your data, and
-      optionally your photographs, sealed inside it. Whoever opens it sees exactly what you see — nothing to restore.</div>
+      <div class="small" style="margin:3px 0 6px">Builds a fresh, standalone copy of the whole tool with today's
+      data, and optionally your photographs, sealed inside it. Useful as an offline snapshot or an emailable copy —
+      opening it does not reconnect it to the shared database.</div>
       <button id="shareDl" class="primary">Download complete copy</button>
       <button id="shareDlP">Download complete copy with photos</button>
-      <button id="shareDrive">Send complete copy to Drive</button>
-      <button id="shareDriveP">Send to Drive with photos</button>
     </div>
     <input type="file" id="fileIn" accept=".json" style="display:none">
   </div>
   <div id="backupStatus" class="small" style="margin-top:6px"></div>
-  <table id="backupList" style="margin-top:10px"></table>
 </div>
 
 <div id="modal" style="display:none;position:fixed;inset:0;background:rgba(12,1,61,.45);z-index:200;
@@ -303,12 +314,11 @@ this is a planning and control tool, not a design or a professional cost certifi
 /* pristine markup, captured before anything is rendered into it */
 const SKELETON=(function(){ const b=document.body.cloneNode(true);
   b.querySelectorAll("script").forEach(s=>s.remove()); return b.innerHTML; })();
-const DRIVE="mcp__1f9bc5c9-5469-496e-9206-3750778923df__";
-const ROOT="1tB6vTVyzk80b2nHPOGI2EL8J4M3p-LVG";          /* the shared VIKRANT folder */
-const F_HOME  ="1PZ7cEWCo_tPNFUTASeHpSflT8BxFghXc";       /* VIKRANT Control Room      */
-const F_PHOTOS="1W720FBT0o-RuBLk0ka9QIs-3i2LMa4QB";       /*   └ Photos                */
-const F_WORK  ="1u_dOvGHZZRXv6YXeES1yZnSk0YcFYyrV";       /*   └ Working files         */
-const F_DOCS  ="1lKHmDzcZPCoUBCl8VM-FxgmP9_slC9k8";       /*   └ Reports and BOQ       */
+/* Backend base URL — set this to your deployed Render service URL after deploying the /backend folder.
+   Example: const API_BASE="https://vikrant-control-room-api.onrender.com";
+   You can also override it per-browser without editing this file: run in the console
+   localStorage.setItem("vikrant_api_base","https://your-url") then reload. */
+const API_BASE=localStorage.getItem("vikrant_api_base")||"https://asl-vikrant-be.onrender.com";
 const LSK="asl_unit3_exec_v1";
 const TODAY=new Date(2026,7,7);
 const OPS=new Date(2026,8,17);      // 17 Sept 2026
@@ -543,47 +553,86 @@ if(!S.customRates||typeof S.customRates!=="object") S.customRates={};
 /* the full rate card = built-in benchmarks plus anything you have added */
 const RATEDEF=()=>Object.assign({},RATES0,S.customRates);
 const AREAKEYS=()=>Object.keys(Z()).concat(["Site"]).concat(S.extraAreas);
-const IMG={};   // photo id -> dataURL
+const IMG={};   // photo id -> URL (Cloudinary) or dataURL (inside a self-contained exported copy)
 if(window.BOOTDATA&&window.BOOTDATA.IMG) Object.assign(IMG,window.BOOTDATA.IMG);
-/* ---------- persistence ----------
-   State goes to localStorage. Photographs are far too big for that, so they live in IndexedDB,
-   which survives a reload and has room for hundreds of images. ------------------------------ */
+
+/* ---------- persistence and team sync ----------
+   State saves to localStorage instantly (offline-safe, per browser) and is pushed to the shared
+   backend on a short debounce. Every browser also polls the backend every ~20s and adopts newer
+   data, so the whole team converges on one shared view. Photographs upload straight to Cloudinary;
+   only their URL is ever kept in state. ------------------------------------------------------- */
 let UNDO=[], REDO=[];
 function pushUndo(label){
   try{ UNDO.push({label:label||"change",json:JSON.stringify(S)}); if(UNDO.length>40) UNDO.shift(); REDO=[]; }catch(e){}
   const b=document.getElementById("undoBtn"); if(b){ b.disabled=false; b.title="Undo: "+(label||"change"); }
 }
-const save=()=>{ try{ localStorage.setItem(LSK,JSON.stringify(S)); }catch(e){
-  const m=document.getElementById("saveWarn");
-  if(m) m.textContent="Local storage is full — save your working file to Drive now."; } };
+const save=()=>{
+  try{ localStorage.setItem(LSK,JSON.stringify(S)); }catch(e){
+    const m=document.getElementById("saveWarn");
+    if(m) m.textContent="Local storage is full — download a backup now."; }
+  scheduleSync();
+};
 
-let DB=null;
-function idb(){ return new Promise((res,rej)=>{
-  if(DB) return res(DB);
-  if(!window.indexedDB) return rej(new Error("no IndexedDB"));
-  const r=indexedDB.open("vikrant_photos",1);
-  r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains("img")) r.result.createObjectStore("img"); };
-  r.onsuccess=()=>{ DB=r.result; res(DB); };
-  r.onerror=()=>rej(r.error||new Error("IndexedDB unavailable"));
-}); }
-async function imgPut(k,v){ try{ const d=await idb();
-  await new Promise((res,rej)=>{ const t=d.transaction("img","readwrite");
-    t.objectStore("img").put(v,k); t.oncomplete=res; t.onerror=()=>rej(t.error); });
-}catch(e){} }
-async function imgDel(k){ try{ const d=await idb();
-  await new Promise(res=>{ const t=d.transaction("img","readwrite");
-    t.objectStore("img").delete(k); t.oncomplete=res; t.onerror=res; });
-}catch(e){} }
-async function imgLoadAll(){
-  try{ const d=await idb();
-    const all=await new Promise((res,rej)=>{ const t=d.transaction("img","readonly");
-      const st2=t.objectStore("img"), out={}, cur=st2.openCursor();
-      cur.onsuccess=e=>{ const c=e.target.result;
-        if(c){ out[c.key]=c.value; c.continue(); } else res(out); };
-      cur.onerror=()=>rej(cur.error); });
-    let n=0; Object.keys(all).forEach(k=>{ IMG[k]=all[k]; n++; });
-    return n;
-  }catch(e){ return 0; }
+const backendConfigured=()=>!!API_BASE&&API_BASE.indexOf("YOUR-BACKEND-URL")<0;
+let syncTimer=null, syncState="offline", lastPulledAt=null, pulling=false;
+function anyInputFocused(){
+  const a=document.activeElement;
+  return !!(a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.tagName==="SELECT"));
+}
+function modalOpen(){ const m=$("#modal"); return !!(m&&m.style.display==="flex"); }
+function setSyncState(s,msg){ syncState=s; drawSyncBar(msg); }
+function drawSyncBar(msg){
+  const el=$("#syncBar"); if(!el) return;
+  const dot={live:"#4E7A33",syncing:"#F6C547",offline:"#B80001"}[syncState]||"#8b949e";
+  const label={live:"Synced with team",syncing:"Syncing…",offline:"Not connected to shared server"}[syncState]||"";
+  el.innerHTML='<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:#57606a">'
+    +'<span class="sync-dot'+(syncState==="live"?" live":"")+'" style="background:'+dot+'"></span>'
+    +'<b style="color:#0C013D">'+esc(label)+'</b>'
+    +(msg?(' <span class="small">— '+esc(msg)+'</span>'):'')
+    +' <button class="sm" id="syncNow">Sync now</button></div>';
+  if($("#syncNow")) $("#syncNow").onclick=()=>{ pushState(); pullState(); };
+}
+function toast(msg,bad){
+  const box=document.createElement("div");
+  box.className="toast"+(bad?" bad":""); box.textContent=msg;
+  document.body.appendChild(box);
+  setTimeout(()=>{ box.classList.add("out"); setTimeout(()=>box.remove(),300); },3200);
+}
+async function pushState(){
+  if(!backendConfigured()){ setSyncState("offline","backend URL not set yet — see API_BASE"); return; }
+  setSyncState("syncing");
+  try{
+    const r=await fetch(API_BASE+"/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({state:S})});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d=await r.json();
+    lastPulledAt=d.updatedAt;
+    setSyncState("live");
+  }catch(e){ setSyncState("offline",e.message); }
+}
+function scheduleSync(){ clearTimeout(syncTimer); syncTimer=setTimeout(pushState,1000); }
+async function pullState(){
+  if(!backendConfigured()) return false;
+  if(pulling) return false; pulling=true;
+  try{
+    const r=await fetch(API_BASE+"/api/state");
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d=await r.json();
+    pulling=false;
+    if(!d.state||!Array.isArray(d.state.boq)) { setSyncState("live"); return false; }
+    if(d.updatedAt===lastPulledAt){ setSyncState("live"); return false; }
+    if(anyInputFocused()||modalOpen()) return false;   // don't yank the screen mid-edit
+    S=Object.assign(S,d.state);
+    Object.keys(RATES0).forEach(k=>{ if(S.rates[k]==null) S.rates[k]=RATES0[k].v; });
+    if(!Array.isArray(S.tasks)) S.tasks=[];
+    if(!Array.isArray(S.photos)) S.photos=[];
+    USERZ=S.userZones=S.userZones||[];
+    S.photos.forEach(p=>{ if(p.url) IMG[p.id]=p.url; });
+    lastPulledAt=d.updatedAt;
+    try{ localStorage.setItem(LSK,JSON.stringify(S)); }catch(e){}
+    setSyncState("live"); redraw();
+    return true;
+  }catch(e){ pulling=false; setSyncState("offline",e.message); return false; }
 }
 
 const $=s=>document.querySelector(s);
@@ -1381,105 +1430,6 @@ function drawTasks(){
 
 /* ---------- photos ---------- */
 function plog(m,bad){ $("#plog").innerHTML+='<div'+(bad?' style="color:#B80001"':'')+'>'+esc(m)+'</div>'; }
-function parseFolder(raw){ raw=String(raw||"").trim();
-  let m=raw.match(/\/folders\/([-\w]{20,})/); if(m) return m[1];
-  m=raw.match(/[?&]id=([-\w]{20,})/); if(m) return m[1];
-  m=raw.match(/[-\w]{25,}/); return m?m[0]:null; }
-async function listKids(id){ let f=[],tok=null,g=0;
-  do{ const r=await callTool("search_files",{query:"parentId = '"+id+"'",pageSize:100,
-        pageToken:tok||undefined,excludeContentSnippets:true});
-      f=f.concat(r.files||[]); tok=r.nextPageToken||r.next_page_token||null; }while(tok&&++g<10);
-  return f; }
-async function testDrive(){
-  $("#plog").innerHTML="";
-  const id=parseFolder($("#purl").value);
-  plog("1. Folder id parsed: "+(id||"FAILED — check the link"), !id);
-  if(!id) return;
-  plog("2. Is the Drive connector reachable from this view?");
-  if(!window.cowork||!window.cowork.callMcpTool){
-    plog("   NO — window.cowork.callMcpTool is not available. You are probably viewing a saved copy "
-        +"of this file in a plain browser, which has no Drive connection. Use the upload button instead.",true);
-    return; }
-  plog("   yes");
-  try{
-    const r=await callTool("search_files",{query:"parentId = '"+id+"'",pageSize:5,excludeContentSnippets:true});
-    const n=(r.files||[]).length;
-    plog("3. Folder listing returned "+n+" item(s) — listing works.");
-    const img=(r.files||[]).find(f=>(f.mimeType||"").indexOf("image/")===0);
-    const sub=(r.files||[]).find(f=>f.mimeType==="application/vnd.google-apps.folder");
-    if(!img&&sub) plog("   note: no images at this level, they are inside subfolders such as \""
-        +(sub.title||sub.name)+"\". Keep \"subfolders\" ticked.");
-    const target=img||null;
-    if(!target){ plog("4. No image at this level to test a download with — press Load from Drive and watch this log."); return; }
-    plog("4. Downloading one image as a test: "+(target.title||target.name));
-    const d=await callTool("download_file_content",{fileId:target.id});
-    const b64=d.content||d.base64Content;
-    plog("   response received, base64 length "+(b64?b64.length:0));
-    if(!b64){ plog("   FAILED — no image data in the response.",true); return; }
-    await new Promise((res)=>{ const im=new Image();
-      im.onload=()=>{ plog("5. Image decoded at "+im.width+" x "+im.height+" — everything works. "
-        +"Press Load from Drive.",false); res(); };
-      im.onerror=()=>{ plog("5. FAILED — data arrived but could not be decoded. The response was probably "
-        +"truncated. Use the upload button for large photos.",true); res(); };
-      im.src="data:"+(d.mimeType||"image/jpeg")+";base64,"+b64; });
-  }catch(e){ plog("FAILED at this step: "+e.message,true); }
-}
-async function loadPhotos(){
-  const id=parseFolder($("#purl").value);
-  if(!id){ plog("That is not a Drive folder link.",true); return; }
-  $("#plog").innerHTML=""; plog("Reading folder…");
-  if(!window.cowork||!window.cowork.callMcpTool){
-    plog("No Drive connection from this view — use \"Upload photos from this computer\" instead.",true); return; }
-  const seen=new Set(), found=[];
-  async function walk(fid,depth,fname){
-    if(seen.has(fid)||depth>4) return; seen.add(fid);
-    let files;
-    try{ files=await listKids(fid); }
-    catch(e){ plog("Cannot read folder "+fid+" — "+e.message,true); return; }
-    const subs=[];
-    files.forEach(f=>{ const mt=f.mimeType||"";
-      if(mt==="application/vnd.google-apps.folder") subs.push(f);
-      else if(mt.indexOf("image/")===0) found.push({id:f.id,name:f.title||f.name||f.id,folder:fname||""}); });
-    if(files.length) plog("  · "+files.length+" item(s) here, "
-      +files.filter(f=>(f.mimeType||"").indexOf("image/")===0).length+" image(s)");
-    if($("#pdeep").checked) for(const s of subs) await walk(s.id,depth+1,s.title||s.name||"");
-  }
-  await walk(id,0,"");
-  if(!found.length){ plog("No images found. If they sit in a subfolder, tick \"subfolders\" and try again.",true); return; }
-  plog("Found "+found.length+" image(s). Downloading one at a time…");
-  const have=new Set(S.photos.map(p=>p.id));
-  let auto=0;
-  found.forEach(f=>{ if(!have.has(f.id)){
-    const a=areaFromFolder(f.folder); if(a) auto++;
-    S.photos.push({id:f.id,name:f.name,area:a,driveId:f.id}); } });
-  save();
-  if(auto) plog(auto+" photo(s) tagged automatically from their folder name.");
-  else plog("Tip: name your Drive subfolders after the areas (Shed 3, Office block, First floor) "
-    +"and photos get tagged for you on the next load.");
-  const q=found.map(f=>f.id).filter(fid=>!IMG[fid]);
-  const total=q.length; let done=0, fail=0, firstErr="";
-  const line=document.createElement("div"); $("#plog").appendChild(line);
-  while(q.length){
-    const fid=q.shift();
-    const rec=S.photos.find(p=>p.id===fid)||{name:fid};
-    try{
-      const d=await callTool("download_file_content",{fileId:fid});
-      const b64=d.content||d.base64Content;
-      if(!b64) throw new Error("Drive returned no image data");
-      const url="data:"+(d.mimeType||"image/jpeg")+";base64,"+b64;
-      await new Promise((res,rej)=>{ const im=new Image();
-        im.onload=()=>res(); im.onerror=()=>rej(new Error("data arrived but would not decode (likely truncated)"));
-        im.src=url; });
-      IMG[fid]=url; await imgPut(fid,url);
-    }catch(e){ fail++; if(!firstErr) firstErr=rec.name+" — "+e.message; }
-    done++;
-    line.textContent="Downloaded "+done+" of "+total+(fail?"  ("+fail+" failed)":"");
-    if(done%6===0){ drawPhotos(); await new Promise(r=>setTimeout(r,0)); }
-  }
-  if(fail) plog("Finished. "+fail+" of "+total+" failed. First failure: "+firstErr,true);
-  else plog("All "+total+" photos loaded. Tag each one to an area below.");
-  drawPhotos(); drawZone();
-}
 let pendingArea="";
 function shrinkTo(dataUrl,maxW,q){
   return new Promise(res=>{ const im=new Image();
@@ -1490,24 +1440,36 @@ function shrinkTo(dataUrl,maxW,q){
       res(c.toDataURL("image/jpeg",q)); };
     im.onerror=()=>res(dataUrl); im.src=dataUrl; });
 }
+async function uploadPhotoFile(file,area){
+  const raw=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(file); });
+  const small=await shrinkTo(raw,1600,.82);
+  const blob=await (await fetch(small)).blob();
+  const fd=new FormData();
+  fd.append("photo",blob,file.name||"photo.jpg");
+  fd.append("area",area||"");
+  const r=await fetch(API_BASE+"/api/photos",{method:"POST",body:fd});
+  if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||("upload failed: HTTP "+r.status)); }
+  return r.json();
+}
 async function handleUpload(files){
   const area=pendingArea||$("#pUpArea").value||"";
   pendingArea="";
-  let n=0;
-  for(const f of files){
-    if(f.type.indexOf("image/")!==0) continue;
-    const raw=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(f); });
-    const id="u"+Date.now()+"_"+(n++);
-    IMG[id]=await shrinkTo(raw,1100,.78);
-    await imgPut(id,IMG[id]);
-    S.photos.push({id:id,name:f.name,area:area,local:true});
+  const imgs=[...files].filter(f=>f.type.indexOf("image/")===0);
+  if(!imgs.length) return;
+  if(!backendConfigured()){ plog("No backend configured yet — set API_BASE near the top of the script before photos can upload.",true); return; }
+  let ok=0, fail=0;
+  plog("Uploading "+imgs.length+" photo(s)…");
+  for(const f of imgs){
+    try{
+      const res=await uploadPhotoFile(f,area);
+      IMG[res.id]=res.url;
+      S.photos.push({id:res.id,name:f.name,area:area,url:res.url});
+      ok++;
+    }catch(e){ fail++; plog(f.name+" — "+e.message,true); }
   }
-  save(); drawPhotos(); drawZone();
-  plog(n+" photo(s) added"+(area?(" to "+area):" — tag them below")+".");
-  if(n) logChange(n+' photograph(s) added'+(area?(' to '+area):''));
-  if(hasDrive()){ plog("Storing them in Drive so they survive a refresh…"); await backupPhotos(true);
-    plog("Stored in Drive."); storageLine(); drawPhotos(); }
-  else plog("No Drive connection — these live only on this computer for now.",true);
+  save(); drawPhotos(); drawZone(); storageLine();
+  plog(ok+" photo(s) uploaded"+(area?(" to "+area):" — tag them below")+(fail?(", "+fail+" failed"):"")+".");
+  if(ok){ logChange(ok+' photograph(s) added'+(area?(' to '+area):'')); toast(ok+" photo(s) uploaded"); }
 }
 function drawPhotos(){
   $("#photoGrid").innerHTML=S.photos.map(p=>
@@ -1574,15 +1536,13 @@ function drawBrief(){
 }
 
 /* ---------- export ---------- */
-async function callTool(name,args){
-  const r=await window.cowork.callMcpTool(DRIVE+name,args);
-  if(r&&r.isError) throw new Error(typeof r.content==="string"?r.content:JSON.stringify(r.content).slice(0,200));
-  if(r&&r.structuredContent) return r.structuredContent;
-  const t=r&&r.content&&r.content[0]&&r.content[0].text;
-  if(!t) throw new Error("empty response"); try{ return JSON.parse(t); }catch(e){ return {content:t}; }
-}
 function csvEsc(s){ s=String(s==null?"":s); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
-async function exportBOQ(){
+function downloadText(filename,text,mime){
+  const blob=new Blob([text],{type:mime||"text/plain"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function exportBOQ(){
   const st2=$("#expStatus");
   try{
     let rows=[["Area","Trade","Description","Unit","Quantity","Rate INR","Amount INR","Phase","Status","Owner","Basis / note"]];
@@ -1595,12 +1555,10 @@ async function exportBOQ(){
     rows.push(["","","GST "+S.gst+"%","","","",t.gst]);
     rows.push(["","","ESTIMATED PROJECT COST","","","",t.grand]);
     const csv=rows.map(r=>r.map(csvEsc).join(",")).join("\n");
-    const res=await callTool("create_file",{title:"ASL Vikrant (Unit 3) — BOQ and cost estimate ("+dstr(new Date()).replace(/-/g,"")+")",
-      parentId:F_DOCS,contentMimeType:"text/csv",textContent:csv});
-    const u=res.viewUrl||("https://docs.google.com/spreadsheets/d/"+res.id);
-    alert("BOQ exported to Google Sheets.");
-    window.open(u,"_blank");
-  }catch(e){ alert("Export failed: "+e.message); }
+    downloadText("ASL Vikrant BOQ — "+dstr(new Date())+".csv",csv,"text/csv");
+    if(st2) st2.textContent="BOQ downloaded as CSV.";
+    toast("BOQ downloaded");
+  }catch(e){ if(st2) st2.textContent="Export failed: "+e.message; }
 }
 async function exportDoc(){
   const st2=$("#expStatus"); st2.textContent="Building report…";
@@ -1707,11 +1665,9 @@ async function exportDoc(){
       +T([["Prepared by","","",""],["Infra consultant","","",""],["Operations","","",""],
           ["Finance","","",""],["Approved by","","",""]],["Role","Name","Signature","Date"])
       +'</body></html>';
-    st2.textContent="Uploading…";
-    const res=await callTool("create_file",{title:"ASL Vikrant (Unit 3) — Restoration and Development Plan ("+dstr(new Date()).replace(/-/g,"")+")",
-      parentId:F_DOCS,contentMimeType:"text/html",textContent:h});
-    const u=res.viewUrl||("https://docs.google.com/document/d/"+res.id+"/edit");
-    st2.innerHTML='Report created. <a href="'+u+'" target="_blank">Open in Google Docs</a>';
+    downloadText("ASL Vikrant — Restoration and Development Plan ("+dstr(new Date())+").html",h,"text/html");
+    st2.textContent="Report downloaded. Open the file in a browser to view, or print it from there.";
+    toast("Report downloaded");
   }catch(e){ st2.textContent="Failed: "+e.message; }
 }
 
@@ -1731,39 +1687,6 @@ function applySnapshot(txt){
   Object.keys(RATES0).forEach(k=>{ if(S.rates[k]==null) S.rates[k]=RATES0[k].v; });
   save(); redraw();
 }
-async function saveToDrive(){
-  BK("Saving…");
-  try{
-    const title=PREFIX+" — "+dstr(new Date())+" "+String(new Date().getHours()).padStart(2,"0")
-      +String(new Date().getMinutes()).padStart(2,"0")+".json";
-    const res=await callTool("create_file",{title:title,parentId:F_WORK,
-      contentMimeType:"application/json",textContent:snapshot(),disableConversionToGoogleType:true});
-    BK('Saved as <b>'+esc(title)+'</b> in your Drive folder. '
-      +(res.viewUrl?'<a href="'+res.viewUrl+'" target="_blank">Open</a>':''));
-    listBackups();
-  }catch(e){ BK('<span style="color:#B80001">Save failed: '+esc(e.message)+'</span>'); }
-}
-async function listBackups(){
-  try{
-    const r=await callTool("search_files",{query:"parentId = '"+F_WORK+"' and title contains '"+PREFIX+"'",
-      pageSize:25,excludeContentSnippets:true});
-    const fs2=(r.files||[]).sort((a,b)=>String(b.title).localeCompare(String(a.title)));
-    if(!fs2.length){ $("#backupList").innerHTML=""; return; }
-    $("#backupList").innerHTML='<tr><th>Saved working files in Drive</th><th>Modified</th><th></th></tr>'
-      +fs2.map(f=>'<tr><td>'+esc(f.title)+'</td><td class="small">'
-        +esc(String(f.modifiedTime||"").slice(0,16).replace("T"," "))+'</td>'
-        +'<td><button class="sm" data-rest="'+f.id+'">Restore this</button></td></tr>').join("");
-    document.querySelectorAll("[data-rest]").forEach(b=>{b.onclick=async()=>{
-      if(!confirm("Restore this file? Everything currently in the view will be replaced.")) return;
-      BK("Restoring…");
-      try{
-        const d=await callTool("download_file_content",{fileId:b.dataset.rest});
-        const b64=d.content||d.base64Content;
-        const txt=decodeURIComponent(escape(atob(b64)));
-        applySnapshot(txt); BK("Restored.");
-      }catch(e){ BK('<span style="color:#B80001">Restore failed: '+esc(e.message)+'</span>'); }};});
-  }catch(e){ /* folder not reachable — silent */ }
-}
 function downloadBackup(){
   try{
     const blob=new Blob([snapshot()],{type:"application/json"});
@@ -1772,7 +1695,7 @@ function downloadBackup(){
     a.download="VIKRANT-plan-"+dstr(new Date())+".json";
     document.body.appendChild(a); a.click(); a.remove();
     BK("Backup downloaded. Keep it with the project records.");
-  }catch(e){ BK('<span style="color:#B80001">This view could not write a file. Use "Save working file to Drive" instead.</span>'); }
+  }catch(e){ BK('<span style="color:#B80001">This browser could not write a file.</span>'); }
 }
 
 /* ---------- camera capture ---------- */
@@ -1780,8 +1703,8 @@ let camStream=null, camFacing="environment";
 async function openCam(){
   const msg=$("#camMsg"); msg.textContent="";
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    msg.innerHTML='<span style="color:#B80001">This view cannot reach a camera. '
-      +'Shoot on your phone and upload to Drive instead.</span>'; $("#camBox").style.display="block"; return; }
+    msg.innerHTML='<span style="color:#B80001">This browser cannot reach a camera. '
+      +'Use <b>Choose photos from a folder</b> instead.</span>'; $("#camBox").style.display="block"; return; }
   try{
     if(camStream) camStream.getTracks().forEach(t=>t.stop());
     camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:camFacing},
@@ -1795,7 +1718,7 @@ async function openCam(){
       :(e&&e.name==="NotFoundError")?"no camera was found on this computer"
       :(e&&e.message)||"it is blocked here";
     msg.innerHTML='<span style="color:#B80001">Camera unavailable — '+esc(why)+'. '
-      +'Use <b>Choose photos from a folder</b>, or shoot on your phone and upload to Drive.</span>';
+      +'Use <b>Choose photos from a folder</b> instead.</span>';
   }
 }
 function closeCam(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
@@ -1803,119 +1726,52 @@ function closeCam(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); 
 async function camCapture(){
   const v=$("#camVid");
   if(!camStream||!v.videoWidth){ $("#camMsg").textContent="Camera is not running."; return; }
+  if(!backendConfigured()){ $("#camMsg").textContent="No backend configured yet — set API_BASE near the top of the script."; return; }
   const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight;
   c.getContext("2d").drawImage(v,0,0,c.width,c.height);
-  const data=await shrinkTo(c.toDataURL("image/jpeg",.85),1100,.78);
+  const data=await shrinkTo(c.toDataURL("image/jpeg",.85),1600,.82);
   const area=$("#pUpArea").value||"";
-  const id="cam"+Date.now();
-  IMG[id]=data; try{ await imgPut(id,data); }catch(e){}
   const stamp=new Date().toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
-  S.photos.push({id:id,name:(area||"Site")+" — "+stamp,area:area,local:true});
-  save(); drawPhotos(); drawZone();
-  $("#camMsg").textContent="Captured"+(area?(" into "+area):" — tag it below")+". Take another or Close.";
-  if(hasDrive()){ try{ await pushPhotoToDrive(S.photos[S.photos.length-1]); storageLine(); drawPhotos();
-    $("#camMsg").textContent="Captured and stored in Drive. Take another or Close."; }catch(e){} }
+  $("#camMsg").textContent="Uploading…";
+  try{
+    const blob=await (await fetch(data)).blob();
+    const fd=new FormData(); fd.append("photo",blob,"camera.jpg"); fd.append("area",area);
+    const r=await fetch(API_BASE+"/api/photos",{method:"POST",body:fd});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const res=await r.json();
+    IMG[res.id]=res.url;
+    S.photos.push({id:res.id,name:(area||"Site")+" — "+stamp,area:area,url:res.url});
+    save(); drawPhotos(); drawZone(); storageLine();
+    $("#camMsg").textContent="Captured and uploaded"+(area?(" to "+area):"")+". Take another or Close.";
+  }catch(e){ $("#camMsg").textContent="Upload failed: "+e.message; }
 }
 
-/* ---------- permanent photo storage in Drive ---------- */
-const hasDrive=()=>!!(window.cowork&&window.cowork.callMcpTool);
-async function pushPhotoToDrive(p){
-  if(!hasDrive()) throw new Error("no Drive connection from this view");
-  const data=IMG[p.id]; if(!data) throw new Error("no image in memory");
-  const b64=String(data).split(",")[1]; if(!b64) throw new Error("image not readable");
-  const safe=(p.area||"Untagged").replace(/[\\/:*?"<>|]/g,"-");
-  const res=await callTool("create_file",{
-    title:"VIKRANT photo — "+safe+" — "+(p.name||p.id)+(/\.(jpe?g|png)$/i.test(p.name||"")?"":".jpg"),
-    parentId:F_PHOTOS, contentMimeType:"image/jpeg", base64Content:b64,
-    disableConversionToGoogleType:true});
-  p.driveId=res.id||null; p.local=false; save();
-  return p.driveId;
-}
-async function backupPhotos(silent){
-  const todo=S.photos.filter(p=>!p.driveId&&IMG[p.id]);
-  if(!todo.length){ if(!silent) plog("Every photo is already stored in Drive."); return; }
-  if(!hasDrive()){ if(!silent) plog("No Drive connection from this view — photos stay on this computer only.",true); return; }
-  let ok=0,bad=0;
-  for(const p of todo){
-    try{ await pushPhotoToDrive(p); ok++; }catch(e){ bad++; }
-    if(!silent) storageLine("Backing up "+(ok+bad)+" of "+todo.length+"…");
-  }
-  save(); storageLine(); drawPhotos();
-  if(!silent) plog(ok+" photo(s) now stored permanently in Drive"+(bad?", "+bad+" failed":"")+".");
-}
-async function restorePhotosFromDrive(){
-  const need=S.photos.filter(p=>!IMG[p.id]&&(p.driveId||!p.local));
-  if(!need.length||!hasDrive()) return 0;
-  let n=0;
-  for(const p of need){
-    const fid=p.driveId||p.id;
-    try{
-      const d=await callTool("download_file_content",{fileId:fid});
-      const b64=d.content||d.base64Content; if(!b64) continue;
-      IMG[p.id]="data:"+(d.mimeType&&d.mimeType.indexOf("image/")===0?d.mimeType:"image/jpeg")+";base64,"+b64;
-      imgPut(p.id,IMG[p.id]); n++;
-      storageLine("Restoring photographs from Drive… "+n+" of "+need.length);
-    }catch(e){}
-  }
-  storageLine(); drawPhotos(); drawZone();
-  return n;
-}
 function storageLine(msg){
   const el=$("#storeLine"); if(!el) return;
   if(msg){ el.innerHTML='<b>'+esc(msg)+'</b>'; return; }
-  const tot=S.photos.length, inDrive=S.photos.filter(p=>p.driveId||!p.local).length,
-        loaded=S.photos.filter(p=>IMG[p.id]).length;
-  el.innerHTML='<b>Photo storage.</b> '+tot+' photograph(s) · <b>'+inDrive+'</b> stored permanently in Drive · '
-    +loaded+' loaded right now'
-    +(tot-inDrive>0?' · <span style="color:#B80001">'+(tot-inDrive)
-      +' only on this computer and will be lost — press Back up to Drive</span>':'')
-    +(tot&&inDrive===tot?' · <span style="color:#4E7A33">safe, they will come back every time you open this</span>':'');
-}
-
-/* ---------- match a Drive folder name to an area ---------- */
-function areaFromFolder(fname){
-  if(!fname) return "";
-  const n=String(fname).toLowerCase().replace(/[_\-]+/g," ").replace(/\s+/g," ").trim();
-  const keys=AREAKEYS();
-  let hit=keys.find(a=>n===a.toLowerCase()); if(hit) return hit;
-  hit=keys.find(a=>n.indexOf(a.toLowerCase())>=0); if(hit) return hit;
-  const m=n.match(/shed\s*([1-9])/); if(m&&keys.indexOf("Shed "+m[1])>=0) return "Shed "+m[1];
-  if(/office/.test(n)&&keys.indexOf("Office block")>=0) return "Office block";
-  if(/(first|1st|upper)\s*floor/.test(n)&&keys.indexOf("First floor")>=0) return "First floor";
-  if(/(yard|exterior|outside|external|compound)/.test(n)&&keys.indexOf("Front yard")>=0) return "Front yard";
-  if(/(utility|tank|pump)/.test(n)&&keys.indexOf("Utility block")>=0) return "Utility block";
-  return "";
+  const tot=S.photos.length, stored=S.photos.filter(p=>p.url).length, loaded=S.photos.filter(p=>IMG[p.id]).length;
+  el.innerHTML='<b>Photo storage.</b> '+tot+' photograph(s) · <b>'+stored+'</b> stored in the cloud · '
+    +loaded+' visible right now'
+    +(tot&&stored===tot?' · <span style="color:#4E7A33">all backed up — visible to the whole team.</span>':'');
 }
 
 /* ---------- photo system diagnostics ---------- */
 async function photoDiag(){
   const out=[]; const ok=b=>b?'<span style="color:#4E7A33">WORKS</span>':'<span style="color:#B80001">BLOCKED</span>';
   out.push('<b>Photo system check</b>');
-  const hasCowork=!!(window.cowork&&window.cowork.callMcpTool);
-  out.push('Drive connection: '+ok(hasCowork)
-    +(hasCowork?'':' — this copy has no Drive link, so "Load from Drive" cannot work. Upload from the computer instead.'));
+  const configured=backendConfigured();
+  out.push('Backend URL configured: '+ok(configured)+(configured?'':' — set API_BASE near the top of the script to your deployed backend.'));
+  if(configured){
+    try{ const r=await fetch(API_BASE+"/api/health"); out.push('Backend reachable: '+ok(r.ok)); }
+    catch(e){ out.push('Backend reachable: '+ok(false)+' — '+esc(e.message)); }
+  }
   let fileOK=true; try{ document.createElement("input").type="file"; }catch(e){ fileOK=false; }
   out.push('File picker: '+ok(fileOK));
-  let idbOK=false; try{ await imgPut("__t","x"); idbOK=true; }catch(e){ idbOK=false; }
-  out.push('Photo storage between sessions: '+ok(idbOK)
-    +(idbOK?'':' — photos will still work but must be re-added each session.'));
   const withImg=S.photos.filter(p=>IMG[p.id]).length;
-  out.push('Photos recorded: <b>'+S.photos.length+'</b>, of which <b>'+withImg+'</b> have an image loaded'
-    +(S.photos.length&&!withImg?' — the records are there but the pictures did not download. Press Load from Drive again, or re-upload.':''));
+  out.push('Photos recorded: <b>'+S.photos.length+'</b>, of which <b>'+withImg+'</b> are visible now'
+    +(S.photos.length&&!withImg?' — press Sync now on the top bar to re-pull them.':''));
   const tagged=S.photos.filter(p=>p.area).length;
   out.push('Tagged to an area: <b>'+tagged+'</b>'+(S.photos.length&&!tagged?' — untagged photos will not show inside a block panel.':''));
-  if(hasCowork){
-    const id=parseFolder($("#purl").value);
-    out.push('Folder id read from the link: '+(id?('<b>'+esc(id)+'</b>'):'<span style="color:#B80001">could not read a folder id</span>'));
-    if(id){ try{ const r=await callTool("search_files",{query:"parentId = '"+id+"'",pageSize:20,excludeContentSnippets:true});
-        const fs2=r.files||[];
-        out.push('Folder reachable: '+ok(true)+' — '+fs2.length+' item(s), '
-          +fs2.filter(x=>(x.mimeType||"").indexOf("image/")===0).length+' image(s) directly inside, '
-          +fs2.filter(x=>x.mimeType==="application/vnd.google-apps.folder").length+' subfolder(s)');
-        if(!fs2.filter(x=>(x.mimeType||"").indexOf("image/")===0).length)
-          out.push('&nbsp;&nbsp;→ no images at this level. Tick <b>subfolders</b> before pressing Load from Drive.');
-      }catch(e){ out.push('Folder reachable: '+ok(false)+' — '+esc(e.message)); } }
-  }
   $("#pdiag").innerHTML='<div style="border:1px solid #dfe3e8;border-radius:7px;padding:9px 11px;background:#F6F6F6">'
     +out.join("<br/>")+'</div>';
 }
@@ -1960,15 +1816,12 @@ function showChanges(){
 }
 async function saveAllChanges(){
   const n=pendingCount();
-  if(hasDrive()){
-    BK("Saving "+n+" change(s) to Drive…");
-    try{ await saveToDrive(); }catch(e){}
-    try{ await backupPhotos(true); }catch(e){}
-  }
+  BK("Saving "+n+" change(s)…");
   S.savedCount=S.log.length; S.savedAt=new Date().toISOString(); save();
+  await pushState();
   drawChangeBar(); storageLine();
-  BK(hasDrive()? (n+" change(s) saved to Drive, photographs included.")
-               : (n+" change(s) saved on this computer. No Drive connection from this view."));
+  BK(syncState==="live" ? (n+" change(s) saved and synced to the team.")
+                         : (n+" change(s) saved on this computer — will sync once the connection is back."));
 }
 
 /* ---------- kinds of thing you can place on the plan ---------- */
@@ -2174,19 +2027,7 @@ function exportCopy(withPhotos){
     a.download="VIKRANT Control Room — "+dstr(new Date())+(withPhotos?" (with photos)":"")+".html";
     document.body.appendChild(a); a.click(); a.remove();
     BK("Complete copy downloaded ("+sizeOf(html)+"). Everything you have entered is inside that one file.");
-  }catch(e){ BK('<span style="color:#B80001">Could not write the file here. Use "Send complete copy to Drive" instead.</span>'); }
-}
-async function exportCopyToDrive(withPhotos){
-  BK("Building a complete copy…");
-  try{
-    const html=buildSelfContained(withPhotos);
-    BK("Uploading "+sizeOf(html)+"…");
-    const res=await callTool("create_file",{
-      title:"VIKRANT Control Room — "+dstr(new Date())+(withPhotos?" (with photos)":"")+".html",
-      parentId:F_DOCS,contentMimeType:"text/html",textContent:html,disableConversionToGoogleType:true});
-    BK('Sent to Drive ('+sizeOf(html)+'). '+(res.viewUrl?'<a href="'+res.viewUrl+'" target="_blank">Open</a> — ':'')
-      +'share that file and whoever opens it sees everything exactly as you left it.');
-  }catch(e){ BK('<span style="color:#B80001">Upload failed: '+esc(e.message)+'</span>'); }
+  }catch(e){ BK('<span style="color:#B80001">This browser could not write the file: '+esc(e.message)+'</span>'); }
 }
 
 /* ---------- tabs and boot ---------- */
@@ -2230,13 +2071,9 @@ $("#addRisk").onclick=()=>{ S.risks.push({id:"rk"+Date.now(),desc:"New risk",cat
 $("#expBoq").onclick=exportBOQ;
 $("#expDoc").onclick=exportDoc;
 $("#doPrint").onclick=()=>window.print();
-$("#saveDrive").onclick=saveToDrive;
-$("#loadDrive").onclick=listBackups;
 $("#dlBackup").onclick=downloadBackup;
 $("#shareDl").onclick=()=>exportCopy(false);
 $("#shareDlP").onclick=()=>exportCopy(true);
-$("#shareDrive").onclick=()=>exportCopyToDrive(false);
-$("#shareDriveP").onclick=()=>exportCopyToDrive(true);
 $("#upBackup").onclick=()=>$("#fileIn").click();
 $("#fileIn").onchange=e=>{ const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
@@ -2246,11 +2083,7 @@ $("#fileIn").onchange=e=>{ const f=e.target.files[0]; if(!f) return;
 $("#addTaskTop").onclick=()=>{ S.tasks.push({id:"t"+Date.now(),area:S.sel,desc:"New work item",
   owner:"",due:"",status:"Not started",boqId:null,phase:1}); save(); redraw(); };
 $("#tFilter").onchange=drawTasks; $("#tStat").onchange=drawTasks;
-$("#pgo").onclick=loadPhotos;
 $("#pDiag").onclick=photoDiag;
-$("#pBackup").onclick=()=>backupPhotos(false);
-$("#pRestore").onclick=async()=>{ const n=await restorePhotosFromDrive();
-  plog(n?(n+" photograph(s) restored from Drive."):"Nothing to restore."); };
 $("#pCam").onclick=openCam;
 $("#camShot").onclick=camCapture;
 $("#camClose").onclick=closeCam;
@@ -2264,22 +2097,23 @@ $("#camSwap").onclick=()=>{ camFacing=(camFacing==="environment")?"user":"enviro
       dz.style.borderColor="#BEBDB8"; dz.style.color="#6b7684";
       const fl=[...(e.dataTransfer&&e.dataTransfer.files||[])];
       if(fl.length) handleUpload(fl); }); }); })();
-$("#ptest").onclick=testDrive;
 $("#pUpload").onclick=()=>$("#photoIn").click();
 $("#pNewArea").onclick=()=>{ const n=addNewArea(); if(n){ $("#pUpArea").value=n; } };
 $("#photoIn").onchange=e=>{ handleUpload([...e.target.files]); e.target.value=""; };
-$("#purl").value="https://drive.google.com/drive/folders/"+ROOT;
 $("#pUpArea").innerHTML='<option value="">Tag later</option>'
   +AREAKEYS().map(a=>'<option>'+esc(a)+'</option>').join("");
 
+/* every photo already carrying a Cloudinary URL renders immediately, before any network round-trip */
+S.photos.forEach(p=>{ if(p.url) IMG[p.id]=p.url; });
 drawTabs(); redraw(); showTab(S.tab||"plan");
 storageLine();
-imgLoadAll().then(async n=>{
-  if(n){ drawPhotos(); drawZone(); }
-  storageLine();
-  const back=await restorePhotosFromDrive();
-  if(back||n) storageLine();
-});
+if(!backendConfigured()){
+  setSyncState("offline","set API_BASE near the top of the script to your deployed backend");
+} else {
+  setSyncState("syncing");
+  pullState().then(applied=>{ if(!applied) pushState(); });   // seed the server if it has nothing yet
+  setInterval(()=>{ if(!anyInputFocused()&&!modalOpen()) pullState(); },20000);
+}
 </script>
 </body>
 </html>
