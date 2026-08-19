@@ -216,6 +216,11 @@ this is a planning and control tool, not a design or a professional cost certifi
   <h2>Cash flow and fund release</h2>
   <p class="small">Derived from the BOQ, spread across each line's phase window. Adjust an activity's dates on the
   Schedule tab and the curve moves with it.</p>
+  <h3>Budget vs. actual</h3>
+  <p class="small">Enter what has actually been spent on a BOQ line from its <b>Edit</b> button on the BOQ &amp; cost
+  tab — this table compares it against the planned amount, by trade.</p>
+  <table id="actualTable"></table>
+  <h3>Cash flow profile</h3>
   <div id="cashChart"></div>
   <table id="cashTable"></table>
   <h3>Payment and retention terms assumed</h3>
@@ -279,6 +284,29 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div id="pdiag" class="small" style="margin-bottom:8px"></div>
   <div id="plog" class="small"></div>
   <div class="grid" id="photoGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px;margin-top:12px"></div>
+  <p class="small" style="margin-top:8px">Click a photo to open it, drop punch-list pins on it, or tag it as
+  <b>Before</b> / <b>After</b> from the dropdown under it to use it in the comparison below.</p>
+
+  <h3 style="margin-top:22px">Before / after comparison</h3>
+  <div class="tools"><label>Area <select id="cmpArea"></select></label></div>
+  <div id="compareBox"></div>
+</div>
+
+<!-- ============ DAILY LOG ============ -->
+<div class="page" id="p_daylog">
+  <h2>Daily site log</h2>
+  <p class="small">One entry per day — weather, who was on site, what happened. Useful for tracking delays and
+  settling disputes with a contractor later.</p>
+  <div class="tools">
+    <input type="date" id="dlDate">
+    <select id="dlWeather"><option>Clear</option><option>Cloudy</option><option>Rain — full day</option>
+      <option>Rain — partial day</option><option>Extreme heat</option></select>
+    <input type="number" id="dlCrew" placeholder="Crew on site" style="width:120px" min="0">
+    <button id="dlAdd" class="primary">Add entry</button>
+  </div>
+  <textarea id="dlNotes" placeholder="What happened today — progress, issues, deliveries, visitors…"
+    style="width:100%;min-height:60px;margin-top:6px"></textarea>
+  <div id="dailyLogList" style="margin-top:14px"></div>
 </div>
 
 <!-- ============ BRIEF ============ -->
@@ -553,6 +581,7 @@ if(S.cess==null) S.cess=1; if(S.ins==null) S.ins=0.2;
 if(!Array.isArray(S.tasks)) S.tasks=[];
 if(!Array.isArray(S.photos)) S.photos=[];
 if(S.siteMap===undefined) S.siteMap=null;
+if(!Array.isArray(S.dailyLogs)) S.dailyLogs=[];
 if(!Array.isArray(S.extraAreas)) S.extraAreas=[];
 if(!Array.isArray(S.userZones)) S.userZones=[];
 if(!Array.isArray(S.log)) S.log=[];
@@ -635,6 +664,7 @@ async function pullState(){
     Object.keys(RATES0).forEach(k=>{ if(S.rates[k]==null) S.rates[k]=RATES0[k].v; });
     if(!Array.isArray(S.tasks)) S.tasks=[];
     if(!Array.isArray(S.photos)) S.photos=[];
+    if(!Array.isArray(S.dailyLogs)) S.dailyLogs=[];
     USERZ=S.userZones=S.userZones||[];
     S.photos.forEach(p=>{ if(p.url) IMG[p.id]=p.url; });
     lastPulledAt=d.updatedAt;
@@ -1298,7 +1328,32 @@ function cashMonths(){
   });
   return map;
 }
+function drawActualVsPlanned(){
+  const el=$("#actualTable"); if(!el) return;
+  const trades=[...new Set(S.boq.map(b=>b.trade))].sort();
+  let h='<tr><th>Trade</th><th class="n">Planned ₹</th><th class="n">Actual ₹</th><th class="n">Variance ₹</th><th class="n">% of plan spent</th></tr>';
+  let tp=0,ta=0,anySpend=false;
+  trades.forEach(tr=>{
+    const rows=S.boq.filter(b=>b.trade===tr);
+    const planned=rows.reduce((s,b)=>s+amt(b),0);
+    const rowsWithActual=rows.filter(b=>b.actualAmt!=null);
+    const actual=rowsWithActual.reduce((s,b)=>s+b.actualAmt,0);
+    tp+=planned; if(rowsWithActual.length){ ta+=actual; anySpend=true; }
+    const has=rowsWithActual.length>0;
+    const variance=actual-planned;
+    h+='<tr><td><b>'+esc(tr)+'</b></td><td class="n">'+inr(planned)+'</td>'
+      +'<td class="n">'+(has?inr(actual):'<span class="small">—</span>')+'</td>'
+      +'<td class="n">'+(has?('<span style="color:'+(variance>0?"#B80001":"#4E7A33")+'">'+(variance>0?"+":"")+inr(variance)+'</span>'):'<span class="small">—</span>')+'</td>'
+      +'<td class="n">'+(has&&planned?(actual/planned*100).toFixed(0)+"%":'<span class="small">—</span>')+'</td></tr>';
+  });
+  h+='<tr class="tot"><td>TOTAL</td><td class="n">'+inr(tp)+'</td>'
+    +'<td class="n">'+(anySpend?inr(ta):'<span class="small">—</span>')+'</td>'
+    +'<td class="n">'+(anySpend?inr(ta-tp):'<span class="small">—</span>')+'</td>'
+    +'<td class="n">'+(anySpend&&tp?(ta/tp*100).toFixed(0)+"%":'<span class="small">—</span>')+'</td></tr>';
+  el.innerHTML=h;
+}
 function drawCash(){
+  drawActualVsPlanned();
   const m=cashMonths(), keys=Object.keys(m).sort();
   const t=totals(), onc=(t.grand-t.base)/(t.base||1);
   let cum=0, mx=Math.max(1,...keys.map(k=>m[k]*(1+onc)));
@@ -1517,23 +1572,145 @@ async function handleUpload(files){
   plog(ok+" photo(s) uploaded"+(area?(" to "+area):" — tag them below")+(fail?(", "+fail+" failed"):"")+".");
   if(ok){ logChange(ok+' photograph(s) added'+(area?(' to '+area):'')); toast(ok+" photo(s) uploaded"); }
 }
+/* photo metadata (area/kind) is written straight to the DB — see /api/photos PATCH — so a
+   later full-state save can never revert a re-tag the way it would for the photos array itself */
+async function patchPhotoField(id,field,value){
+  try{
+    if(!backendConfigured()) return;
+    const body={}; body[field]=value;
+    const r=await fetch(API_BASE+"/api/photos/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+  }catch(e){ toast("Could not save photo tag — "+e.message,true); }
+}
 function drawPhotos(){
-  $("#photoGrid").innerHTML=S.photos.map(p=>
-    '<div style="border:1px solid #dfe3e8;border-radius:7px;overflow:hidden;background:#fff'
+  $("#photoGrid").innerHTML=S.photos.map(p=>{
+    const pins=S.tasks.filter(t=>t.photoId===p.id);
+    const openPins=pins.filter(t=>t.status!=="Done").length;
+    return '<div style="border:1px solid #dfe3e8;border-radius:7px;overflow:hidden;background:#fff'
     +(p.area?';border-color:#0C013D':'')+'">'
-    +(IMG[p.id]?'<img src="'+IMG[p.id]+'" data-pv="'+p.id+'" style="width:100%;height:110px;object-fit:cover;cursor:zoom-in">'
+    +'<div style="position:relative">'
+    +(IMG[p.id]?'<img src="'+IMG[p.id]+'" data-pv="'+p.id+'" style="width:100%;height:110px;object-fit:cover;cursor:zoom-in;display:block">'
       :'<div style="height:110px;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px">not loaded</div>')
+    +(pins.length?'<span style="position:absolute;top:4px;right:4px;background:'+(openPins?"#B80001":"#4E7A33")
+      +';color:#fff;font-size:10px;padding:1px 6px;border-radius:9px">'+pins.length+' pin'+(pins.length>1?"s":"")+'</span>':'')
+    +(p.kind==="before"?'<span style="position:absolute;top:4px;left:4px;background:#0C013D;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">BEFORE</span>'
+      :p.kind==="after"?'<span style="position:absolute;top:4px;left:4px;background:#4E7A33;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">AFTER</span>':'')
+    +'</div>'
     +'<div class="small" style="padding:4px 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'
-    +'<select data-pa="'+p.id+'" style="width:calc(100% - 12px);margin:5px 6px;font-size:11px">'
+    +'<select data-pa="'+p.id+'" style="width:calc(100% - 12px);margin:5px 6px 3px;font-size:11px">'
     +'<option value="">Untagged</option>'
     +AREAKEYS().map(a=>'<option'+(p.area===a?" selected":"")+'>'+esc(a)+'</option>').join("")
-    +'</select></div>').join("")
+    +'</select>'
+    +'<select data-pk="'+p.id+'" style="width:calc(100% - 12px);margin:0 6px 6px;font-size:11px">'
+    +'<option value=""'+(!p.kind?" selected":"")+'>General / progress photo</option>'
+    +'<option value="before"'+(p.kind==="before"?" selected":"")+'>Before photo</option>'
+    +'<option value="after"'+(p.kind==="after"?" selected":"")+'>After photo</option>'
+    +'</select></div>';
+  }).join("")
     ||'<div class="small">No photos loaded yet.</div>';
   document.querySelectorAll("[data-pa]").forEach(i=>{i.onchange=e=>{
-    S.photos.find(p=>p.id===e.target.dataset.pa).area=e.target.value; save(); drawPhotos(); drawZone();};});
-  document.querySelectorAll("[data-pv]").forEach(i=>{i.onclick=()=>{
-    const w=window.open("","_blank");
-    if(w) w.document.write('<img src="'+IMG[i.dataset.pv]+'" style="max-width:100%">'); };});
+    const p=S.photos.find(x=>x.id===e.target.dataset.pa); p.area=e.target.value;
+    save(); drawPhotos(); drawZone(); patchPhotoField(p.id,"area",p.area);};});
+  document.querySelectorAll("[data-pk]").forEach(i=>{i.onchange=e=>{
+    const p=S.photos.find(x=>x.id===e.target.dataset.pk); p.kind=e.target.value||null;
+    save(); drawPhotos(); drawCompare(); patchPhotoField(p.id,"kind",p.kind);};});
+  document.querySelectorAll("[data-pv]").forEach(i=>{i.onclick=()=>renderPhotoLightbox(i.dataset.pv);});
+}
+/* ---------- photo lightbox with punch-list pins ---------- */
+function renderPhotoLightbox(photoId){
+  const p=S.photos.find(x=>x.id===photoId); if(!p){ closeModal(); return; }
+  const pins=S.tasks.filter(t=>t.photoId===photoId);
+  let h='<div style="width:min(640px,80vw)">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">'
+    +'<b style="color:#0C013D">'+esc(p.name)+(p.area?' — '+esc(p.area):'')+'</b>'
+    +'<button class="sm" id="lbFull">Open original</button></div>'
+    +'<div class="small" style="margin-bottom:6px">Click anywhere on the photo to drop a punch-list pin.</div>'
+    +'<div id="lbImgWrap" style="position:relative;cursor:crosshair;border-radius:6px;overflow:hidden;line-height:0">'
+    +'<img src="'+attr(IMG[p.id]||p.url)+'" style="width:100%;display:block" id="lbImg">'
+    +pins.map((t,i)=>'<div title="'+attr(t.desc)+'" style="position:absolute;left:'+t.px+'%;top:'+t.py
+      +'%;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;'
+      +'justify-content:center;font-size:10px;font-weight:700;color:#fff;background:'
+      +(t.status==="Done"?"#4E7A33":t.status==="Blocked"?"#B80001":"#F6C547")
+      +';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+(i+1)+'</div>').join("")
+    +'</div>'
+    +(pins.length?'<table style="margin-top:10px"><tr><th style="width:6%">#</th><th>Punch item</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr>'
+      +pins.map((t,i)=>'<tr><td>'+(i+1)+'</td>'
+        +'<td><input data-lbd="'+t.id+'" value="'+attr(t.desc)+'" style="width:100%"></td>'
+        +'<td><input data-lbo="'+t.id+'" value="'+attr(t.owner)+'" style="width:88px"></td>'
+        +'<td><input type="date" data-lbu="'+t.id+'" value="'+attr(t.due)+'"></td>'
+        +'<td><select data-lbs="'+t.id+'">'+["Not started","In progress","Blocked","Done"].map(x=>'<option'+(t.status===x?" selected":"")+'>'+x+'</option>').join("")+'</select></td>'
+        +'<td><button class="sm warn" data-lbx="'+t.id+'">×</button></td></tr>').join("")
+      +'</table>'
+      :'<div class="small" style="margin-top:8px">No punch items pinned on this photo yet.</div>')
+    +'</div>';
+  openModal(h);
+  $("#lbFull").onclick=()=>window.open(p.url,"_blank");
+  $("#lbImgWrap").onclick=ev=>{
+    if(ev.target.id!=="lbImg") return;
+    const r=ev.target.getBoundingClientRect();
+    const px=Math.round((ev.clientX-r.left)/r.width*1000)/10, py=Math.round((ev.clientY-r.top)/r.height*1000)/10;
+    const desc=(prompt("Describe the issue at this spot:","")||"").trim();
+    if(!desc) return;
+    S.tasks.push({id:"t"+Date.now(),area:p.area||"Site",desc,owner:"",due:"",status:"Not started",
+      boqId:null,phase:1,photoId:photoId,px,py});
+    logChange('Punch item added on photo "'+(p.name||"")+'"'); save(); redraw(); renderPhotoLightbox(photoId);
+  };
+  const b=(sel,fn)=>document.querySelectorAll(sel).forEach(i=>{i.onchange=e=>{
+    const t=S.tasks.find(x=>x.id===e.target.dataset[Object.keys(e.target.dataset)[0]]);
+    fn(t,e.target); save(); redraw(); };});
+  b("[data-lbd]",(t,e)=>t.desc=e.value); b("[data-lbo]",(t,e)=>t.owner=e.value);
+  b("[data-lbu]",(t,e)=>t.due=e.value); b("[data-lbs]",(t,e)=>t.status=e.value);
+  document.querySelectorAll("[data-lbx]").forEach(x=>{x.onclick=()=>{
+    S.tasks=S.tasks.filter(y=>y.id!==x.dataset.lbx); save(); redraw(); renderPhotoLightbox(photoId);};});
+}
+/* ---------- before / after comparison slider ---------- */
+function drawCompare(){
+  const sel=$("#cmpArea"), box=$("#compareBox");
+  if(!sel||!box) return;
+  const cur=sel.value;
+  const areas=[...new Set(S.photos.filter(p=>p.kind==="before"||p.kind==="after").map(p=>p.area).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">Choose an area…</option>'+areas.map(a=>'<option'+(cur===a?" selected":"")+'>'+esc(a)+'</option>').join("");
+  if(cur&&areas.includes(cur)) sel.value=cur;
+  sel.onchange=drawCompare;
+  const area=sel.value;
+  if(!area){ box.innerHTML='<div class="small">Tag at least one photo "Before" and one "After" for an area above, then pick that area here.</div>'; return; }
+  const before=S.photos.filter(p=>p.area===area&&p.kind==="before"&&IMG[p.id]).slice(-1)[0];
+  const after=S.photos.filter(p=>p.area===area&&p.kind==="after"&&IMG[p.id]).slice(-1)[0];
+  if(!before||!after){ box.innerHTML='<div class="small">'+esc(area)+' needs at least one photo tagged "Before" and one tagged "After" to compare.</div>'; return; }
+  box.innerHTML='<div id="cmpWrap" style="position:relative;height:420px;max-width:640px;border-radius:8px;overflow:hidden;border:1px solid #dfe3e8;background:#000">'
+    +'<img src="'+attr(after.url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">'
+    +'<img id="cmpBeforeImg" src="'+attr(before.url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;clip-path:inset(0 50% 0 0)">'
+    +'<div id="cmpHandleLine" style="position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff;box-shadow:0 0 6px rgba(0,0,0,.5);pointer-events:none"></div>'
+    +'<div id="cmpHandleDot" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:34px;height:34px;'
+    +'border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;'
+    +'font-size:14px;color:#0C013D;pointer-events:none">↔</div>'
+    +'<input type="range" id="cmpRange" min="0" max="100" value="50" style="position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize">'
+    +'<span class="pill" style="position:absolute;bottom:8px;left:8px;background:#0C013D;color:#fff;pointer-events:none">BEFORE</span>'
+    +'<span class="pill" style="position:absolute;bottom:8px;right:8px;background:#4E7A33;color:#fff;pointer-events:none">AFTER</span>'
+    +'</div>';
+  const range=$("#cmpRange");
+  const update=()=>{ const v=range.value;
+    $("#cmpBeforeImg").style.clipPath="inset(0 "+(100-v)+"% 0 0)";
+    $("#cmpHandleLine").style.left=v+"%"; $("#cmpHandleDot").style.left=v+"%"; };
+  range.oninput=update; update();
+}
+/* ---------- daily site log ---------- */
+function drawDailyLog(){
+  const el=$("#dailyLogList"); if(!el) return;
+  if($("#dlDate")&&!$("#dlDate").value) $("#dlDate").value=dstr(new Date());
+  const rows=[...S.dailyLogs].sort((a,b)=>b.date.localeCompare(a.date));
+  el.innerHTML=rows.length?rows.map(l=>
+    '<div style="border:1px solid #dfe3e8;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#F6F6F6">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+    +'<b style="color:#0C013D">'+esc(l.date)+'</b>'
+    +'<span class="small">'+esc(l.weather||"")+(l.crew?' · '+l.crew+' on site':'')
+    +' <button class="sm warn" data-dlx="'+l.id+'" style="margin-left:8px">×</button></span></div>'
+    +(l.notes?'<div class="small" style="margin-top:4px;white-space:pre-wrap">'+esc(l.notes)+'</div>':'')
+    +'</div>').join("")
+    :'<div class="small">No daily log entries yet.</div>';
+  document.querySelectorAll("[data-dlx]").forEach(x=>{x.onclick=()=>{
+    if(!confirm("Delete this daily log entry?")) return;
+    S.dailyLogs=S.dailyLogs.filter(y=>y.id!==x.dataset.dlx); save(); drawDailyLog();};});
 }
 
 /* ---------- brief ---------- */
@@ -1974,6 +2151,8 @@ function openBoqEditor(id){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
     +fRow("Rate ₹",'<input id="mRate" style="width:100%" value="'+rateOf(b)+'">')
     +fRow("Amount ₹",'<input id="mAmt" style="width:100%" value="'+Math.round(amt(b))+'">')+'</div>'
+    +fRow("Actual spent so far ₹ (optional)",'<input id="mActual" style="width:100%" value="'
+      +(b.actualAmt!=null?b.actualAmt:"")+'" placeholder="Leave blank until billed">')
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
     +fRow("Status",'<select id="mStat" style="width:100%">'
       +opts(["Not started","Tendered","Awarded","In progress","Done"],b.status)+'</select>')
@@ -2002,6 +2181,8 @@ function openBoqEditor(id){
     if(k && r===(S.rates[k]!=null?S.rates[k]:RATEDEF()[k].v)){ b.rateKey=k; b.rate=null; }
     else { b.rateKey=k||null; b.rate=r; }
     b.status=$("#mStat").value; b.owner=$("#mOwner").value;
+    const av=$("#mActual").value.trim();
+    b.actualAmt=av===""?null:num(av);
     logChange('Edited BOQ line "'+b.desc.slice(0,60)+'" in '+b.area+' — now '+inr(amt(b)));
     const t=S.tasks.find(x=>x.boqId===id); if(t){ t.desc=b.desc; t.area=b.area; t.owner=b.owner; }
     save(); closeModal(); redraw(); };
@@ -2078,7 +2259,7 @@ function exportCopy(withPhotos){
 
 /* ---------- tabs and boot ---------- */
 const TABS=[["plan","Site plan"],["boq","BOQ &amp; cost"],["task","Work items"],["photo","Photos"],
-            ["sched","Schedule"],["appr","Approvals"],["cash","Cash flow"],["risk","Risks"],
+            ["daylog","Daily log"],["sched","Schedule"],["appr","Approvals"],["cash","Cash flow"],["risk","Risks"],
             ["brief","Brief &amp; export"]];
 function showTab(id){ S.tab=id; save();
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===id));
@@ -2095,7 +2276,7 @@ function drawTabs(){ $("#tabs").innerHTML=TABS.map(t=>'<div class="tab" data-t="
 window.addEventListener("resize",()=>positionTabIndicator());
 
 function redraw(){ drawChangeBar(); drawKPIs(); drawSiteMap(); drawPlan(); drawOpenLand(); drawZone(); drawAreaTable(); drawBOQ(); drawRates();
-  drawTasks(); drawPhotos(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
+  drawTasks(); drawPhotos(); drawCompare(); drawDailyLog(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
 
 $("#grpBy").onchange=drawBOQ;
 $("#boqFind").oninput=drawBOQ;
@@ -2151,6 +2332,13 @@ $("#camSwap").onclick=()=>{ camFacing=(camFacing==="environment")?"user":"enviro
       dz.style.borderColor="#BEBDB8"; dz.style.color="#6b7684";
       const fl=[...(e.dataTransfer&&e.dataTransfer.files||[])];
       if(fl.length) handleUpload(fl); }); }); })();
+$("#dlAdd").onclick=()=>{
+  const date=$("#dlDate").value||dstr(new Date());
+  S.dailyLogs.push({id:"dl"+Date.now(),date,weather:$("#dlWeather").value,
+    crew:parseInt($("#dlCrew").value)||0, notes:$("#dlNotes").value.trim()});
+  $("#dlNotes").value=""; $("#dlCrew").value="";
+  logChange("Daily log entry added for "+date); save(); drawDailyLog(); toast("Daily log entry added");
+};
 $("#mapUpload").onclick=()=>$("#mapIn").click();
 $("#mapIn").onchange=e=>{ const f=e.target.files[0]; if(f) uploadSiteMap(f); e.target.value=""; };
 $("#pUpload").onclick=()=>$("#photoIn").click();
