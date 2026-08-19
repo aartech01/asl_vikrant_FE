@@ -1,0 +1,2285 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+:root { color-scheme: light }
+* { box-sizing: border-box }
+body { margin:0; padding:16px; background:#fff; color:#1f2328;
+       font-family:"Barlow","Segoe UI",Roboto,Arial,sans-serif; font-size:13px }
+h1 { font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif; font-size:30px;
+     font-weight:400; letter-spacing:.3px; margin:0 0 2px; color:#B80001; text-transform:uppercase }
+h2 { font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif; font-size:21px; font-weight:400;
+     letter-spacing:.2px; margin:22px 0 9px; color:#0C013D; text-transform:uppercase }
+h3 { font-family:"Barlow","Segoe UI",Arial,sans-serif; font-size:13px; font-weight:600;
+     margin:16px 0 7px; color:#0C013D; text-transform:uppercase; letter-spacing:.4px }
+.sub { color:#57606a; font-size:12px; margin:0 0 14px }
+button { font:inherit; padding:7px 13px; border-radius:6px; border:1px solid #d0d7de;
+         background:#F6F6F6; cursor:pointer; margin:0 6px 6px 0; font-size:12px }
+button:hover:not(:disabled){ background:#E4E4EA }
+button.primary { background:#0C013D; color:#fff; border-color:#0C013D; font-weight:600 }
+button.warn { background:#FEF6E0; border-color:#F6C547; color:#7A5C00 }
+button.sm { font-size:11px; padding:2px 7px; margin:0 3px 0 0 }
+input,select,textarea { font:inherit; font-size:12px; padding:4px 6px; border:1px solid #d0d7de;
+                        border-radius:5px; background:#fff }
+input.num { text-align:right; width:88px }
+input.qty { text-align:right; width:76px }
+table { border-collapse:collapse; width:100%; font-size:12px }
+th,td { border:1px solid #dfe3e8; padding:5px 7px; text-align:left; vertical-align:top }
+th { background:#EDEDF3; font-weight:600; color:#0C013D; position:sticky; top:0 }
+td.n,th.n { text-align:right; white-space:nowrap }
+tr.grp td { background:#EDEDF3; font-weight:600; color:#0C013D; text-transform:uppercase; letter-spacing:.3px }
+tr.tot td { background:#E0E0EA; font-weight:700 }
+.tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:2px solid #0C013D; margin:14px 0 0 }
+.tab { padding:8px 14px; cursor:pointer; border:1px solid transparent; border-bottom:none;
+       border-radius:6px 6px 0 0; font-size:13px; color:#57606a }
+.tab.on { background:#fff; border-color:#e1e4e8; color:#B80001; font-weight:600;
+          box-shadow:0 2px 0 0 #fff; margin-bottom:-2px }
+.page { display:none; padding-top:14px } .page.on { display:block }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:12px 0 4px }
+.kpi { border:1px solid #dfe3e8; border-radius:8px; padding:10px 12px; background:#F6F6F6 }
+.kpi .lab { font-size:9.5px; text-transform:uppercase; letter-spacing:.7px; color:#B80001; font-weight:600 }
+.kpi .val { font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif; font-size:25px;
+            font-weight:400; color:#0C013D; margin-top:2px; letter-spacing:.3px }
+.kpi .sub2 { font-size:11px; color:#6b7684; margin-top:2px }
+.kpi.alert .val { color:#B80001 } .kpi.good .val { color:#4E7A33 }
+.note { background:#F6F6F6; border-left:3px solid #0C013D; padding:9px 12px;
+        border-radius:0 5px 5px 0; font-size:12px; margin:10px 0 14px }
+.note.amber { border-left-color:#F6C547; background:#FEFAEE }
+.note.red { border-left-color:#DE0001; background:#FDF2F2 }
+.plan { display:grid; grid-template-columns:minmax(300px,1fr) minmax(260px,340px); gap:16px; align-items:start }
+svg .zn { cursor:pointer } svg .zn:hover .fill { fill-opacity:.85 }
+svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
+.legend { font-size:11px; display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
+.legend i { width:11px; height:11px; display:inline-block; border-radius:2px; margin-right:4px; vertical-align:-1px }
+.det { border:1px solid #dfe3e8; border-radius:8px; padding:12px; background:#F6F6F6 }
+.det .big { font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif; font-size:22px;
+            font-weight:400; color:#0C013D; text-transform:uppercase }
+.bars { margin-top:6px }
+.barrow { display:flex; align-items:center; gap:7px; margin-bottom:4px; font-size:11px }
+.barrow .nm { width:120px; color:#57606a; flex:none }
+.barrow .tr { flex:1; background:#E4E4EA; border-radius:3px; height:13px; overflow:hidden }
+.barrow .fl { height:100%; background:#0C013D }
+.barrow .vl { width:88px; text-align:right; flex:none; font-variant-numeric:tabular-nums }
+.gantt { overflow-x:auto; border:1px solid #dfe3e8; border-radius:8px }
+.gantt table { font-size:11px; min-width:900px }
+.gantt td.cell { padding:0; height:22px; width:15px; border-left:1px solid #f0f2f4 }
+.gantt td.m0 { border-left:1px solid #c4ccd4 }
+.gbar { height:13px; border-radius:3px; background:#0C013D; margin:4px 0 }
+.gbar.p2 { background:#2602C2 } .gbar.crit { background:#B80001 }
+.gbar.done { background:#4E7A33 }
+.mile { color:#B80001; font-weight:700 }
+.pill { font-size:10px; padding:1px 7px; border-radius:9px; background:#EDEDF3; color:#42506b; white-space:nowrap }
+.pill.r { background:#FBE3E3; color:#B80001 } .pill.a { background:#FEF6E0; color:#7A5C00 }
+.pill.g { background:#E9F1E2; color:#4E7A33 }
+.tools { margin:10px 0 }
+.small { font-size:11px; color:#6b7684 }
+.rateGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:6px 14px }
+.rateGrid label { display:flex; align-items:center; gap:7px; font-size:11.5px }
+.rateGrid label span { flex:1; color:#42506b }
+@media print { .tabs,.tools,button{display:none} .page{display:block!important} }
+</style>
+</head>
+<body>
+
+<div style="border-left:6px solid #B80001;padding:2px 0 2px 14px;margin-bottom:4px">
+  <div style="font-size:9.5px;letter-spacing:1.4px;color:#0C013D;font-weight:600;text-transform:uppercase">
+    Aartech Solonics Limited &nbsp;·&nbsp; Unit 3</div>
+  <h1>Vikrant — Restoration &amp; Development Control Room</h1>
+  <div style="font-family:'Barlow',Arial,sans-serif;font-size:12.5px;color:#B80001">
+    We live our passion through engineering.</div>
+</div>
+<p class="sub">Plot 101.7 × 189.7 ft (0.443 acre) ·
+covered 10,895 sq ft · geometry read from drawing <i>asl unit 3 map</i></p>
+
+<div id="changeBar" style="margin:10px 0 4px"></div>
+<div class="kpis" id="kpis"></div>
+
+<div class="note amber">
+<b>How to use this.</b> Every rate, quantity, date and owner below is editable and saves automatically in this view.
+The cost model is built <b>bottom-up from measured quantities</b> off your drawing — no budget ceiling assumed.
+Default rates are <b>indicative Indian market benchmarks for 2026</b> and must be replaced with actual vendor
+quotations before you commit money. Structural, electrical and fire designs need sign-off by a licensed engineer;
+this is a planning and control tool, not a design or a professional cost certificate.
+</div>
+
+<div class="tabs" id="tabs"></div>
+
+<!-- ============ SITE PLAN ============ -->
+<div class="page" id="p_plan">
+  <h2>Block plan and zone status</h2>
+  <div class="plan">
+    <div>
+      <div id="svgwrap"></div>
+      <div class="legend" id="legend"></div>
+      <div class="tools" style="margin-top:8px">
+        <button id="addZone" class="primary">+ Add a future / vacant zone</button>
+        <button id="delZone">Remove selected zone</button>
+        <span id="placeMsg" class="small" style="color:#B80001;font-weight:600"></span>
+      </div>
+      <div id="openLand" class="small"></div>
+      <p class="small">Schematic block plan — block sizes and adjacency taken from the drawing; not a survey document.
+      Click a block to see its scope, cost and status.</p>
+    </div>
+    <div class="det" id="zoneDet">Click a block on the plan.</div>
+  </div>
+  <h3>Area schedule</h3>
+  <table id="areaTable"></table>
+</div>
+
+<!-- ============ BOQ ============ -->
+<div class="page" id="p_boq">
+  <h2>Bill of quantities and cost estimate</h2>
+  <div class="tools">
+    <button id="addRow">Add BOQ line</button>
+    <button id="newArea">+ New area / room</button>
+    <button id="resetBoq" class="warn">Reset to computed defaults</button>
+    <button id="expBoq" class="primary">Export BOQ to Google Sheet</button>
+    <label style="margin-left:10px">Group by
+      <select id="grpBy"><option value="area">Area</option><option value="trade">Trade</option>
+      <option value="phase">Phase</option></select></label>
+    <label style="margin-left:10px">Find
+      <input id="boqFind" placeholder="type part of a description" style="width:210px"></label>
+    <label style="margin-left:10px" title="Turn on to type directly into the table"><input type="checkbox" id="inlineChk"> quick edit in table</label>
+  </div>
+  <div class="note"><b>Three ways to price a line.</b> Type in <b>Amount</b> to set the total directly — the rate is
+  back-calculated for you. Or type a <b>Rate</b> and it multiplies by the quantity. Or change the rate once on the
+  rate card below and every line still using that rate re-prices together. A line you have priced by hand turns
+  <span style="background:#FEFAEE;padding:0 4px;border:1px solid #e8d3ae">cream</span> and stops following the rate card.</div>
+  <table id="boqTable"></table>
+  <h3>Rate card — edit to match your quotations (₹)</h3>
+  <p class="small">Changing a rate here re-prices every BOQ line linked to it. Lines you have priced by hand are left
+  alone. Rates you add yourself are shown on a cream background and can be removed.</p>
+  <div class="tools"><button id="addRate" class="primary">+ Add a rate</button>
+    <span id="rateMsg" class="small"></span></div>
+  <div class="rateGrid" id="rateGrid"></div>
+</div>
+
+<!-- ============ SCHEDULE ============ -->
+<div class="page" id="p_sched">
+  <h2>Execution schedule</h2>
+  <div class="note red" id="schedWarn"></div>
+  <div class="tools"><button id="addAct">Add activity</button>
+    <span class="small">Bars: <span class="pill r">critical</span> <span class="pill">Phase 1</span>
+    <span class="pill a">Phase 2</span> <span class="pill g">complete</span></span></div>
+  <div class="gantt" id="gantt"></div>
+  <h3>Activity list</h3>
+  <table id="actTable"></table>
+</div>
+
+<!-- ============ APPROVALS ============ -->
+<div class="page" id="p_appr">
+  <h2>Statutory approvals and compliance</h2>
+  <div class="note">Sequencing matters more than effort here. Consent to Establish and the power sanction have the
+  longest lead times and gate everything downstream — start those first, in parallel, not in series.</div>
+  <div class="tools"><button id="addAppr">Add approval</button></div>
+  <table id="apprTable"></table>
+</div>
+
+<!-- ============ CASH FLOW ============ -->
+<div class="page" id="p_cash">
+  <h2>Cash flow and fund release</h2>
+  <p class="small">Derived from the BOQ, spread across each line's phase window. Adjust an activity's dates on the
+  Schedule tab and the curve moves with it.</p>
+  <div id="cashChart"></div>
+  <table id="cashTable"></table>
+  <h3>Payment and retention terms assumed</h3>
+  <table id="termsTable"></table>
+</div>
+
+<!-- ============ RISK ============ -->
+<div class="page" id="p_risk">
+  <h2>Risk register</h2>
+  <div class="tools"><button id="addRisk">Add risk</button></div>
+  <table id="riskTable"></table>
+</div>
+
+<!-- ============ TASKS ============ -->
+<div class="page" id="p_task">
+  <h2>Work items and task list</h2>
+  <p class="small">Every task added from an area panel appears here. A task with an amount also creates a BOQ line,
+  so the cost model and the work list never drift apart.</p>
+  <div class="tools">
+    <button id="addTaskTop">Add work item</button>
+    <label style="margin-left:10px">Show
+      <select id="tFilter"><option value="">All areas</option></select></label>
+    <label style="margin-left:10px" title="Turn on to type directly into the table"><input type="checkbox" id="inlineChk2"> quick edit in table</label>
+    <label style="margin-left:10px">Status
+      <select id="tStat"><option value="">All</option><option>Not started</option><option>In progress</option>
+      <option>Blocked</option><option>Done</option></select></label>
+  </div>
+  <table id="taskTable"></table>
+  <h3>Load by person</h3>
+  <table id="loadTable"></table>
+</div>
+
+<!-- ============ PHOTOS ============ -->
+<div class="page" id="p_photo">
+  <h2>Site photographs by area</h2>
+  <p class="small">Load the survey photos once and tag each to an area. They then appear inside that area's panel on the
+  site plan, and in the exported report under the right heading.</p>
+  <div class="tools">
+    <button id="pUpload" class="primary">Choose photos from a folder</button>
+    <button id="pCam">Open camera</button>
+    <span class="small">into</span>
+    <select id="pUpArea"></select>
+    <button id="pNewArea" class="sm" style="padding:6px 11px;margin-left:4px">+ New area</button>
+    <input type="file" id="photoIn" accept="image/*" multiple style="display:none">
+  </div>
+  <div id="camBox" style="display:none;border:1px solid #0C013D;border-radius:8px;padding:10px;
+       margin-bottom:10px;background:#F6F6F6;max-width:520px">
+    <video id="camVid" autoplay playsinline muted style="width:100%;border-radius:6px;background:#252525"></video>
+    <div class="tools" style="margin-top:8px">
+      <button id="camShot" class="primary">Capture</button>
+      <button id="camSwap">Switch camera</button>
+      <button id="camClose">Close</button>
+      <span id="camMsg" class="small"></span>
+    </div>
+  </div>
+  <div id="dropZone" style="border:2px dashed #BEBDB8;border-radius:8px;padding:14px;text-align:center;
+       color:#6b7684;font-size:12px;margin-bottom:10px">
+    …or drag photos straight from a folder and drop them here</div>
+  <div class="tools">
+    <input id="purl" style="width:52%;min-width:260px" placeholder="…or pull from Drive: https://drive.google.com/drive/folders/…">
+    <button id="pgo">Load from Drive</button>
+    <button id="ptest">Test connection</button>
+    <label style="margin-left:6px"><input type="checkbox" id="pdeep" checked> subfolders</label>
+  </div>
+  <div id="storeLine" class="note" style="margin-bottom:8px"></div>
+  <div class="tools"><button id="pBackup" class="primary">Back up photos to Drive</button>
+    <button id="pRestore">Restore photos from Drive</button>
+    <button id="pDiag">Check what is wrong</button></div>
+  <div id="pdiag" class="small" style="margin-bottom:8px"></div>
+  <div id="plog" class="small"></div>
+  <div class="grid" id="photoGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px;margin-top:12px"></div>
+</div>
+
+<!-- ============ BRIEF ============ -->
+<div class="page" id="p_brief">
+  <h2>Project brief and design basis</h2>
+  <div id="briefBody"></div>
+  <div class="tools" style="margin-top:14px">
+    <button id="expDoc" class="primary">Export full project report to Google Docs</button>
+    <button id="doPrint">Print / save as PDF</button>
+  </div>
+  <div id="expStatus" class="small" style="margin-top:8px"></div>
+
+  <h2>Saving, sharing and carrying this forward</h2>
+  <div class="note"><b>Where everything is stored in Drive.</b>
+  <span class="small">VIKRANT Control Room ▸ <b>Photos</b> (every photograph you add) ·
+  <b>Working files</b> (your saved plan, one file per save) ·
+  <b>Reports and BOQ</b> (Google Docs reports, BOQ sheets, shareable copies).
+  <a href="https://drive.google.com/drive/folders/1PZ7cEWCo_tPNFUTASeHpSflT8BxFghXc" target="_blank">Open the folder</a></span></div>
+  <div class="note"><b>Where your work lives.</b> Every edit you make is stored inside this view on this computer.
+  That is convenient but it is not a backup and nobody else can see it. Use the buttons below to put a working file
+  into Drive — that is what makes the plan portable, shareable and safe.</div>
+  <div class="tools">
+    <button id="saveDrive" class="primary">Save working file to Drive</button>
+    <button id="loadDrive">Restore from Drive</button>
+    <button id="dlBackup">Download backup to this computer</button>
+    <button id="upBackup">Restore from a file</button>
+    <div style="margin-top:9px;padding-top:9px;border-top:1px solid #e1e4e8">
+      <b style="font-size:12px">Share one file that already contains everything</b>
+      <div class="small" style="margin:3px 0 6px">Builds a fresh copy of the whole tool with your data, and
+      optionally your photographs, sealed inside it. Whoever opens it sees exactly what you see — nothing to restore.</div>
+      <button id="shareDl" class="primary">Download complete copy</button>
+      <button id="shareDlP">Download complete copy with photos</button>
+      <button id="shareDrive">Send complete copy to Drive</button>
+      <button id="shareDriveP">Send to Drive with photos</button>
+    </div>
+    <input type="file" id="fileIn" accept=".json" style="display:none">
+  </div>
+  <div id="backupStatus" class="small" style="margin-top:6px"></div>
+  <table id="backupList" style="margin-top:10px"></table>
+</div>
+
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(12,1,61,.45);z-index:200;
+     align-items:center;justify-content:center;padding:16px">
+  <div id="modalBox" style="background:#fff;border-radius:10px;padding:18px;max-width:600px;width:100%;
+       max-height:88vh;overflow:auto;box-shadow:0 12px 44px rgba(0,0,0,.32)"></div>
+</div>
+
+<script>
+/* pristine markup, captured before anything is rendered into it */
+const SKELETON=(function(){ const b=document.body.cloneNode(true);
+  b.querySelectorAll("script").forEach(s=>s.remove()); return b.innerHTML; })();
+const DRIVE="mcp__1f9bc5c9-5469-496e-9206-3750778923df__";
+const ROOT="1tB6vTVyzk80b2nHPOGI2EL8J4M3p-LVG";          /* the shared VIKRANT folder */
+const F_HOME  ="1PZ7cEWCo_tPNFUTASeHpSflT8BxFghXc";       /* VIKRANT Control Room      */
+const F_PHOTOS="1W720FBT0o-RuBLk0ka9QIs-3i2LMa4QB";       /*   └ Photos                */
+const F_WORK  ="1u_dOvGHZZRXv6YXeES1yZnSk0YcFYyrV";       /*   └ Working files         */
+const F_DOCS  ="1lKHmDzcZPCoUBCl8VM-FxgmP9_slC9k8";       /*   └ Reports and BOQ       */
+const LSK="asl_unit3_exec_v1";
+const TODAY=new Date(2026,7,7);
+const OPS=new Date(2026,8,17);      // 17 Sept 2026
+const LAUNCH=new Date(2028,3,1);    // 1 Apr 2028
+
+/* ---------- geometry from the drawing (feet) ---------- */
+const GEO={
+ "Shed 1":{w:14.0,l:59.2,x:73,y:62,use:"Bestcase / Transformer / Project Team / New Product; AAPM assembly, BTS, machine shop, CRP",phase:1},
+ "Shed 2":{w:23.5,l:51.7,x:62.6,y:0,use:"Bestcase, AIC, Project Team; expansion headroom",phase:2},
+ "Shed 3":{w:47.6,l:106.0,x:15,y:14,use:"Transformer and Bestcase — primary production volume",phase:1},
+ "Shed 4":{w:15.0,l:91.8,x:0,y:17.8,use:"Warehouse, stores, dispatch; short-term AAPM, IRDD, panel design",phase:1},
+ "Office block":{w:45.0,l:27.6,x:0,y:120,use:"Reception, open-plan seating, cabin, meeting room",phase:1},
+ "First floor":{w:34.5,l:24.2,x:46,y:120,use:"Washroom, kitchen, training / archive rooms",phase:2,above:true},
+ "Front yard":{w:101.7,l:42.1,x:0,y:147.6,use:"Vehicle apron, parking, gate, circulation",phase:2},
+ "Utility block":{w:31.1,l:11.3,x:0,y:0,use:"Overhead tank, pump room, incoming services",phase:1}
+};
+const PLOT={w:101.7,l:189.7};
+/* every zone on the plan = surveyed blocks plus any you add yourself */
+let USERZ=[];
+const Z=()=>{ const o=Object.assign({},GEO); USERZ.forEach(z=>o[z.name]=z); return o; };
+const AREA=k=>{ const g=Z()[k]; return g?g.w*g.l:0; };
+
+/* ---------- indicative rate card (INR, 2026) ---------- */
+const RATES0={
+ roofReplace:{v:340,u:"per sq ft",d:"Colour-coated GI sheeting 0.5 mm incl. purlin repair"},
+ roofSeal:{v:95,u:"per sq ft",d:"Leak treatment, resealing, gutter cleaning"},
+ roofTranslucent:{v:420,u:"per sq ft",d:"Polycarbonate daylight panel"},
+ ventilator:{v:9500,u:"each",d:"Turbo ventilator 24 in. incl. fixing"},
+ floorVDF:{v:190,u:"per sq ft",d:"PCC base + vacuum dewatered / trimix industrial floor"},
+ floorEpoxy:{v:120,u:"per sq ft",d:"Epoxy screed coating over levelled floor"},
+ floorRepair:{v:85,u:"per sq ft",d:"Patch repair and levelling of existing floor"},
+ floorMark:{v:28,u:"per rft",d:"6S aisle and zone marking, 100 mm"},
+ highbay:{v:4200,u:"each",d:"LED high bay 150 W incl. wiring and fixing"},
+ ledPanel:{v:1400,u:"each",d:"LED panel / batten for office and stores"},
+ lightPoint:{v:950,u:"point",d:"Light point wiring in conduit"},
+ powerPoint:{v:2800,u:"point",d:"16 A / 3-phase industrial socket point"},
+ subDB:{v:42000,u:"each",d:"Shed sub-distribution board 8-way TPN"},
+ mainPanel:{v:350000,u:"lump sum",d:"Main LT panel with metering and protection"},
+ earthPit:{v:28000,u:"each",d:"Chemical earthing pit with test link"},
+ cableTray:{v:520,u:"per rft",d:"GI perforated cable tray 300 mm"},
+ paint:{v:32,u:"per sq ft",d:"Two coats acrylic emulsion over primer"},
+ plaster:{v:55,u:"per sq ft",d:"Plaster repair and surface preparation"},
+ washroom:{v:1450,u:"per sq ft",d:"Full sanitation refurbishment incl. fixtures and tiling"},
+ pantry:{v:1200,u:"per sq ft",d:"Pantry fit-out, counter, tiling, exhaust"},
+ officeFit:{v:1250,u:"per sq ft",d:"False ceiling, flooring, paint, AC, IT cabling"},
+ racking:{v:280,u:"per sq ft",d:"Selective pallet racking with addressing"},
+ compressor:{v:450000,u:"lump sum",d:"10 HP screw compressor, dryer and receiver"},
+ airLine:{v:450,u:"per rft",d:"Compressed air ring main with drops and FRL"},
+ extinguisher:{v:3200,u:"each",d:"ABC dry powder 6 kg with bracket and signage"},
+ hydrant:{v:850000,u:"lump sum",d:"Hydrant, pump, hose reels — subject to fire NOC scope"},
+ sewer:{v:850,u:"per rft",d:"Sewage line re-laid with chambers"},
+ septic:{v:250000,u:"lump sum",d:"Septic tank / STP restoration and testing"},
+ waterSys:{v:180000,u:"lump sum",d:"Overhead tank cleaning, plumbing, RO and cooler"},
+ paving:{v:95,u:"per sq ft",d:"80 mm paver block over compacted base"},
+ boundary:{v:180,u:"per rft",d:"Boundary wall repair, coping and painting"},
+ gate:{v:320000,u:"lump sum",d:"Main gate, boom barrier, security cabin"},
+ cctv:{v:280000,u:"lump sum",d:"16-camera NVR system with cabling"},
+ branding:{v:350000,u:"lump sum",d:"Signage, wayfinding and external branding"},
+ stairs:{v:180000,u:"lump sum",d:"Staircase repair, anti-skid nosing, handrails"},
+ waterproof:{v:135,u:"per sq ft",d:"Slab and terrace waterproofing treatment"},
+ dgSet:{v:1150000,u:"lump sum",d:"125 kVA silent DG set with AMF panel"},
+ asbestos:{v:210,u:"per sq ft",d:"Safe removal and disposal of asbestos sheeting if found"},
+ siteEstab:{v:450000,u:"lump sum",d:"Site establishment — store, site office, temporary power and water"},
+ demolition:{v:38,u:"per sq ft",d:"Dismantling, debris removal and authorised disposal"},
+ scaffold:{v:26,u:"per sq ft",d:"Scaffolding and access for work at height"},
+ lightning:{v:250000,u:"lump sum",d:"Lightning protection system with test joints"},
+ safetyKit:{v:180000,u:"lump sum",d:"Safety signage, PPE, first-aid station and barricading"},
+ welfare:{v:150000,u:"lump sum",d:"Drinking water points, coolers and worker welfare facilities"},
+ asBuilt:{v:220000,u:"lump sum",d:"As-built drawings, O&M manuals and asset register"},
+ testComm:{v:280000,u:"lump sum",d:"Testing, commissioning and third-party inspection"},
+ structAudit:{v:175000,u:"lump sum",d:"Structural stability assessment and load testing"}
+};
+
+/* ---------- BOQ generated from geometry ---------- */
+function defaultBOQ(){
+  const B=[],add=(area,trade,desc,unit,qty,rk,phase,note)=>B.push(
+    {id:"b"+B.length,area,trade,desc,unit,qty:Math.round(qty*100)/100,rateKey:rk,
+     rate:null,phase,note:note||"",status:"Not started",owner:""});
+  const sheds=["Shed 1","Shed 2","Shed 3","Shed 4"];
+  sheds.forEach(s=>{
+    const a=AREA(s),g=Z()[s],per=2*(g.w+g.l),ph=g.phase;
+    add(s,"Civil","Roof sheeting — inspect, replace damaged panels","sq ft",a*0.35,"roofReplace",ph,"35% of roof assumed replaced; confirm by survey");
+    add(s,"Civil","Roof leak treatment and gutter clearing to balance area","sq ft",a*0.65,"roofSeal",ph);
+    add(s,"Civil","Translucent daylight panels","sq ft",a*0.06,"roofTranslucent",ph,"6% of roof area for natural light");
+    add(s,"HVAC","Turbo ventilators","each",Math.max(2,Math.round(a/450)),"ventilator",ph,"1 per 450 sq ft");
+    if(s==="Shed 3"||s==="Shed 1")
+      add(s,"Civil","Industrial floor — VDF / trimix for machine and transformer loads","sq ft",a,"floorVDF",ph);
+    else add(s,"Civil","Floor levelling and repair","sq ft",a,"floorRepair",ph);
+    if(s==="Shed 3") add(s,"Civil","Epoxy coating to assembly and test bays","sq ft",a*0.45,"floorEpoxy",ph);
+    add(s,"Civil","6S floor marking","rft",per*1.4,"floorMark",ph,"aisles plus zone outlines");
+    add(s,"Civil","Internal wall plaster repair","sq ft",per*14*0.3,"plaster",ph,"14 ft wall height, 30% needing repair");
+    add(s,"Civil","Painting to walls and steelwork","sq ft",per*14,"paint",ph);
+    const lux=(s==="Shed 3")?280:300;
+    add(s,"Electrical","LED high bay luminaires","each",Math.max(4,Math.round(a/lux)),"highbay",ph,"to 300 lux general");
+    add(s,"Electrical","Power and machine socket points","point",Math.max(6,Math.round(a/220)),"powerPoint",ph);
+    add(s,"Electrical","Shed sub-distribution board","each",1,"subDB",ph);
+    add(s,"Electrical","Cable tray","rft",g.l*1.15,"cableTray",ph);
+    add(s,"Electrical","Chemical earthing pits","each",s==="Shed 3"?4:2,"earthPit",ph);
+    add(s,"Fire","Fire extinguishers","each",Math.max(2,Math.round(a/1200)),"extinguisher",ph,"one per 1,200 sq ft");
+    if(s==="Shed 1"||s==="Shed 2"||s==="Shed 3")
+      add(s,"Utilities","Compressed air ring main and drops","rft",g.l*1.2,"airLine",ph);
+    if(s==="Shed 4") add(s,"Equipment","Selective pallet racking and addressing","sq ft",AREA(s)*0.7,"racking",1,"70% of floor racked");
+  });
+  add("Office block","Interiors","Office fit-out — ceiling, flooring, paint, AC, IT","sq ft",AREA("Office block"),"officeFit",1);
+  add("Office block","Electrical","LED panels and battens","each",Math.round(AREA("Office block")/90),"ledPanel",1,"to 450 lux at desks");
+  add("Office block","Electrical","Light and power points","point",Math.round(AREA("Office block")/45),"lightPoint",1);
+  add("First floor","Civil","Slab and terrace waterproofing","sq ft",AREA("First floor"),"waterproof",1,"seepage control is prerequisite to any fit-out");
+  add("First floor","Interiors","Washroom block — full refurbishment","sq ft",10.1*6.5+12.2*6.5,"washroom",1,"Phase 1 priority — gates start of operations");
+  add("First floor","Interiors","Kitchen and pantry fit-out","sq ft",12.2*6.5,"pantry",1);
+  add("First floor","Interiors","Training / archive rooms fit-out","sq ft",22.7*12.8,"officeFit",2);
+  add("First floor","Civil","Staircase repair, nosing and handrails","lump sum",1,"stairs",1);
+  add("Site","Utilities","Water system — tank cleaning, plumbing, RO","lump sum",1,"waterSys",1);
+  add("Site","Utilities","Sewage line re-laid with chambers","rft",240,"sewer",1,"assumed run to septic; confirm on site");
+  add("Site","Utilities","Septic tank / STP restoration","lump sum",1,"septic",1);
+  add("Site","Electrical","Main LT panel with metering and protection","lump sum",1,"mainPanel",1);
+  add("Site","Electrical","DG set 125 kVA with AMF","lump sum",1,"dgSet",2,"size after connected-load study");
+  add("Site","Utilities","Air compressor, dryer and receiver","lump sum",1,"compressor",1,"flagged by AHS");
+  add("Site","Fire","Hydrant system, pump and hose reels","lump sum",1,"hydrant",2,"scope confirmed by fire NOC");
+  add("Site","Civil","Yard paving — vehicle apron and circulation","sq ft",AREA("Front yard")*0.6,"paving",2);
+  add("Site","Civil","Boundary wall repair and painting","rft",2*(PLOT.w+PLOT.l),"boundary",2);
+  add("Site","Security","Main gate, boom barrier, security cabin","lump sum",1,"gate",2);
+  add("Site","Security","CCTV system","lump sum",1,"cctv",1);
+  add("Site","Interiors","Signage, wayfinding and external branding","lump sum",1,"branding",2);
+  /* preliminaries and general items — the lines most often left out of a first estimate */
+  add("Site","Preliminaries","Site establishment, temporary power and water","lump sum",1,"siteEstab",1,"Needed before any contractor starts");
+  add("Site","Preliminaries","Dismantling, debris removal and authorised disposal","sq ft",
+      AREA("Shed 1")+AREA("Shed 2")+AREA("Shed 3")+AREA("Shed 4"),"demolition",1,"Clearing before works begin");
+  add("Site","Preliminaries","Scaffolding and access for work at height","sq ft",
+      (AREA("Shed 3")+AREA("Shed 4"))*0.5,"scaffold",1,"Roof and high-level work");
+  add("Site","Safety","Safety signage, PPE, first-aid station and barricading","lump sum",1,"safetyKit",1,"Statutory obligation once work starts");
+  add("Site","Safety","Drinking water, coolers and worker welfare facilities","lump sum",1,"welfare",1,"Required under BOCW rules");
+  add("Site","Electrical","Lightning protection system with test joints","lump sum",1,"lightning",1,"Required for the electrical inspectorate certificate");
+  add("Site","Preliminaries","Structural stability assessment and load testing","lump sum",1,"structAudit",1,"Prerequisite to the factory stability certificate and to the Shed 3 floor design");
+  add("Site","Preliminaries","Testing, commissioning and third-party inspection","lump sum",1,"testComm",2);
+  add("Site","Preliminaries","As-built drawings, O&M manuals and asset register","lump sum",1,"asBuilt",2,"Withhold final payment until received");
+  return B;
+}
+
+/* ---------- schedule ---------- */
+function defaultActs(){
+  const A=[],add=(name,area,start,days,phase,crit,owner,pred)=>A.push(
+    {id:"a"+A.length,name,area,start,days,phase,crit:!!crit,owner:owner||"",pct:0,
+     pred:(pred||[]).map(i=>"a"+i)});
+  add("Detailed site survey and condition assessment","All","2026-08-10",10,1,true,"Infra consultant");
+  add("Appoint infra consultant and architect","All","2026-08-10",14,1,true,"PPC / MST");
+  add("MPPKVVCL power sanction / load enhancement","Site","2026-08-12",75,1,true,"Electrical");
+  add("MPPCB Consent to Establish","Site","2026-08-12",60,1,true,"Compliance");
+  add("Tender, evaluate and award civil package","All","2026-08-20",18,1,true,"Projects",[0,1]);
+  add("Washroom block — full refurbishment","First floor","2026-08-24",21,1,true,"Civil contractor",[4]);
+  add("Water system — tank, plumbing, RO","Site","2026-08-24",14,1,true,"Plumbing",[4]);
+  add("Sewage line and septic restoration","Site","2026-08-26",16,1,true,"Civil contractor",[4]);
+  add("Main LT panel and earthing","Site","2026-08-28",21,1,true,"Electrical",[2]);
+  add("Shed 4 — floor repair, lighting, racking","Shed 4","2026-08-28",20,1,false,"Civil + stores",[4]);
+  add("Shed 1 — floor, lighting, power, ventilation","Shed 1","2026-09-01",16,1,true,"Civil contractor",[4]);
+  add("Relocate stores and clear Sheds 1 and 4","All","2026-09-08",7,1,false,"Stores / AMR",[9]);
+  add("Fire extinguishers, signage, assembly point","All","2026-09-10",5,1,true,"Safety",[10]);
+  add("Snag list, cleaning and 6S marking","All","2026-09-12",4,1,true,"Operations",[5,6,7,10,12]);
+  add("OPERATIONS START — Vishwakarma Puja","All","2026-09-17",1,1,true,"Leadership",[13]);
+  add("Shed 3 — roof overhaul and translucent panels","Shed 3","2026-10-05",35,2,false,"Civil contractor");
+  add("Shed 3 — VDF floor and epoxy bays","Shed 3","2026-11-05",30,2,false,"Civil contractor",[15]);
+  add("Shed 3 — high bay lighting and power","Shed 3","2026-11-20",21,2,false,"Electrical",[16]);
+  add("Compressed air ring main","All","2026-11-25",18,2,false,"Utilities");
+  add("Office block fit-out","Office block","2026-12-01",40,2,false,"Interiors");
+  add("Shed 2 — overhaul and fit-out","Shed 2","2027-01-05",35,2,false,"Civil contractor");
+  add("First floor — waterproofing and rooms","First floor","2027-01-15",35,2,false,"Civil contractor");
+  add("Yard paving, boundary and gate","Site","2027-02-01",30,2,false,"Civil contractor");
+  add("Fire hydrant system and fire NOC","Site","2027-02-01",45,2,true,"Safety / compliance");
+  add("Signage and external branding","Site","2027-03-01",21,2,false,"Marketing");
+  add("Factory licence and final statutory clearances","Site","2027-03-01",30,2,true,"Compliance");
+  return A;
+}
+
+/* ---------- approvals ---------- */
+function defaultAppr(){
+  return [
+  ["Building plan approval / regularisation","Municipal Corporation Bhopal / MPIDC","45-90 days","Not started","","2026-10-31","Required before any structural alteration or added covered area."],
+  ["Consent to Establish (CTE)","MP Pollution Control Board — Water Act 1974, Air Act 1981","60-90 days","Not started","","2026-10-15","Longest lead item. Apply immediately; renovation of an existing unit still needs it where category or capacity changes."],
+  ["Consent to Operate (CTO)","MP Pollution Control Board","30-45 days after CTE","Not started","","2027-01-31","Cannot be applied for until CTE is granted and works are substantially complete."],
+  ["Power sanction / load enhancement","MPPKVVCL","60-90 days","Not started","","2026-10-31","Drives the LT panel, DG sizing and every machine commissioning date."],
+  ["Electrical installation approval (CEIG)","MP Electrical Inspectorate","30-45 days","Not started","","2026-11-30","Mandatory for HT installations and above 650 V; inspection before energisation."],
+  ["Fire NOC","MP Fire and Emergency Services","45-60 days","Not started","","2027-03-31","Scope of hydrant system is set by this. Get the scoping opinion early — it changes the BOQ materially."],
+  ["Factory Licence (amendment for Vikrant)","Directorate of Industrial Health and Safety, MP — Factories Act 1948","30-45 days","Not started","","2027-03-31","Plan approval under Rule 3 precedes the licence. Required before workers are engaged."],
+  ["Contract Labour registration","Labour Department — CLRA Act 1970","21-30 days","Not started","","2026-09-15","Needed if 20 or more contract workers on site at once — likely during Phase 2."],
+  ["Lifting equipment registration","Factories Department","30 days","Not started","","2027-02-28","Applies if an EOT crane or hoist is installed in Shed 3."],
+  ["GST premises amendment / trade licence","GST and Municipal authorities","15-30 days","Not started","","2026-09-10","Straightforward but blocks invoicing from the address."],
+  ["EPF / ESI premises update","EPFO / ESIC","15 days","Not started","","2026-09-15","Update before payroll runs from Vikrant."],
+  ["Ground water abstraction NOC","CGWA","60-120 days","Not started","","2026-12-31","Only if a borewell is the water source. Confirm source first."],
+  ["BOCW Act registration and cess payment","Labour Department — BOCW Act 1996 and Cess Act 1996","21-30 days","Not started","","2026-09-15","Applies once 10 or more construction workers are engaged. Cess is 1% of construction cost and is now carried in the estimate. Non-payment attracts interest and penalty."],
+  ["Building stability certificate","Competent person under MP Factories Rules","30-45 days","Not started","","2026-11-30","A structural stability certificate is required for a factory building. It also underpins the Shed 3 floor and any crane installation."],
+  ["Lightning protection and earthing test certificate","Licensed electrical contractor / CEIG","15-21 days","Not started","","2026-12-15","Required at electrical inspection. The system itself is now a BOQ line."],
+  ["Contractor All Risk and workmen compensation insurance","Insurer","7-14 days","Not started","","2026-08-31","Not statutory but do not let a contractor mobilise without it. Premium is carried in the estimate."],
+  ["Hazardous waste authorisation","MP Pollution Control Board","45-60 days","Not started","","2026-12-31","Triggered if asbestos is found in the roof sheeting, or for used oil and e-waste from operations."]
+  ].map((r,i)=>({id:"ap"+i,name:r[0],auth:r[1],lead:r[2],status:r[3],owner:r[4],target:r[5],note:r[6]}));
+}
+
+/* ---------- risks ---------- */
+function defaultRisks(){
+  return [
+  ["Monsoon overlaps the entire Phase 1 window","Schedule","High","High","Bhopal monsoon runs to late September. Roof, waterproofing and yard work started now will be rain-affected. Sequence roof works after the withdrawal, and do interior, electrical and washroom work through August and September.","Projects"],
+  ["Only six weeks to the 17 Sept operations start","Schedule","High","High","Phase 1 as scoped will not finish by 17 Sept. Define a minimum viable start — washroom, water, power, Shed 4 stores and Shed 1 only — and formally defer the rest. Agree this at leadership level now, not in September.","Leadership"],
+  ["Power sanction lead time exceeds the operations date","Schedule","High","High","MPPKVVCL sanction can run 60-90 days. Apply within the week. Plan a temporary supply or DG bridge for the 17 Sept start.","Electrical"],
+  ["Asbestos cement sheeting in the older shed roofs","Safety / legal","Medium","High","Common in industrial sheds of this vintage. Test before any roof work. If present, removal is a licensed activity with disposal manifests — a BOQ line is provided for it. Do not let a general contractor break it.","Safety"],
+  ["Shed 3 floor cannot take transformer loads","Technical","Medium","High","5,046 sq ft bay is the primary production volume. Commission a load test and soil check before specifying the floor; a VDF topping over a weak base will fail.","Structural engineer"],
+  ["Fire NOC scope inflates the hydrant package","Cost","Medium","High","Hydrant scope is set by the authority, not by us. Get a written scoping opinion before tendering the fire package, or hold it as a provisional sum.","Compliance"],
+  ["Disruption to running Unit 1 output","Operations","Medium","High","NMT's concern. Shift only new work to Vikrant first; do not move a running line until its Vikrant bay is complete and commissioned.","Operations"],
+  ["Cost escalation between estimate and award","Cost","High","Medium","All rates here are indicative. Freeze scope, tender early, and hold 8% contingency plus a separate 3% escalation allowance for anything awarded after December.","Finance"],
+  ["Cash flow pressure against the revenue-first position","Finance","Medium","Medium","PPC's concern. The phasing here front-loads only the items that unlock revenue. Keep Phase 2 items as a separate approval gate tied to actual Vikrant output.","Finance"],
+  ["Contractor availability in the festival and wedding season","Schedule","Medium","Medium","Labour thins from October. Lock crews contractually with a mobilisation advance rather than relying on availability.","Projects"],
+  ["Phase 2 ends March 2027 but launch is April 2028","Planning","High","Low","A twelve-month gap sits unexplained between the end of Phase 2 and the stated launch. Either the launch can be pulled forward, or there is unscoped work in between. Resolve before this plan is circulated to the board.","Leadership"],
+  ["Single-point dependency on one civil contractor","Delivery","Medium","Medium","Split civil into two packages — sheds and site works — so one contractor's failure does not stop everything.","Projects"]
+  ].map((r,i)=>({id:"rk"+i,desc:r[0],cat:r[1],like:r[2],imp:r[3],mit:r[4],owner:r[5],status:"Open"}));
+}
+
+/* ---------- state ---------- */
+let S={rates:{},boq:[],acts:[],appr:[],risks:[],tasks:[],photos:[],
+       cont:8,esc:3,fees:3.5,gst:18,cess:1,ins:0.2,sel:"Shed 3",tab:"plan",inline:false};
+Object.keys(RATES0).forEach(k=>S.rates[k]=RATES0[k].v);
+S.boq=defaultBOQ(); S.acts=defaultActs(); S.appr=defaultAppr(); S.risks=defaultRisks();
+const BAKED=(window.BOOTDATA&&window.BOOTDATA.S)?window.BOOTDATA.S:null;
+try{ const r=BAKED||JSON.parse(localStorage.getItem(LSK)||"null");
+  if(r){ S=Object.assign(S,r); Object.keys(RATES0).forEach(k=>{ if(S.rates[k]==null) S.rates[k]=RATES0[k].v; }); }
+}catch(e){}
+if(S.cess==null) S.cess=1; if(S.ins==null) S.ins=0.2;
+if(!Array.isArray(S.tasks)) S.tasks=[];
+if(!Array.isArray(S.photos)) S.photos=[];
+if(!Array.isArray(S.extraAreas)) S.extraAreas=[];
+if(!Array.isArray(S.userZones)) S.userZones=[];
+if(!Array.isArray(S.log)) S.log=[];
+if(S.savedCount==null) S.savedCount=0;
+USERZ=S.userZones;
+if(!S.customRates||typeof S.customRates!=="object") S.customRates={};
+/* the full rate card = built-in benchmarks plus anything you have added */
+const RATEDEF=()=>Object.assign({},RATES0,S.customRates);
+const AREAKEYS=()=>Object.keys(Z()).concat(["Site"]).concat(S.extraAreas);
+const IMG={};   // photo id -> dataURL
+if(window.BOOTDATA&&window.BOOTDATA.IMG) Object.assign(IMG,window.BOOTDATA.IMG);
+/* ---------- persistence ----------
+   State goes to localStorage. Photographs are far too big for that, so they live in IndexedDB,
+   which survives a reload and has room for hundreds of images. ------------------------------ */
+let UNDO=[], REDO=[];
+function pushUndo(label){
+  try{ UNDO.push({label:label||"change",json:JSON.stringify(S)}); if(UNDO.length>40) UNDO.shift(); REDO=[]; }catch(e){}
+  const b=document.getElementById("undoBtn"); if(b){ b.disabled=false; b.title="Undo: "+(label||"change"); }
+}
+const save=()=>{ try{ localStorage.setItem(LSK,JSON.stringify(S)); }catch(e){
+  const m=document.getElementById("saveWarn");
+  if(m) m.textContent="Local storage is full — save your working file to Drive now."; } };
+
+let DB=null;
+function idb(){ return new Promise((res,rej)=>{
+  if(DB) return res(DB);
+  if(!window.indexedDB) return rej(new Error("no IndexedDB"));
+  const r=indexedDB.open("vikrant_photos",1);
+  r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains("img")) r.result.createObjectStore("img"); };
+  r.onsuccess=()=>{ DB=r.result; res(DB); };
+  r.onerror=()=>rej(r.error||new Error("IndexedDB unavailable"));
+}); }
+async function imgPut(k,v){ try{ const d=await idb();
+  await new Promise((res,rej)=>{ const t=d.transaction("img","readwrite");
+    t.objectStore("img").put(v,k); t.oncomplete=res; t.onerror=()=>rej(t.error); });
+}catch(e){} }
+async function imgDel(k){ try{ const d=await idb();
+  await new Promise(res=>{ const t=d.transaction("img","readwrite");
+    t.objectStore("img").delete(k); t.oncomplete=res; t.onerror=res; });
+}catch(e){} }
+async function imgLoadAll(){
+  try{ const d=await idb();
+    const all=await new Promise((res,rej)=>{ const t=d.transaction("img","readonly");
+      const st2=t.objectStore("img"), out={}, cur=st2.openCursor();
+      cur.onsuccess=e=>{ const c=e.target.result;
+        if(c){ out[c.key]=c.value; c.continue(); } else res(out); };
+      cur.onerror=()=>rej(cur.error); });
+    let n=0; Object.keys(all).forEach(k=>{ IMG[k]=all[k]; n++; });
+    return n;
+  }catch(e){ return 0; }
+}
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/&(?![a-z#]+;)/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const attr=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;");
+const inr=n=>"₹"+Math.round(n||0).toLocaleString("en-IN");
+const lakh=n=>{n=n||0; return n>=1e7?("₹"+(n/1e7).toFixed(2)+" Cr"):("₹"+(n/1e5).toFixed(2)+" L");};
+const rateOf=b=>b.rate!=null?b.rate:(S.rates[b.rateKey]||0);
+const amt=b=>(b.qty||0)*rateOf(b);
+const dstr=d=>d.toISOString().slice(0,10);
+const dadd=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
+const dparse=s=>{const p=String(s).split("-");return new Date(+p[0],+p[1]-1,+p[2]);};
+const days=(a,b)=>Math.round((b-a)/86400000);
+
+function subtotal(){ return S.boq.reduce((s,b)=>s+amt(b),0); }
+function totals(){
+  const base=subtotal();
+  const fees=base*S.fees/100, cont=base*S.cont/100, esc2=base*S.esc/100;
+  const cess=base*S.cess/100;      // BOCW welfare cess, 1% of construction cost
+  const ins=base*S.ins/100;        // Contractor All Risk + workmen compensation
+  const pre=base+fees+cont+esc2+cess+ins;
+  const gst=pre*S.gst/100;
+  return {base,fees,cont,esc:esc2,cess,ins,pre,gst,grand:pre+gst};
+}
+function byPhase(ph){ return S.boq.filter(b=>b.phase===ph).reduce((s,b)=>s+amt(b),0); }
+
+/* ---------- KPIs ---------- */
+function drawKPIs(){
+  const t=totals(), d1=days(TODAY,OPS), d2=days(TODAY,LAUNCH);
+  const doneVal=S.boq.filter(b=>b.status==="Done").reduce((s,b)=>s+amt(b),0);
+  const openAppr=S.appr.filter(a=>a.status!=="Granted").length;
+  const hiRisk=S.risks.filter(r=>r.status==="Open"&&r.like==="High"&&r.imp==="High").length;
+  $("#kpis").innerHTML=[
+   ["Estimated project cost",lakh(t.grand),"incl. fees, contingency and GST"],
+   ["Phase 1 works",lakh(byPhase(1)),"base cost, pre-oncost"],
+   ["Phase 2 works",lakh(byPhase(2)),"base cost, pre-oncost"],
+   ["To operations start",d1+" days",dstr(OPS)+" · Vishwakarma Puja",d1<60?"alert":""],
+   ["To launch",Math.round(d2/30.4)+" months",dstr(LAUNCH)],
+   ["Approvals outstanding",openAppr+" of "+S.appr.length,"statutory items open",openAppr>6?"alert":""],
+   ["Works completed",(t.base?Math.round(doneVal/t.base*100):0)+"%","by value",doneVal>0?"good":""],
+   ["High / high risks",hiRisk,"likelihood and impact both high",hiRisk>0?"alert":""]
+  ].map(k=>'<div class="kpi '+(k[3]||"")+'"><div class="lab">'+k[0]+'</div><div class="val">'+k[1]
+   +'</div><div class="sub2">'+k[2]+'</div></div>').join("");
+}
+
+/* ---------- ASL brand ---------- */
+const BRAND={
+  redPrimary:"#B80001", redSecondary:"#DE0001",
+  navyPrimary:"#0C013D", blueSecondary:"#2602C2",
+  bgLight:"#F6F6F6", bgDark:"#252525",
+  sector:{ "Power":"#BEBDB8","Heavy Engineering":"#F6C547","Defence":"#32472F","Healthcare":"#59B6B0",
+           "Transportation":"#064DA0","IT & Telecom":"#FF6359","Renewables":"#81B463",
+           "Non-Renewables":"#C17056" },
+  fontTitle:"'Antonio','Barlow Condensed','Arial Narrow',sans-serif",
+  fontBody:"'Barlow','Segoe UI',Arial,sans-serif",
+  tagline:"We live our passion through engineering."
+};
+/* trades carry the sector colours so the cost split reads in brand terms */
+const TRADE_COL={ Civil:"#C17056", Electrical:"#F6C547", Interiors:"#59B6B0", Utilities:"#064DA0",
+  HVAC:"#81B463", Fire:"#FF6359", Security:"#32472F", Equipment:"#BEBDB8", Other:"#252525" };
+
+/* ---------- condition assessment drives the quantities ----------
+   This is a rule-based survey, not image recognition. You record what the photographs show;
+   the measured quantities move accordingly and the estimate re-prices. ------------------- */
+const CONDDEF={
+  roof:{label:"Roof",       repl:{Good:.10,Fair:.35,Poor:.75,"Very poor":1.00}},
+  floor:{label:"Floor",     mult:{Good:.35,Fair:1.0,Poor:1.0,"Very poor":1.0}},
+  walls:{label:"Walls",     plas:{Good:.10,Fair:.30,Poor:.60,"Very poor":.90}},
+  elec:{label:"Electrical", mult:{Good:.6,Fair:1.0,Poor:1.3,"Very poor":1.6}},
+  vent:{label:"Ventilation",per:{Good:700,Fair:450,Poor:330,"Very poor":260}}
+};
+if(!S.cond||typeof S.cond!=="object") S.cond={};
+function COND(a){ if(!S.cond[a]) S.cond[a]={roof:"Fair",floor:"Fair",walls:"Fair",elec:"Fair",vent:"Fair"};
+  return S.cond[a]; }
+const findLine=(a,rk)=>S.boq.find(b=>b.area===a&&b.rateKey===rk);
+function applyCondition(a){
+  const g=Z()[a]; if(!g||a==="Front yard"||g.future) return;
+  const ar=AREA(a), per=2*(g.w+g.l), C=COND(a);
+  const set=(rk,q)=>{ const b=findLine(a,rk);
+    if(b&&b.rate==null) b.qty=Math.round(q*100)/100; };   // never touch a hand-priced line
+  const r=CONDDEF.roof.repl[C.roof];
+  set("roofReplace",ar*r); set("roofSeal",ar*(1-r));
+  set("floorRepair",ar*CONDDEF.floor.mult[C.floor]);
+  set("plaster",per*14*CONDDEF.walls.plas[C.walls]);
+  const em=CONDDEF.elec.mult[C.elec];
+  const hb=findLine(a,"highbay"); if(hb&&hb.rate==null) hb.qty=Math.max(4,Math.round(ar/((a==="Shed 3")?280:300)*em));
+  const pp=findLine(a,"powerPoint"); if(pp&&pp.rate==null) pp.qty=Math.max(6,Math.round(ar/220*em));
+  set("ventilator",Math.max(2,Math.round(ar/CONDDEF.vent.per[C.vent])));
+  // very poor roof: raise the asbestos survey as a real line
+  const asb=findLine(a,"asbestos");
+  if(C.roof==="Very poor"&&!asb){
+    S.boq.push({id:"b"+Date.now()+Math.floor(Math.random()*99),area:a,trade:"Civil",
+      desc:"Asbestos testing and licensed removal — allowance",unit:"sq ft",qty:Math.round(ar*r),
+      rateKey:"asbestos",rate:null,phase:g.phase,note:"Raised automatically: roof assessed Very poor",
+      status:"Not started",owner:""});
+  }
+  save();
+}
+function condSummary(a){
+  const C=COND(a), bits=[];
+  if(C.roof!=="Fair") bits.push("roof "+C.roof.toLowerCase()+" → "
+    +Math.round(CONDDEF.roof.repl[C.roof]*100)+"% of sheeting replaced");
+  if(C.floor==="Good") bits.push("floor good → repair quantity cut to 35%");
+  if(C.walls!=="Fair") bits.push("walls "+C.walls.toLowerCase()+" → "
+    +Math.round(CONDDEF.walls.plas[C.walls]*100)+"% plaster repair");
+  if(C.elec!=="Fair") bits.push("electrical "+C.elec.toLowerCase()+" → fittings ×"+CONDDEF.elec.mult[C.elec]);
+  if(C.vent!=="Fair") bits.push("ventilation "+C.vent.toLowerCase()+" → 1 ventilator per "
+    +CONDDEF.vent.per[C.vent]+" sq ft");
+  const t=S.boq.filter(b=>b.area===a).reduce((s,b)=>s+amt(b),0);
+  return bits.length? '<b>'+lakh(t)+'</b> — '+bits.join("; ")+'.'
+    : 'All elements assessed Fair. Estimate at the baseline assumptions: <b>'+lakh(t)+'</b>.';
+}
+
+/* ---------- site plan ---------- */
+const PH_COL={1:"#0C013D",2:"#2602C2"};
+function statusOfArea(a){
+  const rows=S.boq.filter(b=>b.area===a);
+  if(!rows.length) return 0;
+  const tot=rows.reduce((s,b)=>s+amt(b),0);
+  const dn=rows.filter(b=>b.status==="Done").reduce((s,b)=>s+amt(b),0);
+  return tot?dn/tot:0;
+}
+function drawPlan(){
+  const SC=3.1, W=PLOT.w*SC, H=PLOT.l*SC, pad=26;
+  let s='<svg viewBox="0 0 '+(W+pad*2)+' '+(H+pad*2)+'" style="width:100%;height:auto;max-height:620px">';
+  s+='<rect x="'+pad+'" y="'+pad+'" width="'+W+'" height="'+H+'" fill="#fafbfc" stroke="#98a2ad" stroke-width="1.6"/>';
+  Object.keys(Z()).forEach(k=>{
+    const g=Z()[k], x=pad+g.x*SC, y=pad+g.y*SC, w=g.w*SC, h=g.l*SC;
+    const prog=statusOfArea(k);
+    const kd=g.future?KIND(g):null;
+    const base=kd?kd.f:(k==="Front yard"?"#e9eef3":(g.above?"#DDE4D6":PH_COL[g.phase]));
+    const op=kd?kd.o:(k==="Front yard"?1:.20);
+    s+='<g class="zn'+(S.sel===k?" sel":"")+'" data-z="'+attr(k)+'">'
+      +'<rect class="fill" x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" fill="'+base+'" fill-opacity="'+op
+      +'" stroke="'+(g.future?"#B80001":"#5a6b7d")+'" stroke-width="'+(g.future?1.6:1.1)+'"'
+      +((kd&&kd.dash!==false&&g.kind==="future")||(kd&&kd.dash)?' stroke-dasharray="6 4"':'')+'/>';
+    if(prog>0) s+='<rect x="'+x+'" y="'+(y+h-6)+'" width="'+(w*prog)+'" height="6" fill="#4E7A33" opacity=".85"/>';
+    const fs=Math.max(8,Math.min(12,w/6));
+    s+='<text x="'+(x+w/2)+'" y="'+(y+h/2-3)+'" text-anchor="middle" font-size="'+fs
+      +'" font-weight="700" fill="#0C013D">'+esc(k)+'</text>'
+      +'<text x="'+(x+w/2)+'" y="'+(y+h/2+11)+'" text-anchor="middle" font-size="'+(fs-2)
+      +'" fill="#5a6b7d">'+Math.round(AREA(k)).toLocaleString("en-IN")+' sq ft</text>'
+      +(kd&&kd.g?'<text x="'+(x+w/2)+'" y="'+(y+h/2-16)+'" text-anchor="middle" font-size="'+(fs+4)
+        +'" fill="'+kd.f+'">'+kd.g+'</text>':'')
+      +(kd?'<text x="'+(x+w/2)+'" y="'+(y+h/2+23)+'" text-anchor="middle" font-size="'+(fs-3)
+        +'" fill="#B80001" font-weight="700">'+esc(kd.l.toUpperCase())+'</text>':'')+'</g>';
+  });
+  // gate
+  const gx=pad+55*SC;
+  s+='<rect x="'+gx+'" y="'+(pad+H-3)+'" width="'+(15*SC)+'" height="6" fill="#B80001"/>';
+  s+='<text x="'+(gx+15*SC/2)+'" y="'+(pad+H+17)+'" text-anchor="middle" font-size="10" fill="#B80001">ENTRANCE 15 ft</text>';
+  s+='<text x="'+(pad+W/2)+'" y="'+(pad-9)+'" text-anchor="middle" font-size="10" fill="#5a6b7d">101.7 ft</text>';
+  s+='<text x="'+(pad-9)+'" y="'+(pad+H/2)+'" text-anchor="middle" font-size="10" fill="#5a6b7d" transform="rotate(-90 '+(pad-9)+' '+(pad+H/2)+')">189.7 ft</text>';
+  s+='</svg>';
+  $("#svgwrap").innerHTML=s;
+  const svgEl=$("#svgwrap").querySelector("svg");
+  if(placing){
+    svgEl.style.cursor="crosshair";
+    svgEl.onclick=ev=>{
+      const r=svgEl.getBoundingClientRect();
+      const fx=(ev.clientX-r.left)/r.width*(W+pad*2), fy=(ev.clientY-r.top)/r.height*(H+pad*2);
+      let ux=(fx-pad)/SC-placing.w/2, uy=(fy-pad)/SC-placing.l/2;
+      ux=Math.max(0,Math.min(PLOT.w-placing.w,ux)); uy=Math.max(0,Math.min(PLOT.l-placing.l,uy));
+      placing.x=Math.round(ux*10)/10; placing.y=Math.round(uy*10)/10;
+      USERZ.push(placing); S.userZones=USERZ; S.sel=placing.name;
+      logChange('Added "'+placing.name+'" ('+KIND(placing).l+", "+placing.w+" × "+placing.l+' ft) to the plan');
+      placing=null;
+      $("#placeMsg").textContent=""; save(); redraw();
+    };
+  } else { svgEl.style.cursor=""; svgEl.onclick=null; }
+  document.querySelectorAll(".zn").forEach(z=>{z.onclick=ev=>{
+    if(placing) return; ev.stopPropagation(); S.sel=z.dataset.z;save();drawPlan();drawZone();};});
+  $("#legend").innerHTML='<span><i style="background:'+PH_COL[1]+';opacity:.45"></i>Phase 1</span>'
+    +'<span><i style="background:'+PH_COL[2]+';opacity:.45"></i>Phase 2</span>'
+    +'<span><i style="background:#DDE4D6"></i>Upper level</span>'
+    +'<span><i style="background:#4E7A33"></i>Completed by value</span>';
+}
+function drawZone(){
+  const k=S.sel,g=Z()[k];
+  if(!g){ $("#zoneDet").innerHTML="Click a block on the plan."; return; }
+  const rows=S.boq.filter(b=>b.area===k);
+  const tot=rows.reduce((s,b)=>s+amt(b),0);
+  const trades={}; rows.forEach(b=>trades[b.trade]=(trades[b.trade]||0)+amt(b));
+  const acts=S.acts.filter(a=>a.area===k);
+  let h='<div class="big">'+esc(k)+'</div>'
+    +'<div class="small" style="margin:3px 0 8px">'+g.w+' × '+g.l+' ft &nbsp;·&nbsp; '
+    +Math.round(AREA(k)).toLocaleString("en-IN")+' sq ft &nbsp;·&nbsp; Phase '+g.phase+'</div>'
+    +'<div style="font-size:12px;margin-bottom:9px">'+esc(g.use)+'</div>'
+    +'<div style="font-size:12px"><b>Estimated works: '+lakh(tot)+'</b> ('+inr(AREA(k)?tot/AREA(k):0)+' per sq ft)</div>'
+    +'<div class="bars">';
+  const mx=Math.max(1,...Object.values(trades));
+  Object.keys(trades).sort((a,b)=>trades[b]-trades[a]).forEach(t=>{
+    h+='<div class="barrow"><span class="nm">'+esc(t)+'</span><span class="tr"><span class="fl" style="width:'
+      +(trades[t]/mx*100)+'%;background:'+(TRADE_COL[t]||BRAND.navyPrimary)+'"></span></span>'
+      +'<span class="vl">'+lakh(trades[t])+'</span></div>';
+  });
+  h+='</div>';
+  if(acts.length){ h+='<div style="margin-top:10px;font-size:12px"><b>Scheduled activities</b><ul style="margin:5px 0 0 16px;padding:0">'
+    +acts.map(a=>'<li style="margin-bottom:3px">'+esc(a.name)+' <span class="small">— '+a.start+', '+a.days+' d'
+    +(a.owner?', '+esc(a.owner):'')+'</span></li>').join("")+'</ul></div>'; }
+
+  /* --- photos for this area --- */
+  const ph=S.photos.filter(p=>p.area===k);
+  h+='<div style="margin-top:12px;font-size:12px"><b>Photographs ('+ph.length+')</b>'
+    +' <button class="sm" id="upHere">+ upload here</button>';
+  if(ph.length){ h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:5px">'
+    +ph.map(p=>'<img src="'+(IMG[p.id]||"")+'" data-zp="'+p.id+'" style="width:100%;height:60px;object-fit:cover;'
+    +'border-radius:4px;border:1px solid #dfe3e8;cursor:zoom-in" title="'+attr(p.name)+'">').join("")+'</div>'; }
+  else h+='<div class="small">None yet. Press <b>+ upload here</b> to add straight from this computer, or pull the '
+    +'survey set from Drive on the Photos tab and tag them.</div>';
+  h+='</div>';
+
+  /* --- condition assessment, drives the estimate --- */
+  const C=COND(k);
+  h+='<div style="margin-top:12px;border-top:1px solid #e1e4e8;padding-top:9px">'
+    +'<b style="font-size:12px">Condition assessed from the photographs</b>'
+    +'<div class="small" style="margin-bottom:5px">Set what you can see. The quantities in this area\'s estimate '
+    +'move with it.</div>';
+  if(Z()[k]&&k!=="Front yard"&&!Z()[k].future){
+    Object.keys(CONDDEF).forEach(el=>{
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+        +'<span class="small" style="width:78px">'+CONDDEF[el].label+'</span>'
+        +'<select data-cond="'+el+'" style="flex:1;font-size:11px">'
+        +["Good","Fair","Poor","Very poor"].map(x=>'<option'+(C[el]===x?" selected":"")+'>'+x+'</option>').join("")
+        +'</select></div>';
+    });
+    h+='<div class="small" id="condEffect" style="margin-top:5px"></div>';
+  } else h+='<div class="small">Not applicable to this block.</div>';
+  h+='</div>';
+
+  /* --- tasks for this area --- */
+  const tk=S.tasks.filter(t=>t.area===k);
+  const tkCost=tk.reduce((s,t)=>{const b=S.boq.find(x=>x.id===t.boqId);return s+(b?amt(b):0);},0);
+  h+='<div style="margin-top:12px;font-size:12px"><b>Work items ('+tk.length+')</b>'
+    +(tkCost?' <span class="small">· '+lakh(tkCost)+' costed</span>':'');
+  if(tk.length){ h+='<div style="margin-top:5px">'+tk.map(t=>{
+      const b=S.boq.find(x=>x.id===t.boqId);
+      const pill=t.status==="Done"?"g":(t.status==="Blocked"?"r":"a");
+      return '<div style="border:1px solid #e6eaee;border-radius:5px;padding:5px 7px;margin-bottom:4px">'
+        +'<div style="font-size:11.5px"><b>'+esc(t.desc)+'</b></div>'
+        +'<div class="small">'+(t.owner?esc(t.owner):"unassigned")+(t.due?" · "+t.due:"")
+        +(b?" · "+inr(amt(b)):"")+' <span class="pill '+pill+'">'+esc(t.status)+'</span></div></div>';
+    }).join("")+'</div>'; }
+  else h+='<div class="small">None yet.</div>';
+  h+='</div>';
+
+  /* --- add work form --- */
+  h+='<div style="margin-top:12px;border-top:1px solid #e1e4e8;padding-top:10px">'
+    +'<b style="font-size:12px">Add work to '+esc(k)+'</b>'
+    +'<input id="nwDesc" placeholder="What has to be done" style="width:100%;margin-top:5px">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px">'
+    +'<select id="nwTrade">'+["Civil","Electrical","Interiors","Utilities","HVAC","Fire","Security","Equipment","Other"]
+      .map(x=>'<option>'+x+'</option>').join("")+'</select>'
+    +'<select id="nwPhase"><option value="1">Phase 1</option><option value="2">Phase 2</option></select></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px">'
+    +'<input id="nwQty" placeholder="Qty" value="1"><input id="nwUnit" placeholder="Unit" value="lump sum"></div>'
+    +'<input id="nwRate" placeholder="Amount per unit in ₹ — leave blank if no cost yet" style="width:100%;margin-top:5px">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px">'
+    +'<input id="nwOwner" placeholder="Person allotted" list="peopleDL"><input id="nwDue" type="date"></div>'
+    +'<button class="primary sm" id="nwAdd" style="margin-top:7px;padding:5px 12px">Add work item</button>'
+    +'<div class="small" style="margin-top:4px">Entering an amount also creates a BOQ line, so the cost model updates.</div>'
+    +'</div>';
+
+  h+='<div style="margin-top:10px"><button class="sm" id="goBoq">Open its BOQ lines</button>'
+    +'<button class="sm" id="goPh">Tag photos</button></div>';
+  $("#zoneDet").innerHTML=h;
+  $("#goBoq").onclick=()=>{ $("#grpBy").value="area"; showTab("boq");
+    setTimeout(()=>{const el=document.getElementById("grp_"+CSS.escape(k)); if(el) el.scrollIntoView({behavior:"smooth",block:"center"});},60); };
+  $("#goPh").onclick=()=>showTab("photo");
+  if($("#upHere")) $("#upHere").onclick=()=>{ pendingArea=k; $("#photoIn").click(); };
+  document.querySelectorAll("[data-cond]").forEach(s=>{s.onchange=e=>{
+    COND(k)[e.target.dataset.cond]=e.target.value;
+    logChange(k+' — '+CONDDEF[e.target.dataset.cond].label.toLowerCase()+' assessed '+e.target.value);
+    save(); applyCondition(k); redraw();};});
+  if($("#condEffect")) $("#condEffect").innerHTML=condSummary(k);
+  document.querySelectorAll("[data-zp]").forEach(i=>{i.onclick=()=>{
+    const w=window.open("","_blank");
+    if(w) w.document.write('<img src="'+IMG[i.dataset.zp]+'" style="max-width:100%">'); };});
+  $("#nwAdd").onclick=()=>{
+    const d=$("#nwDesc").value.trim(); if(!d){ alert("Describe the work first."); return; }
+    const rate=parseFloat($("#nwRate").value)||0;
+    const qty=parseFloat($("#nwQty").value)||1;
+    const tid="t"+Date.now(); let bid=null;
+    if(rate>0){ bid="b"+Date.now();
+      S.boq.push({id:bid,area:k,trade:$("#nwTrade").value,desc:d,unit:$("#nwUnit").value||"lump sum",
+        qty:qty,rateKey:null,rate:rate,phase:+$("#nwPhase").value,note:"Added manually",
+        status:"Not started",owner:$("#nwOwner").value}); }
+    S.tasks.push({id:tid,area:k,desc:d,owner:$("#nwOwner").value,due:$("#nwDue").value,
+      status:"Not started",boqId:bid,phase:+$("#nwPhase").value});
+    save(); redraw();
+  };
+}
+function drawAreaTable(){
+  let h='<tr><th>Area</th><th class="n">Size (ft)</th><th class="n">Area (sq ft)</th><th class="n">% of built</th>'
+    +'<th class="n">Est. works</th><th class="n">₹ / sq ft</th><th>Phase</th><th>Intended use</th></tr>';
+  const built=Object.keys(Z()).filter(k=>k!=="Front yard").reduce((s,k)=>s+AREA(k),0);
+  Object.keys(Z()).forEach(k=>{
+    const g=Z()[k],a=AREA(k);
+    const t=S.boq.filter(b=>b.area===k).reduce((s,b)=>s+amt(b),0);
+    h+='<tr><td><b>'+esc(k)+'</b></td><td class="n">'+g.w+' × '+g.l+'</td>'
+      +'<td class="n">'+Math.round(a).toLocaleString("en-IN")+'</td>'
+      +'<td class="n">'+(k==="Front yard"?"—":(a/built*100).toFixed(1)+"%")+'</td>'
+      +'<td class="n">'+lakh(t)+'</td><td class="n">'+(a?inr(t/a):"—")+'</td>'
+      +'<td><span class="pill '+(g.phase===1?"r":"a")+'">Phase '+g.phase+'</span></td>'
+      +'<td class="small">'+esc(g.use)+'</td></tr>';
+  });
+  const siteT=S.boq.filter(b=>b.area==="Site").reduce((s,b)=>s+amt(b),0);
+  h+='<tr><td><b>Site-wide</b></td><td class="n">—</td><td class="n">—</td><td class="n">—</td>'
+    +'<td class="n">'+lakh(siteT)+'</td><td class="n">—</td><td><span class="pill">Both</span></td>'
+    +'<td class="small">Power, water, sewage, fire, security, external development</td></tr>';
+  h+='<tr class="tot"><td>TOTAL COVERED</td><td class="n">plot 101.7 × 189.7</td>'
+    +'<td class="n">'+Math.round(built).toLocaleString("en-IN")+'</td><td class="n">100%</td>'
+    +'<td class="n">'+lakh(subtotal())+'</td><td class="n">'+inr(subtotal()/built)+'</td><td></td>'
+    +'<td class="small">Plot 19,292 sq ft · ground coverage 52.1%</td></tr>';
+  $("#areaTable").innerHTML=h;
+}
+
+/* ---------- BOQ ---------- */
+function drawBOQ(){
+  const by=$("#grpBy").value;
+  const q=($("#boqFind")&&$("#boqFind").value||"").trim().toLowerCase();
+  const visible=b=>!q||b.desc.toLowerCase().includes(q)||String(b.area).toLowerCase().includes(q)
+                   ||String(b.trade).toLowerCase().includes(q);
+  const keys=[...new Set(S.boq.filter(visible).map(b=>b[by]))].sort();
+  let h='<tr><th style="width:26%">Description</th><th>Trade</th><th class="n">Qty</th><th>Unit</th>'
+    +'<th class="n">Rate ₹</th><th class="n">Amount ₹</th><th>Phase</th><th>Status</th><th>Owner</th><th></th></tr>';
+  keys.forEach(k=>{
+    const rows=S.boq.filter(b=>b[by]===k&&visible(b));
+    const sub=rows.reduce((s,b)=>s+amt(b),0);
+    h+='<tr class="grp" id="grp_'+attr(k)+'"><td colspan="5">'+esc(by==="phase"?("Phase "+k):k)
+      +' <button class="sm" data-addto="'+attr(k)+'" style="margin-left:8px">+ add item here</button></td>'
+      +'<td class="n">'+inr(sub)+'</td><td colspan="4"></td></tr>';
+    rows.forEach(b=>{
+      if(!S.inline){
+        h+='<tr><td>'+esc(b.desc)+(b.note?'<div class="small">'+esc(b.note)+'</div>':'')+'</td>'
+          +'<td>'+esc(b.trade)+'</td>'
+          +'<td class="n">'+b.qty.toLocaleString("en-IN")+'</td>'
+          +'<td>'+esc(b.unit)+'</td>'
+          +'<td class="n">'+inr(rateOf(b))+(b.rate!=null?'<div class="small">fixed</div>':'')+'</td>'
+          +'<td class="n"><b>'+inr(amt(b))+'</b></td>'
+          +'<td>P'+b.phase+'</td>'
+          +'<td>'+esc(b.status)+'</td>'
+          +'<td>'+(b.owner?esc(b.owner):'<span class="small">—</span>')+'</td>'
+          +'<td style="white-space:nowrap"><button class="sm" data-edit="'+b.id+'">Edit</button>'
+          +'<button class="sm warn" data-d="'+b.id+'">×</button></td></tr>';
+        return;
+      }
+      h+='<tr><td><input data-desc="'+b.id+'" value="'+attr(b.desc)+'" style="width:100%">'
+        +(b.note?'<div class="small">'+esc(b.note)+'</div>':'')+'</td>'
+        +'<td><select data-tr="'+b.id+'">'+["Civil","Electrical","Interiors","Utilities","HVAC","Fire",
+            "Security","Equipment","Other"].map(x=>'<option'+(b.trade===x?" selected":"")+'>'+x+'</option>').join("")
+        +'</select></td>'
+        +'<td class="n"><input class="qty" data-q="'+b.id+'" value="'+b.qty+'"></td>'
+        +'<td><input data-un="'+b.id+'" value="'+attr(b.unit)+'" style="width:64px"></td>'
+        +'<td class="n"><input class="num" data-r="'+b.id+'" value="'+rateOf(b)+'"'
+        +(b.rate!=null?' style="background:#FEFAEE"':'')+'>'
+        +'<select data-rk="'+b.id+'" style="width:100%;font-size:10px;margin-top:2px" '
+        +'title="Link this line to a rate card entry so it updates when that rate changes">'
+        +'<option value="">— fixed price —</option>'
+        +Object.keys(RATEDEF()).map(k=>'<option value="'+k+'"'+(b.rateKey===k&&b.rate==null?" selected":"")
+          +'>'+esc(RATEDEF()[k].d.slice(0,42))+'</option>').join("")
+        +'</select></td>'
+        +'<td class="n"><input class="num" data-am="'+b.id+'" value="'+Math.round(amt(b))+'" '
+        +'title="Type a total here and the rate is back-calculated"></td>'
+        +'<td><select data-p="'+b.id+'"><option value="1"'+(b.phase===1?" selected":"")+'>1</option>'
+        +'<option value="2"'+(b.phase===2?" selected":"")+'>2</option></select></td>'
+        +'<td><select data-s="'+b.id+'">'+["Not started","Tendered","Awarded","In progress","Done"]
+          .map(x=>'<option'+(b.status===x?" selected":"")+'>'+x+'</option>').join("")+'</select></td>'
+        +'<td><input data-o="'+b.id+'" value="'+attr(b.owner)+'" style="width:92px"></td>'
+        +'<td style="white-space:nowrap"><button class="sm" data-edit="'+b.id+'" title="Open this line">Edit</button>'
+        +'<button class="sm warn" data-d="'+b.id+'">×</button></td></tr>';
+    });
+  });
+  const t=totals();
+  const oc=[["Sub-total of works",t.base],["Consultant and design fees ("+S.fees+"%)",t.fees],
+    ["BOCW labour welfare cess ("+S.cess+"% — statutory)",t.cess],
+    ["Contractor All Risk and workmen compensation insurance ("+S.ins+"%)",t.ins],
+    ["Contingency ("+S.cont+"%)",t.cont],["Escalation allowance ("+S.esc+"%)",t.esc],
+    ["Pre-tax total",t.pre],["GST ("+S.gst+"%)",t.gst]];
+  oc.forEach(r=>{ h+='<tr class="tot"><td colspan="5">'+r[0]+'</td><td class="n">'+inr(r[1])+'</td><td colspan="4"></td></tr>'; });
+  h+='<tr class="tot" style="background:#0C013D;color:#fff"><td colspan="5">ESTIMATED PROJECT COST</td>'
+    +'<td class="n">'+inr(t.grand)+'</td><td colspan="4">'+lakh(t.grand)+'</td></tr>';
+  $("#boqTable").innerHTML=h;
+  const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,""))||0;
+  document.querySelectorAll("[data-q]").forEach(i=>{i.onchange=e=>{
+    const b=S.boq.find(x=>x.id===e.target.dataset.q); b.qty=num(e.target.value); save(); redraw();};});
+  document.querySelectorAll("[data-r]").forEach(i=>{i.onchange=e=>{
+    const b=S.boq.find(x=>x.id===e.target.dataset.r); const v=num(e.target.value);
+    b.rate=(v===(S.rates[b.rateKey]||0))?null:v; save(); redraw();};});
+  document.querySelectorAll("[data-am]").forEach(i=>{i.onchange=e=>{
+    const b=S.boq.find(x=>x.id===e.target.dataset.am); const total=num(e.target.value);
+    if(!b.qty||b.qty<=0){ b.qty=1; b.unit=b.unit||"lump sum"; }
+    b.rate=total/b.qty; b.rateKey=null;   // detach from the rate card, this line is now fixed
+    save(); redraw();};});
+  document.querySelectorAll("[data-edit]").forEach(b=>{b.onclick=()=>openBoqEditor(b.dataset.edit);});
+  document.querySelectorAll("[data-rk]").forEach(i=>{i.onchange=e=>{
+    const b=S.boq.find(x=>x.id===e.target.dataset.rk), k=e.target.value;
+    if(k){ b.rateKey=k; b.rate=null; }              // follow the rate card
+    else { b.rate=rateOf(b); b.rateKey=null; }      // freeze at the current number
+    save(); redraw();};});
+  document.querySelectorAll("[data-desc]").forEach(i=>{i.onchange=e=>{
+    const b=S.boq.find(x=>x.id===e.target.dataset.desc); b.desc=e.target.value;
+    const t=S.tasks.find(x=>x.boqId===b.id); if(t) t.desc=b.desc; save();};});
+  document.querySelectorAll("[data-tr]").forEach(i=>{i.onchange=e=>{
+    S.boq.find(x=>x.id===e.target.dataset.tr).trade=e.target.value; save(); redraw();};});
+  document.querySelectorAll("[data-un]").forEach(i=>{i.onchange=e=>{
+    S.boq.find(x=>x.id===e.target.dataset.un).unit=e.target.value; save();};});
+  document.querySelectorAll("[data-addto]").forEach(btn=>{btn.onclick=()=>{
+    const k=btn.dataset.addto, id="b"+Date.now();
+    const line={id:id,area:by==="area"?k:S.sel,trade:by==="trade"?k:"Civil",desc:"",unit:"lump sum",
+      qty:1,rateKey:null,rate:0,phase:by==="phase"?+k:1,note:"Added manually",status:"Not started",owner:""};
+    S.boq.push(line); save(); drawBOQ(); drawKPIs();
+    const el=document.querySelector('[data-desc="'+id+'"]');
+    if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.focus(); }};});
+  document.querySelectorAll("[data-p]").forEach(i=>{i.onchange=e=>{
+    S.boq.find(x=>x.id===e.target.dataset.p).phase=+e.target.value; save(); redraw();};});
+  document.querySelectorAll("[data-s]").forEach(i=>{i.onchange=e=>{
+    S.boq.find(x=>x.id===e.target.dataset.s).status=e.target.value; save(); redraw();};});
+  document.querySelectorAll("[data-o]").forEach(i=>{i.onchange=e=>{
+    S.boq.find(x=>x.id===e.target.dataset.o).owner=e.target.value; save();};});
+  document.querySelectorAll("[data-d]").forEach(b=>{b.onclick=()=>{
+    S.boq=S.boq.filter(x=>x.id!==b.dataset.d); save(); redraw();};});
+}
+function usageOf(key){ return S.boq.filter(b=>b.rateKey===key&&b.rate==null).length; }
+function drawRates(){
+  const D=RATEDEF();
+  const mine=k=>!!S.customRates[k];
+  $("#rateGrid").innerHTML=Object.keys(D).map(k=>{
+    const u=usageOf(k);
+    return '<label'+(mine(k)?' style="background:#FEFAEE;border-radius:5px;padding:2px 5px"':'')+'>'
+    +'<span>'+esc(D[k].d)+' <span class="small">('+esc(D[k].u)+')'
+    +(u?' · used on '+u+' line'+(u>1?'s':''):' · not used yet')+'</span></span>'
+    +'<input class="num" data-rt="'+k+'" value="'+(S.rates[k]!=null?S.rates[k]:D[k].v)+'">'
+    +(mine(k)?'<button class="sm warn" data-rdel="'+k+'" title="Remove this rate">×</button>':'')
+    +'</label>'; }).join("")
+    +'<label><span><b>Consultant and design fees</b> (% of works)</span><input class="num" data-oc="fees" value="'+S.fees+'"></label>'
+    +'<label><span><b>BOCW labour welfare cess</b> (% — statutory, 1% where cost exceeds ₹10 lakh)</span>'
+    +'<input class="num" data-oc="cess" value="'+S.cess+'"></label>'
+    +'<label><span><b>CAR and workmen compensation insurance</b> (%)</span>'
+    +'<input class="num" data-oc="ins" value="'+S.ins+'"></label>'
+    +'<label><span><b>Contingency</b> (%)</span><input class="num" data-oc="cont" value="'+S.cont+'"></label>'
+    +'<label><span><b>Escalation allowance</b> (%)</span><input class="num" data-oc="esc" value="'+S.esc+'"></label>'
+    +'<label><span><b>GST on works</b> (%)</span><input class="num" data-oc="gst" value="'+S.gst+'"></label>';
+  document.querySelectorAll("[data-rt]").forEach(i=>{i.onchange=e=>{
+    const k=e.target.dataset.rt, v=parseFloat(String(e.target.value).replace(/[^0-9.\-]/g,""))||0;
+    S.rates[k]=v; if(S.customRates[k]) S.customRates[k].v=v; save(); redraw();};});
+  document.querySelectorAll("[data-oc]").forEach(i=>{i.onchange=e=>{
+    S[e.target.dataset.oc]=parseFloat(e.target.value)||0; save(); redraw();};});
+  document.querySelectorAll("[data-rdel]").forEach(b=>{b.onclick=()=>{
+    const k=b.dataset.rdel, u=usageOf(k);
+    if(u&&!confirm('This rate is used on '+u+' BOQ line'+(u>1?'s':'')
+      +'. Removing it will freeze those lines at their current amount. Continue?')) return;
+    if(!u&&!confirm('Remove "'+S.customRates[k].d+'" from the rate card?')) return;
+    S.boq.forEach(x=>{ if(x.rateKey===k&&x.rate==null){ x.rate=S.rates[k]||0; x.rateKey=null; } });
+    delete S.customRates[k]; delete S.rates[k]; save(); redraw();};});
+}
+function addRate(){
+  const d=(prompt("What is the rate for? (e.g. Anti-static flooring, Crane rail alignment)","")||"").trim();
+  if(!d) return;
+  const u=(prompt("Unit — per sq ft, per rft, each, lump sum:","per sq ft")||"").trim()||"each";
+  const v=parseFloat(String(prompt("Rate in ₹ for one "+u.replace(/^per /,""),"0")||"").replace(/[^0-9.\-]/g,""))||0;
+  const key="c"+Date.now().toString(36);
+  S.customRates[key]={v:v,u:u,d:d};
+  S.rates[key]=v; logChange('Added rate "'+d+'" at '+inr(v)+' '+u); save(); redraw();
+  BKR('Added "'+d+'" at '+inr(v)+' '+u+'. Link a BOQ line to it using the small dropdown under its rate.');
+}
+function BKR(m){ const e=$("#rateMsg"); if(e){ e.innerHTML=esc(m); } }
+
+/* ---------- schedule ---------- */
+/* ---------- critical path ----------
+   Forward pass for earliest dates, backward pass for latest, float = the difference.
+   An activity with zero float is on the critical path: it cannot slip by a single day
+   without moving the milestone. -------------------------------------------------------- */
+function cpm(){
+  const byId={}; S.acts.forEach(a=>byId[a.id]=a);
+  const ES={},EF={};
+  const visit=(a,seen)=>{
+    if(EF[a.id]!=null) return EF[a.id];
+    if(seen.has(a.id)) return dparse(a.start);   // cycle guard
+    seen.add(a.id);
+    let es=dparse(a.start);
+    (a.pred||[]).forEach(pid=>{ const p=byId[pid]; if(!p) return;
+      const pf=visit(p,seen); if(pf>es) es=new Date(pf); });
+    ES[a.id]=es; EF[a.id]=dadd(es,a.days);
+    return EF[a.id];
+  };
+  S.acts.forEach(a=>visit(a,new Set()));
+  const finish=S.acts.length?new Date(Math.max.apply(null,S.acts.map(a=>EF[a.id]))):new Date();
+  const succ={}; S.acts.forEach(a=>(a.pred||[]).forEach(p=>{ (succ[p]=succ[p]||[]).push(a.id); }));
+  const LF={};
+  const back=(a,seen)=>{
+    if(LF[a.id]!=null) return LF[a.id];
+    if(seen.has(a.id)) return finish;
+    seen.add(a.id);
+    const ss=succ[a.id]||[];
+    if(!ss.length){ LF[a.id]=new Date(finish); return LF[a.id]; }
+    let lf=null;
+    ss.forEach(sid=>{ const s=byId[sid]; if(!s) return;
+      const ls=dadd(back(s,seen),-s.days); if(lf===null||ls<lf) lf=ls; });
+    LF[a.id]=lf||new Date(finish); return LF[a.id];
+  };
+  S.acts.forEach(a=>back(a,new Set()));
+  const out={};
+  S.acts.forEach(a=>{ const fl=days(EF[a.id],LF[a.id]);
+    out[a.id]={es:ES[a.id],ef:EF[a.id],lf:LF[a.id],float:fl,critical:fl<=0}; });
+  return {n:out,finish:finish};
+}
+function drawGantt(){
+  const starts=S.acts.map(a=>dparse(a.start));
+  const ends=S.acts.map(a=>dadd(dparse(a.start),a.days));
+  let min=new Date(Math.min.apply(null,starts.concat([TODAY])));
+  let max=new Date(Math.max.apply(null,ends));
+  min=new Date(min.getFullYear(),min.getMonth(),1);
+  const weeks=Math.ceil(days(min,max)/7)+2;
+  let hdr='<tr><th style="min-width:230px">Activity</th><th style="min-width:90px">Owner</th>';
+  const mLab=[];
+  for(let i=0;i<weeks;i++){ const d=dadd(min,i*7);
+    const first=(i===0)||(d.getMonth()!==dadd(min,(i-1)*7).getMonth());
+    mLab.push(first);
+    hdr+='<th class="cell'+(first?" m0":"")+'" style="font-size:9px;padding:2px">'
+      +(first?d.toLocaleDateString("en-GB",{month:"short"}):"")+'</th>'; }
+  hdr+='</tr>';
+  let body="";
+  S.acts.forEach(a=>{
+    const s=dparse(a.start), off=Math.floor(days(min,s)/7), len=Math.max(1,Math.ceil(a.days/7));
+    const cls=a.pct>=100?"done":(a.crit?"crit":(a.phase===2?"p2":""));
+    body+='<tr><td>'+esc(a.name)+'</td><td class="small">'+esc(a.owner)+'</td>';
+    for(let i=0;i<weeks;i++){
+      body+='<td class="cell'+(mLab[i]?" m0":"")+'">';
+      if(i===off) body+='<div class="gbar '+cls+'" style="width:'+(len*15-3)+'px"></div>';
+      body+='</td>';
+    }
+    body+='</tr>';
+  });
+  $("#gantt").innerHTML='<table>'+hdr+body+'</table>';
+  const d1=days(TODAY,OPS);
+  const p1=S.acts.filter(a=>a.phase===1&&dadd(dparse(a.start),a.days)>OPS);
+  $("#schedWarn").innerHTML='<b>Schedule reality check.</b> '+d1+' days remain to the 17 September operations start. '
+    +p1.length+' Phase 1 activities as scheduled finish after that date'
+    +(p1.length?': '+p1.slice(0,4).map(a=>esc(a.name)).join("; ")+(p1.length>4?' and '+(p1.length-4)+' more.':'.'):'.')
+    +' Either compress these, add resource, or agree a reduced minimum-viable scope for the 17 September start. '
+    +'Note also that Phase 2 ends March 2027 while the stated launch is 1 April 2028 — that twelve-month gap needs an explanation before this goes to the board.';
+}
+function drawActs(){
+  let h='<tr><th>Activity</th><th>Area</th><th>Start</th><th class="n">Days</th><th>Finish</th><th>Phase</th>'
+    +'<th>Critical</th><th class="n">% done</th><th>Owner</th><th></th></tr>';
+  S.acts.forEach(a=>{
+    const f=dadd(dparse(a.start),a.days);
+    h+='<tr><td><input data-an="'+a.id+'" value="'+attr(a.name)+'" style="width:230px"></td>'
+      +'<td><select data-aa="'+a.id+'">'+["All","Site"].concat(Object.keys(Z()))
+        .map(x=>'<option'+(a.area===x?" selected":"")+'>'+x+'</option>').join("")+'</select></td>'
+      +'<td><input type="date" data-as="'+a.id+'" value="'+a.start+'"></td>'
+      +'<td class="n"><input class="qty" data-ad="'+a.id+'" value="'+a.days+'"></td>'
+      +'<td class="small">'+dstr(f)+'</td>'
+      +'<td><select data-ap="'+a.id+'"><option value="1"'+(a.phase===1?" selected":"")+'>1</option>'
+      +'<option value="2"'+(a.phase===2?" selected":"")+'>2</option></select></td>'
+      +'<td style="text-align:center"><input type="checkbox" data-ac="'+a.id+'"'+(a.crit?" checked":"")+'></td>'
+      +'<td class="n"><input class="qty" data-apc="'+a.id+'" value="'+a.pct+'"></td>'
+      +'<td><input data-ao="'+a.id+'" value="'+attr(a.owner)+'" style="width:110px"></td>'
+      +'<td><button class="sm warn" data-adel="'+a.id+'">×</button></td></tr>';
+  });
+  $("#actTable").innerHTML=h;
+  const bind=(sel,fn)=>document.querySelectorAll(sel).forEach(i=>{i.onchange=e=>{
+    const id=e.target.dataset[Object.keys(e.target.dataset)[0]];
+    fn(S.acts.find(x=>x.id===id),e.target); save(); redraw();};});
+  bind("[data-an]",(a,t)=>a.name=t.value); bind("[data-aa]",(a,t)=>a.area=t.value);
+  bind("[data-as]",(a,t)=>a.start=t.value); bind("[data-ad]",(a,t)=>a.days=parseInt(t.value)||1);
+  bind("[data-ap]",(a,t)=>a.phase=+t.value); bind("[data-ac]",(a,t)=>a.crit=t.checked);
+  bind("[data-apc]",(a,t)=>a.pct=parseInt(t.value)||0); bind("[data-ao]",(a,t)=>a.owner=t.value);
+  document.querySelectorAll("[data-adel]").forEach(b=>{b.onclick=()=>{
+    S.acts=S.acts.filter(x=>x.id!==b.dataset.adel); save(); redraw();};});
+}
+
+/* ---------- approvals ---------- */
+function drawAppr(){
+  let h='<tr><th style="width:22%">Approval</th><th style="width:22%">Authority and statute</th><th>Lead time</th>'
+    +'<th>Status</th><th>Owner</th><th>Target</th><th style="width:26%">Note</th><th></th></tr>';
+  S.appr.forEach(a=>{
+    const st=a.status, pill=st==="Granted"?"g":(st==="Applied"?"a":"r");
+    h+='<tr><td><b>'+esc(a.name)+'</b></td><td class="small">'+esc(a.auth)+'</td>'
+      +'<td class="small">'+esc(a.lead)+'</td>'
+      +'<td><select data-ps="'+a.id+'">'+["Not started","Documents ready","Applied","Query raised","Granted"]
+        .map(x=>'<option'+(st===x?" selected":"")+'>'+x+'</option>').join("")+'</select>'
+      +' <span class="pill '+pill+'">'+esc(st)+'</span></td>'
+      +'<td><input data-po="'+a.id+'" value="'+attr(a.owner)+'" style="width:90px"></td>'
+      +'<td><input type="date" data-pt="'+a.id+'" value="'+a.target+'"></td>'
+      +'<td class="small">'+esc(a.note)+'</td>'
+      +'<td><button class="sm warn" data-pd="'+a.id+'">×</button></td></tr>';
+  });
+  $("#apprTable").innerHTML=h;
+  document.querySelectorAll("[data-ps]").forEach(i=>{i.onchange=e=>{
+    S.appr.find(x=>x.id===e.target.dataset.ps).status=e.target.value; save(); redraw();};});
+  document.querySelectorAll("[data-po]").forEach(i=>{i.onchange=e=>{
+    S.appr.find(x=>x.id===e.target.dataset.po).owner=e.target.value; save();};});
+  document.querySelectorAll("[data-pt]").forEach(i=>{i.onchange=e=>{
+    S.appr.find(x=>x.id===e.target.dataset.pt).target=e.target.value; save();};});
+  document.querySelectorAll("[data-pd]").forEach(b=>{b.onclick=()=>{
+    S.appr=S.appr.filter(x=>x.id!==b.dataset.pd); save(); redraw();};});
+}
+
+/* ---------- cash flow ---------- */
+function cashMonths(){
+  const map={};
+  S.boq.forEach(b=>{
+    const acts=S.acts.filter(a=>a.area===b.area&&a.phase===b.phase);
+    let s,e;
+    if(acts.length){
+      s=new Date(Math.min.apply(null,acts.map(a=>dparse(a.start))));
+      e=new Date(Math.max.apply(null,acts.map(a=>dadd(dparse(a.start),a.days))));
+    } else if(b.phase===1){ s=new Date(2026,7,15); e=new Date(2026,11,31); }
+    else { s=new Date(2027,0,1); e=new Date(2027,2,31); }
+    const n=Math.max(1,(e.getFullYear()-s.getFullYear())*12+(e.getMonth()-s.getMonth())+1);
+    const per=amt(b)/n;
+    for(let i=0;i<n;i++){ const d=new Date(s.getFullYear(),s.getMonth()+i,1);
+      const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      map[k]=(map[k]||0)+per; }
+  });
+  return map;
+}
+function drawCash(){
+  const m=cashMonths(), keys=Object.keys(m).sort();
+  const t=totals(), onc=(t.grand-t.base)/(t.base||1);
+  let cum=0, mx=Math.max(1,...keys.map(k=>m[k]*(1+onc)));
+  let h='<tr><th>Month</th><th class="n">Works value</th><th class="n">With fees, contingency and GST</th>'
+    +'<th class="n">Cumulative</th><th style="width:38%">Profile</th></tr>';
+  keys.forEach(k=>{
+    const g=m[k]*(1+onc); cum+=g;
+    const d=new Date(+k.slice(0,4),+k.slice(5)-1,1);
+    h+='<tr><td>'+d.toLocaleDateString("en-GB",{month:"short",year:"numeric"})+'</td>'
+      +'<td class="n">'+inr(m[k])+'</td><td class="n">'+inr(g)+'</td><td class="n">'+lakh(cum)+'</td>'
+      +'<td><div class="tr" style="background:#E4E4EA;border-radius:3px;height:13px">'
+      +'<div style="height:13px;background:#0C013D;border-radius:3px;width:'+(g/mx*100)+'%"></div></div></td></tr>';
+  });
+  h+='<tr class="tot"><td>TOTAL</td><td class="n">'+inr(t.base)+'</td><td class="n">'+inr(t.grand)
+    +'</td><td class="n">'+lakh(t.grand)+'</td><td></td></tr>';
+  $("#cashTable").innerHTML=h;
+  const peak=keys.reduce((a,k)=>m[k]>m[a]?k:a,keys[0]||"");
+  $("#cashChart").innerHTML='<div class="note">Peak month is <b>'
+    +(peak?new Date(+peak.slice(0,4),+peak.slice(5)-1,1).toLocaleDateString("en-GB",{month:"long",year:"numeric"}):"—")
+    +'</b> at <b>'+(peak?lakh(m[peak]*(1+onc)):"—")+'</b>. Arrange the facility limit against that peak, not against the monthly average.</div>';
+  $("#termsTable").innerHTML='<tr><th>Item</th><th>Assumption</th><th>Why it matters</th></tr>'
+    +[["Mobilisation advance","10% against bank guarantee","Locks crews in a tight labour market; recover pro-rata from running bills."],
+      ["Running bills","Monthly, on measured work, certified by the consultant","Never pay against invoice alone on civil work."],
+      ["Retention","5% of each bill","Released half at completion, half after the defect liability period."],
+      ["Defect liability","12 months from completion of each package","Covers a full monsoon cycle — essential for roof and waterproofing."],
+      ["Price basis","Firm for 6 months from award","Beyond that the escalation allowance applies."],
+      ["GST","18% on works contract","Verify input credit eligibility with your CA before finalising the funding number."]]
+      .map(r=>'<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td class="small">'+r[2]+'</td></tr>').join("");
+}
+
+/* ---------- risks ---------- */
+function drawRisks(){
+  const rank=r=>({High:3,Medium:2,Low:1})[r]||0;
+  const sorted=[...S.risks].sort((a,b)=>(rank(b.like)*rank(b.imp))-(rank(a.like)*rank(a.imp)));
+  let h='<tr><th style="width:22%">Risk</th><th>Category</th><th>Likelihood</th><th>Impact</th>'
+    +'<th style="width:34%">Mitigation</th><th>Owner</th><th>Status</th><th></th></tr>';
+  sorted.forEach(r=>{
+    const sc=rank(r.like)*rank(r.imp);
+    const pill=sc>=9?"r":(sc>=4?"a":"g");
+    h+='<tr><td><b>'+esc(r.desc)+'</b> <span class="pill '+pill+'">'+sc+'</span></td>'
+      +'<td class="small">'+esc(r.cat)+'</td>'
+      +'<td><select data-rl="'+r.id+'">'+["Low","Medium","High"].map(x=>'<option'+(r.like===x?" selected":"")+'>'+x+'</option>').join("")+'</select></td>'
+      +'<td><select data-ri="'+r.id+'">'+["Low","Medium","High"].map(x=>'<option'+(r.imp===x?" selected":"")+'>'+x+'</option>').join("")+'</select></td>'
+      +'<td class="small">'+esc(r.mit)+'</td>'
+      +'<td><input data-ro="'+r.id+'" value="'+attr(r.owner)+'" style="width:95px"></td>'
+      +'<td><select data-rs="'+r.id+'">'+["Open","Being managed","Closed"].map(x=>'<option'+(r.status===x?" selected":"")+'>'+x+'</option>').join("")+'</select></td>'
+      +'<td><button class="sm warn" data-rd="'+r.id+'">×</button></td></tr>';
+  });
+  $("#riskTable").innerHTML=h;
+  const b=(s,f)=>document.querySelectorAll(s).forEach(i=>{i.onchange=e=>{
+    const id=e.target.dataset[Object.keys(e.target.dataset)[0]];
+    f(S.risks.find(x=>x.id===id),e.target); save(); redraw();};});
+  b("[data-rl]",(r,t)=>r.like=t.value); b("[data-ri]",(r,t)=>r.imp=t.value);
+  b("[data-ro]",(r,t)=>r.owner=t.value); b("[data-rs]",(r,t)=>r.status=t.value);
+  document.querySelectorAll("[data-rd]").forEach(x=>{x.onclick=()=>{
+    S.risks=S.risks.filter(y=>y.id!==x.dataset.rd); save(); redraw();};});
+}
+
+/* ---------- add a new area / room ---------- */
+function addNewArea(preset){
+  const n=(prompt("Name of the new area or room\n(e.g. Store room, Test bay, Compressor room, Shed 5):",
+    preset||"")||"").trim();
+  if(!n) return null;
+  if(AREAKEYS().includes(n)){ alert('"'+n+'" already exists.'); return n; }
+  S.extraAreas.push(n); logChange('Added area "'+n+'"'); save(); redraw();
+  return n;
+}
+
+/* ---------- tasks ---------- */
+function drawTasks(){
+  const fa=$("#tFilter"), fs=$("#tStat");
+  const cur=fa.value;
+  fa.innerHTML='<option value="">All areas</option>'+AREAKEYS().map(a=>'<option'+(cur===a?" selected":"")+'>'+esc(a)+'</option>').join("");
+  let rows=S.tasks.slice();
+  if(fa.value) rows=rows.filter(t=>t.area===fa.value);
+  if(fs.value) rows=rows.filter(t=>t.status===fs.value);
+  let h='<tr><th style="width:26%">Work to be done</th><th>Area</th><th class="n">Amount ₹</th><th>Phase</th>'
+    +'<th>Person allotted</th><th>Target date</th><th>Status</th><th></th></tr>';
+  if(!fa.value){
+    h+='<tr class="grp"><td colspan="8">Add a work item to any area — '
+      +AREAKEYS().map(a=>'<button class="sm" data-qadd="'+attr(a)+'">+ '+esc(a)+'</button>').join(" ")
+      +' <button class="sm primary" id="tNewArea">+ New area / room…</button></td></tr>';
+  }
+  if(!rows.length) h+='<tr><td colspan="8" class="small">No work items yet. Use a button above, or the add form in any area panel on the Site plan tab.</td></tr>';
+  rows.forEach(t=>{
+    const b=S.boq.find(x=>x.id===t.boqId);
+    if(!S.inline){
+      const pill=t.status==="Done"?"g":(t.status==="Blocked"?"r":"a");
+      h+='<tr><td>'+(t.desc?esc(t.desc):'<span class="small">(untitled)</span>')+'</td>'
+        +'<td>'+esc(t.area)+'</td>'
+        +'<td class="n">'+(b?inr(amt(b)):'<span class="small">—</span>')+'</td>'
+        +'<td>P'+(t.phase||1)+'</td>'
+        +'<td>'+(t.owner?esc(t.owner):'<span class="small">unassigned</span>')+'</td>'
+        +'<td>'+(t.due?esc(t.due):'<span class="small">—</span>')+'</td>'
+        +'<td><span class="pill '+pill+'">'+esc(t.status)+'</span></td>'
+        +'<td style="white-space:nowrap"><button class="sm" data-tedit="'+t.id+'">Edit</button>'
+        +'<button class="sm warn" data-tx="'+t.id+'">×</button></td></tr>';
+      return;
+    }
+    h+='<tr><td><input data-td="'+t.id+'" value="'+attr(t.desc)+'" style="width:100%"></td>'
+      +'<td><select data-ta="'+t.id+'">'+AREAKEYS().map(a=>'<option'+(t.area===a?" selected":"")+'>'+esc(a)+'</option>').join("")+'</select></td>'
+      +'<td class="n">'+(b?'<input class="num" data-tv="'+t.id+'" value="'+amt(b)+'">':'<button class="sm" data-tc="'+t.id+'">add cost</button>')+'</td>'
+      +'<td><select data-tp="'+t.id+'"><option value="1"'+(t.phase===1?" selected":"")+'>1</option>'
+      +'<option value="2"'+(t.phase===2?" selected":"")+'>2</option></select></td>'
+      +'<td><input data-to="'+t.id+'" list="peopleDL" value="'+attr(t.owner)+'" style="width:110px"></td>'
+      +'<td><input type="date" data-tu="'+t.id+'" value="'+attr(t.due)+'"></td>'
+      +'<td><select data-ts="'+t.id+'">'+["Not started","In progress","Blocked","Done"]
+        .map(x=>'<option'+(t.status===x?" selected":"")+'>'+x+'</option>').join("")+'</select></td>'
+      +'<td style="white-space:nowrap"><button class="sm" data-tedit="'+t.id+'">Edit</button>'
+      +'<button class="sm warn" data-tx="'+t.id+'">×</button></td></tr>';
+  });
+  const costed=rows.reduce((s,t)=>{const b=S.boq.find(x=>x.id===t.boqId);return s+(b?amt(b):0);},0);
+  h+='<tr class="tot"><td>'+rows.length+' item(s) shown</td><td></td><td class="n">'+inr(costed)+'</td><td colspan="5"></td></tr>';
+  $("#taskTable").innerHTML=h;
+  const T=id=>S.tasks.find(x=>x.id===id);
+  const b=(sel,fn)=>document.querySelectorAll(sel).forEach(i=>{i.onchange=e=>{
+    fn(T(e.target.dataset[Object.keys(e.target.dataset)[0]]),e.target); save(); redraw();};});
+  b("[data-td]",(t,e)=>{t.desc=e.value; const x=S.boq.find(y=>y.id===t.boqId); if(x)x.desc=e.value;});
+  b("[data-ta]",(t,e)=>{t.area=e.value; const x=S.boq.find(y=>y.id===t.boqId); if(x)x.area=e.value;});
+  b("[data-tp]",(t,e)=>{t.phase=+e.value; const x=S.boq.find(y=>y.id===t.boqId); if(x)x.phase=+e.value;});
+  b("[data-to]",(t,e)=>{t.owner=e.value; const x=S.boq.find(y=>y.id===t.boqId); if(x)x.owner=e.value;});
+  b("[data-tu]",(t,e)=>t.due=e.value);
+  b("[data-ts]",(t,e)=>{t.status=e.value; const x=S.boq.find(y=>y.id===t.boqId);
+    if(x)x.status=(e.value==="Done")?"Done":(e.value==="In progress"?"In progress":"Not started");});
+  b("[data-tv]",(t,e)=>{const x=S.boq.find(y=>y.id===t.boqId);
+    if(x){ x.qty=1; x.rate=parseFloat(e.value)||0; x.rateKey=null; }});
+  document.querySelectorAll("[data-tc]").forEach(i=>{i.onclick=()=>{
+    const t=T(i.dataset.tc); const v=prompt("Amount for \""+t.desc+"\" in ₹:","0");
+    if(v==null) return;
+    const bid="b"+Date.now();
+    S.boq.push({id:bid,area:t.area,trade:"Other",desc:t.desc,unit:"lump sum",qty:1,rateKey:null,
+      rate:parseFloat(v)||0,phase:t.phase||1,note:"Added from work item",status:"Not started",owner:t.owner});
+    t.boqId=bid; save(); redraw();};});
+  document.querySelectorAll("[data-tedit]").forEach(b=>{b.onclick=()=>openTaskEditor(b.dataset.tedit);});
+  document.querySelectorAll("[data-tx]").forEach(i=>{i.onclick=()=>{
+    const t=T(i.dataset.tx);
+    if(!confirm("Delete this work item"+(t.boqId?" and its BOQ line":"")+"?")) return;
+    if(t.boqId) S.boq=S.boq.filter(x=>x.id!==t.boqId);
+    S.tasks=S.tasks.filter(x=>x.id!==t.id); save(); redraw();};});
+  if($("#tNewArea")) $("#tNewArea").onclick=()=>{
+    const n=addNewArea(); if(!n) return;
+    const id="t"+Date.now();
+    S.tasks.push({id:id,area:n,desc:"",owner:"",due:"",status:"Not started",boqId:null,phase:1});
+    save(); redraw();
+    const el=document.querySelector('[data-td="'+id+'"]');
+    if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.focus(); } };
+  document.querySelectorAll("[data-qadd]").forEach(i=>{i.onclick=()=>{
+    const id="t"+Date.now();
+    S.tasks.push({id:id,area:i.dataset.qadd,desc:"",owner:"",due:"",status:"Not started",boqId:null,phase:1});
+    save(); redraw();
+    const el=document.querySelector('[data-td="'+id+'"]');
+    if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.focus(); }};});
+
+  // load by person
+  const per={};
+  S.tasks.forEach(t=>{ const p=(t.owner||"Unassigned").trim()||"Unassigned";
+    const bb=S.boq.find(x=>x.id===t.boqId);
+    per[p]=per[p]||{n:0,val:0,done:0}; per[p].n++; per[p].val+=bb?amt(bb):0;
+    if(t.status==="Done") per[p].done++; });
+  let lh='<tr><th>Person</th><th class="n">Items</th><th class="n">Completed</th><th class="n">Value held</th><th style="width:40%">Load</th></tr>';
+  const mx=Math.max(1,...Object.values(per).map(v=>v.n));
+  Object.keys(per).sort((a,b2)=>per[b2].n-per[a].n).forEach(p=>{
+    lh+='<tr><td><b>'+esc(p)+'</b></td><td class="n">'+per[p].n+'</td><td class="n">'+per[p].done+'</td>'
+      +'<td class="n">'+inr(per[p].val)+'</td><td><div style="background:#E4E4EA;border-radius:3px;height:13px">'
+      +'<div style="height:13px;background:#0C013D;border-radius:3px;width:'+(per[p].n/mx*100)+'%"></div></div></td></tr>';
+  });
+  if(!Object.keys(per).length) lh+='<tr><td colspan="5" class="small">Nothing assigned yet.</td></tr>';
+  $("#loadTable").innerHTML=lh;
+  // people datalist
+  const names=[...new Set(S.tasks.map(t=>t.owner).filter(Boolean))];
+  let dl=document.getElementById("peopleDL");
+  if(!dl){ dl=document.createElement("datalist"); dl.id="peopleDL"; document.body.appendChild(dl); }
+  dl.innerHTML=names.map(n=>'<option value="'+attr(n)+'">').join("");
+}
+
+/* ---------- photos ---------- */
+function plog(m,bad){ $("#plog").innerHTML+='<div'+(bad?' style="color:#B80001"':'')+'>'+esc(m)+'</div>'; }
+function parseFolder(raw){ raw=String(raw||"").trim();
+  let m=raw.match(/\/folders\/([-\w]{20,})/); if(m) return m[1];
+  m=raw.match(/[?&]id=([-\w]{20,})/); if(m) return m[1];
+  m=raw.match(/[-\w]{25,}/); return m?m[0]:null; }
+async function listKids(id){ let f=[],tok=null,g=0;
+  do{ const r=await callTool("search_files",{query:"parentId = '"+id+"'",pageSize:100,
+        pageToken:tok||undefined,excludeContentSnippets:true});
+      f=f.concat(r.files||[]); tok=r.nextPageToken||r.next_page_token||null; }while(tok&&++g<10);
+  return f; }
+async function testDrive(){
+  $("#plog").innerHTML="";
+  const id=parseFolder($("#purl").value);
+  plog("1. Folder id parsed: "+(id||"FAILED — check the link"), !id);
+  if(!id) return;
+  plog("2. Is the Drive connector reachable from this view?");
+  if(!window.cowork||!window.cowork.callMcpTool){
+    plog("   NO — window.cowork.callMcpTool is not available. You are probably viewing a saved copy "
+        +"of this file in a plain browser, which has no Drive connection. Use the upload button instead.",true);
+    return; }
+  plog("   yes");
+  try{
+    const r=await callTool("search_files",{query:"parentId = '"+id+"'",pageSize:5,excludeContentSnippets:true});
+    const n=(r.files||[]).length;
+    plog("3. Folder listing returned "+n+" item(s) — listing works.");
+    const img=(r.files||[]).find(f=>(f.mimeType||"").indexOf("image/")===0);
+    const sub=(r.files||[]).find(f=>f.mimeType==="application/vnd.google-apps.folder");
+    if(!img&&sub) plog("   note: no images at this level, they are inside subfolders such as \""
+        +(sub.title||sub.name)+"\". Keep \"subfolders\" ticked.");
+    const target=img||null;
+    if(!target){ plog("4. No image at this level to test a download with — press Load from Drive and watch this log."); return; }
+    plog("4. Downloading one image as a test: "+(target.title||target.name));
+    const d=await callTool("download_file_content",{fileId:target.id});
+    const b64=d.content||d.base64Content;
+    plog("   response received, base64 length "+(b64?b64.length:0));
+    if(!b64){ plog("   FAILED — no image data in the response.",true); return; }
+    await new Promise((res)=>{ const im=new Image();
+      im.onload=()=>{ plog("5. Image decoded at "+im.width+" x "+im.height+" — everything works. "
+        +"Press Load from Drive.",false); res(); };
+      im.onerror=()=>{ plog("5. FAILED — data arrived but could not be decoded. The response was probably "
+        +"truncated. Use the upload button for large photos.",true); res(); };
+      im.src="data:"+(d.mimeType||"image/jpeg")+";base64,"+b64; });
+  }catch(e){ plog("FAILED at this step: "+e.message,true); }
+}
+async function loadPhotos(){
+  const id=parseFolder($("#purl").value);
+  if(!id){ plog("That is not a Drive folder link.",true); return; }
+  $("#plog").innerHTML=""; plog("Reading folder…");
+  if(!window.cowork||!window.cowork.callMcpTool){
+    plog("No Drive connection from this view — use \"Upload photos from this computer\" instead.",true); return; }
+  const seen=new Set(), found=[];
+  async function walk(fid,depth,fname){
+    if(seen.has(fid)||depth>4) return; seen.add(fid);
+    let files;
+    try{ files=await listKids(fid); }
+    catch(e){ plog("Cannot read folder "+fid+" — "+e.message,true); return; }
+    const subs=[];
+    files.forEach(f=>{ const mt=f.mimeType||"";
+      if(mt==="application/vnd.google-apps.folder") subs.push(f);
+      else if(mt.indexOf("image/")===0) found.push({id:f.id,name:f.title||f.name||f.id,folder:fname||""}); });
+    if(files.length) plog("  · "+files.length+" item(s) here, "
+      +files.filter(f=>(f.mimeType||"").indexOf("image/")===0).length+" image(s)");
+    if($("#pdeep").checked) for(const s of subs) await walk(s.id,depth+1,s.title||s.name||"");
+  }
+  await walk(id,0,"");
+  if(!found.length){ plog("No images found. If they sit in a subfolder, tick \"subfolders\" and try again.",true); return; }
+  plog("Found "+found.length+" image(s). Downloading one at a time…");
+  const have=new Set(S.photos.map(p=>p.id));
+  let auto=0;
+  found.forEach(f=>{ if(!have.has(f.id)){
+    const a=areaFromFolder(f.folder); if(a) auto++;
+    S.photos.push({id:f.id,name:f.name,area:a,driveId:f.id}); } });
+  save();
+  if(auto) plog(auto+" photo(s) tagged automatically from their folder name.");
+  else plog("Tip: name your Drive subfolders after the areas (Shed 3, Office block, First floor) "
+    +"and photos get tagged for you on the next load.");
+  const q=found.map(f=>f.id).filter(fid=>!IMG[fid]);
+  const total=q.length; let done=0, fail=0, firstErr="";
+  const line=document.createElement("div"); $("#plog").appendChild(line);
+  while(q.length){
+    const fid=q.shift();
+    const rec=S.photos.find(p=>p.id===fid)||{name:fid};
+    try{
+      const d=await callTool("download_file_content",{fileId:fid});
+      const b64=d.content||d.base64Content;
+      if(!b64) throw new Error("Drive returned no image data");
+      const url="data:"+(d.mimeType||"image/jpeg")+";base64,"+b64;
+      await new Promise((res,rej)=>{ const im=new Image();
+        im.onload=()=>res(); im.onerror=()=>rej(new Error("data arrived but would not decode (likely truncated)"));
+        im.src=url; });
+      IMG[fid]=url; await imgPut(fid,url);
+    }catch(e){ fail++; if(!firstErr) firstErr=rec.name+" — "+e.message; }
+    done++;
+    line.textContent="Downloaded "+done+" of "+total+(fail?"  ("+fail+" failed)":"");
+    if(done%6===0){ drawPhotos(); await new Promise(r=>setTimeout(r,0)); }
+  }
+  if(fail) plog("Finished. "+fail+" of "+total+" failed. First failure: "+firstErr,true);
+  else plog("All "+total+" photos loaded. Tag each one to an area below.");
+  drawPhotos(); drawZone();
+}
+let pendingArea="";
+function shrinkTo(dataUrl,maxW,q){
+  return new Promise(res=>{ const im=new Image();
+    im.onload=()=>{ const sc=Math.min(1,maxW/im.width);
+      const c=document.createElement("canvas");
+      c.width=Math.max(1,Math.round(im.width*sc)); c.height=Math.max(1,Math.round(im.height*sc));
+      c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+      res(c.toDataURL("image/jpeg",q)); };
+    im.onerror=()=>res(dataUrl); im.src=dataUrl; });
+}
+async function handleUpload(files){
+  const area=pendingArea||$("#pUpArea").value||"";
+  pendingArea="";
+  let n=0;
+  for(const f of files){
+    if(f.type.indexOf("image/")!==0) continue;
+    const raw=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(f); });
+    const id="u"+Date.now()+"_"+(n++);
+    IMG[id]=await shrinkTo(raw,1100,.78);
+    await imgPut(id,IMG[id]);
+    S.photos.push({id:id,name:f.name,area:area,local:true});
+  }
+  save(); drawPhotos(); drawZone();
+  plog(n+" photo(s) added"+(area?(" to "+area):" — tag them below")+".");
+  if(n) logChange(n+' photograph(s) added'+(area?(' to '+area):''));
+  if(hasDrive()){ plog("Storing them in Drive so they survive a refresh…"); await backupPhotos(true);
+    plog("Stored in Drive."); storageLine(); drawPhotos(); }
+  else plog("No Drive connection — these live only on this computer for now.",true);
+}
+function drawPhotos(){
+  $("#photoGrid").innerHTML=S.photos.map(p=>
+    '<div style="border:1px solid #dfe3e8;border-radius:7px;overflow:hidden;background:#fff'
+    +(p.area?';border-color:#0C013D':'')+'">'
+    +(IMG[p.id]?'<img src="'+IMG[p.id]+'" data-pv="'+p.id+'" style="width:100%;height:110px;object-fit:cover;cursor:zoom-in">'
+      :'<div style="height:110px;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px">not loaded</div>')
+    +'<div class="small" style="padding:4px 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'
+    +'<select data-pa="'+p.id+'" style="width:calc(100% - 12px);margin:5px 6px;font-size:11px">'
+    +'<option value="">Untagged</option>'
+    +AREAKEYS().map(a=>'<option'+(p.area===a?" selected":"")+'>'+esc(a)+'</option>').join("")
+    +'</select></div>').join("")
+    ||'<div class="small">No photos loaded yet.</div>';
+  document.querySelectorAll("[data-pa]").forEach(i=>{i.onchange=e=>{
+    S.photos.find(p=>p.id===e.target.dataset.pa).area=e.target.value; save(); drawPhotos(); drawZone();};});
+  document.querySelectorAll("[data-pv]").forEach(i=>{i.onclick=()=>{
+    const w=window.open("","_blank");
+    if(w) w.document.write('<img src="'+IMG[i.dataset.pv]+'" style="max-width:100%">'); };});
+}
+
+/* ---------- brief ---------- */
+function drawBrief(){
+  const t=totals(), built=Object.keys(Z()).filter(k=>k!=="Front yard").reduce((s,k)=>s+AREA(k),0);
+  $("#briefBody").innerHTML=
+   '<h3>Design basis</h3><table>'
+   +[["Plot","101.7 × 189.7 ft = 19,292 sq ft (0.443 acre)"],
+     ["Total covered","10,895 sq ft — four sheds 8,466, office block 1,242, first floor 835, utility block 351"],
+     ["Ground coverage","10,060 sq ft = 52.1% of plot — headroom exists for future covered area subject to local FAR and setback rules"],
+     ["Production volume","Shed 3 at 5,046 sq ft is 46% of covered area and carries the transformer and Bestcase lines"],
+     ["Storage strategy","Shed 4 (1,377 sq ft) becomes the single stores and dispatch point so the production sheds stay clear"],
+     ["Lighting standard","300 lux general, 500 lux at benches, 750 lux at test stations"],
+     ["Ventilation standard","Minimum 6 air changes per hour in production sheds"],
+     ["Floor standard","VDF / trimix in Sheds 1 and 3 for machine and transformer loads; repair and seal elsewhere"],
+     ["Fire strategy","Extinguishers at 15 m maximum spacing throughout; hydrant scope to be set by the fire authority"],
+     ["Phasing principle","Phase 1 buys only what unlocks revenue. Everything cosmetic waits for Phase 2."]]
+     .map(r=>'<tr><td style="width:24%"><b>'+r[0]+'</b></td><td>'+r[1]+'</td></tr>').join("")+'</table>'
+   +'<h3>Cost summary</h3><table>'
+   +'<tr><th>Element</th><th class="n">Amount</th><th class="n">Share</th></tr>'
+   +(()=>{ const tr={}; S.boq.forEach(b=>tr[b.trade]=(tr[b.trade]||0)+amt(b));
+      return Object.keys(tr).sort((a,b)=>tr[b]-tr[a]).map(k=>
+       '<tr><td>'+esc(k)+'</td><td class="n">'+inr(tr[k])+'</td><td class="n">'
+       +(t.base?(tr[k]/t.base*100).toFixed(1):0)+'%</td></tr>').join(""); })()
+   +'<tr class="tot"><td>Works sub-total</td><td class="n">'+inr(t.base)+'</td><td class="n">100%</td></tr>'
+   +'<tr><td>Fees, cess, insurance, contingency, escalation</td><td class="n">'+inr(t.fees+t.cess+t.ins+t.cont+t.esc)+'</td><td class="n">—</td></tr>'
+   +'<tr><td>GST</td><td class="n">'+inr(t.gst)+'</td><td class="n">—</td></tr>'
+   +'<tr class="tot"><td><b>Estimated project cost</b></td><td class="n"><b>'+inr(t.grand)+'</b></td>'
+   +'<td class="n"><b>'+inr(t.grand/built)+' / sq ft</b></td></tr></table>'
+   +'<h3>The five things that decide whether this works</h3><ol style="font-size:12.5px;line-height:1.65">'
+   +'<li><b>Agree a minimum viable 17 September scope this week.</b> Six weeks is not enough for Phase 1 as scoped. '
+   +'Washroom, water, power, Shed 4 stores and Shed 1 is achievable. Say so before the date arrives, not after.</li>'
+   +'<li><b>Apply for the power sanction and Consent to Establish within the week.</b> Both run 60 to 90 days and '
+   +'everything downstream waits on them. Nothing else on this plan has that lead time.</li>'
+   +'<li><b>Test the roof sheeting for asbestos before anyone touches it.</b> Sheds of this vintage frequently have it. '
+   +'Finding it mid-demolition converts a schedule problem into a legal and health one.</li>'
+   +'<li><b>Load-test the Shed 3 floor before specifying it.</b> It is half your built area and carries the transformer '
+   +'work. A topping over a failed base is money spent twice.</li>'
+   +'<li><b>Resolve the March 2027 to April 2028 gap.</b> Phase 2 finishes a year before the stated launch. Either the '
+   +'launch moves forward or there is scope nobody has written down.</li></ol>'
+   +'<div class="note amber" style="margin-top:14px"><b>Status of these numbers.</b> Quantities are computed from your '
+   +'drawing and are sound as a basis for tendering. Rates are indicative 2026 benchmarks and will move — treat the '
+   +'total as an order-of-magnitude control figure, not a commitment. Replace each rate with a quotation as it arrives '
+   +'and the whole model re-prices. Structural, electrical and fire design require a licensed engineer, and the funding '
+   +'and tax treatment should be confirmed with your CA.</div>';
+}
+
+/* ---------- export ---------- */
+async function callTool(name,args){
+  const r=await window.cowork.callMcpTool(DRIVE+name,args);
+  if(r&&r.isError) throw new Error(typeof r.content==="string"?r.content:JSON.stringify(r.content).slice(0,200));
+  if(r&&r.structuredContent) return r.structuredContent;
+  const t=r&&r.content&&r.content[0]&&r.content[0].text;
+  if(!t) throw new Error("empty response"); try{ return JSON.parse(t); }catch(e){ return {content:t}; }
+}
+function csvEsc(s){ s=String(s==null?"":s); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+async function exportBOQ(){
+  const st2=$("#expStatus");
+  try{
+    let rows=[["Area","Trade","Description","Unit","Quantity","Rate INR","Amount INR","Phase","Status","Owner","Basis / note"]];
+    S.boq.forEach(b=>rows.push([b.area,b.trade,b.desc,b.unit,b.qty,rateOf(b),amt(b),"Phase "+b.phase,b.status,b.owner,b.note]));
+    const t=totals();
+    rows.push([]); rows.push(["","","Sub-total of works","","","",t.base]);
+    rows.push(["","","Consultant and design fees "+S.fees+"%","","","",t.fees]);
+    rows.push(["","","Contingency "+S.cont+"%","","","",t.cont]);
+    rows.push(["","","Escalation "+S.esc+"%","","","",t.esc]);
+    rows.push(["","","GST "+S.gst+"%","","","",t.gst]);
+    rows.push(["","","ESTIMATED PROJECT COST","","","",t.grand]);
+    const csv=rows.map(r=>r.map(csvEsc).join(",")).join("\n");
+    const res=await callTool("create_file",{title:"ASL Vikrant (Unit 3) — BOQ and cost estimate ("+dstr(new Date()).replace(/-/g,"")+")",
+      parentId:F_DOCS,contentMimeType:"text/csv",textContent:csv});
+    const u=res.viewUrl||("https://docs.google.com/spreadsheets/d/"+res.id);
+    alert("BOQ exported to Google Sheets.");
+    window.open(u,"_blank");
+  }catch(e){ alert("Export failed: "+e.message); }
+}
+async function exportDoc(){
+  const st2=$("#expStatus"); st2.textContent="Building report…";
+  try{
+    const t=totals(), built=Object.keys(Z()).filter(k=>k!=="Front yard").reduce((s,k)=>s+AREA(k),0);
+    const T=(rows,hdr)=>'<table border="1" style="border-collapse:collapse;width:100%">'
+      +'<tr>'+hdr.map(h=>'<th style="background:#0C013D;color:#fff;padding:5px;font-size:9pt;text-align:left;'
+        +'font-family:Barlow,Arial,sans-serif;letter-spacing:.3pt">'+h+'</th>').join("")+'</tr>'
+      +rows.map(r=>'<tr>'+r.map(c=>'<td style="padding:5px;font-size:9pt;vertical-align:top;'
+        +'font-family:Barlow,Arial,sans-serif">'+c+'</td>').join("")+'</tr>').join("")+'</table>';
+    const H2=t=>'<h2 style="font-family:'+FT+';color:#0C013D;font-size:16pt;text-transform:uppercase;'
+      +'border-bottom:2pt solid #B80001;padding-bottom:3pt">'+t+'</h2>';
+    const H3=t=>'<h3 style="font-family:Barlow,Arial,sans-serif;color:#B80001;font-size:11pt;'
+      +'text-transform:uppercase;letter-spacing:.5pt">'+t+'</h3>';
+    const FT="Antonio, 'Barlow Condensed', Arial, sans-serif";
+    const FB="Barlow, Arial, sans-serif";
+    let h='<html><head><meta charset="utf-8"></head><body style="font-family:'+FB+';font-size:11pt;color:#252525">'
+      +'<div style="border-left:6pt solid #B80001;padding-left:10pt;margin-bottom:14pt">'
+      +'<div style="font-family:'+FB+';font-size:8pt;letter-spacing:1.5pt;color:#0C013D"><b>AARTECH SOLONICS LIMITED</b></div>'
+      +'<div style="font-family:'+FT+';font-size:26pt;color:#B80001;text-transform:uppercase">Vikrant — Restoration and Development Plan</div>'
+      +'<div style="font-family:'+FB+';font-size:10pt;color:#B80001">We live our passion through engineering.</div></div>'
+      +'<p><b>Vikrant · Unit 3</b><br/>'
+      +'Plot 101.7 × 189.7 ft (19,292 sq ft / 0.443 acre) · covered 10,895 sq ft<br/>'
+      +'<span style="font-size:9pt;color:#666">Geometry from drawing "asl unit 3 map". Prepared '
+      +new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})+'.</span></p>'
+      +'<p style="font-size:9pt;background:#FEFAEE;border-left:3px solid #F6C547;padding:8px">'
+      +'<b>Basis and limitations.</b> Quantities are computed from the drawing and are a sound basis for tendering. '
+      +'Rates are indicative 2026 market benchmarks, not quotations, and the total is an order-of-magnitude control '
+      +'figure rather than a commitment. Structural, electrical and fire designs require sign-off by a licensed '
+      +'engineer. Funding structure and tax treatment should be confirmed with your chartered accountant.</p>'
+      +H2('1. Area schedule')
+      +T(Object.keys(Z()).map(k=>[('<b>'+k+'</b>'),Z()[k].w+' × '+Z()[k].l,
+         Math.round(AREA(k)).toLocaleString("en-IN"),'Phase '+Z()[k].phase,
+         inr(S.boq.filter(b=>b.area===k).reduce((s,b)=>s+amt(b),0)),Z()[k].use]),
+        ["Area","Size (ft)","sq ft","Phase","Est. works","Intended use"])
+      +H2('2. Cost summary');
+    const tr={}; S.boq.forEach(b=>tr[b.trade]=(tr[b.trade]||0)+amt(b));
+    h+=T(Object.keys(tr).sort((a,b)=>tr[b]-tr[a]).map(k=>[k,inr(tr[k]),(t.base?(tr[k]/t.base*100).toFixed(1):0)+'%'])
+      .concat([['<b>Works sub-total</b>','<b>'+inr(t.base)+'</b>','100%'],
+        ['Fees, cess, insurance, contingency, escalation',inr(t.fees+t.cess+t.ins+t.cont+t.esc),'—'],
+        ['GST '+S.gst+'%',inr(t.gst),'—'],
+        ['<b>ESTIMATED PROJECT COST</b>','<b>'+inr(t.grand)+'</b>','<b>'+inr(t.grand/built)+' / sq ft</b>']]),
+      ["Trade","Amount","Share"]);
+    h+='<h2 style="color:#0C013D">3. Area-wise scope, photographs, work items and BOQ</h2>';
+    const areas=[...new Set(S.boq.map(b=>b.area).concat(S.photos.filter(p=>p.area).map(p=>p.area))
+                 .concat(S.tasks.map(t=>t.area)))];
+    areas.forEach(a=>{ const rows=S.boq.filter(b=>b.area===a);
+      h+=H3(a+' — '+inr(rows.reduce((s,b)=>s+amt(b),0)));
+      const ap=S.photos.filter(p=>p.area===a&&IMG[p.id]);
+      if(ap.length){
+        h+='<table border="0" style="width:100%"><tr>';
+        ap.forEach((p,i)=>{ if(i>0&&i%3===0) h+='</tr><tr>';
+          h+='<td style="width:33%;text-align:center;padding:4px"><img src="'+IMG[p.id]+'" width="185"/>'
+            +'<br/><span style="font-size:8pt;color:#666">'+esc(p.name)+'</span></td>'; });
+        for(let i=0;i<(3-ap.length%3)%3;i++) h+='<td></td>';
+        h+='</tr></table>';
+      }
+      const at=S.tasks.filter(t=>t.area===a);
+      if(at.length){
+        h+='<p style="font-size:10pt;margin:8px 0 3px"><b>Work items</b></p>'
+          +T(at.map(t=>{ const b=S.boq.find(x=>x.id===t.boqId);
+              return [t.desc,b?inr(amt(b)):'—','Phase '+(t.phase||1),t.owner||'unassigned',t.due||'—',t.status]; }),
+             ["Work to be done","Amount","Phase","Person allotted","Target date","Status"]);
+      }
+      if(rows.length)
+        h+=T(rows.map(b=>[b.desc+(b.note?'<br/><span style="font-size:8pt;color:#777">'+b.note+'</span>':''),
+            b.trade,b.qty+' '+b.unit,inr(rateOf(b)),inr(amt(b)),'P'+b.phase,b.status]),
+           ["Description","Trade","Quantity","Rate","Amount","Phase","Status"]); });
+    if(S.tasks.length){
+      const per={};
+      S.tasks.forEach(t=>{ const p=(t.owner||"Unassigned").trim()||"Unassigned"; (per[p]=per[p]||[]).push(t); });
+      h+='<h2 style="color:#0C013D">3b. Work allocation by person</h2>'
+        +T(Object.keys(per).sort().reduce((acc,p)=>acc.concat(per[p].map((t,i)=>{
+            const b=S.boq.find(x=>x.id===t.boqId);
+            return [i===0?'<b>'+p+'</b>':'',t.area,t.desc,b?inr(amt(b)):'—',t.due||'—',t.status];
+          })),[]),
+          ["Person","Area","Work to be done","Amount","Target date","Status"]);
+    }
+    h+='<h2 style="color:#0C013D">4. Execution schedule</h2>'
+      +T(S.acts.map(a=>[a.name,a.area,a.start,dstr(dadd(dparse(a.start),a.days)),a.days+' d',
+          'P'+a.phase,a.crit?'Critical':'',a.owner,a.pct+'%']),
+         ["Activity","Area","Start","Finish","Duration","Phase","Path","Owner","Progress"])
+      +H2('5. Statutory approvals')
+      +T(S.appr.map(a=>['<b>'+a.name+'</b>',a.auth,a.lead,a.status,a.owner,a.target,a.note]),
+         ["Approval","Authority and statute","Lead time","Status","Owner","Target","Note"])
+      +H2('6. Cash flow');
+    const m=cashMonths(), keys=Object.keys(m).sort(), onc=(t.grand-t.base)/(t.base||1);
+    let cum=0;
+    h+=T(keys.map(k=>{ const g=m[k]*(1+onc); cum+=g;
+        const d=new Date(+k.slice(0,4),+k.slice(5)-1,1);
+        return [d.toLocaleDateString("en-GB",{month:"short",year:"numeric"}),inr(m[k]),inr(g),inr(cum)]; }),
+       ["Month","Works value","Incl. oncosts and GST","Cumulative"])
+      +H2('7. Risk register')
+      +T(S.risks.map(r=>['<b>'+r.desc+'</b>',r.cat,r.like,r.imp,r.mit,r.owner,r.status]),
+         ["Risk","Category","Likelihood","Impact","Mitigation","Owner","Status"])
+      +H2('8. The five decisions that matter')
+      +'<ol><li><b>Agree a minimum viable 17 September scope this week.</b> Six weeks is not enough for Phase 1 as '
+      +'scoped. Washroom, water, power, Shed 4 stores and Shed 1 is achievable.</li>'
+      +'<li><b>Apply for power sanction and Consent to Establish within the week.</b> Both run 60 to 90 days.</li>'
+      +'<li><b>Test roof sheeting for asbestos before anyone touches it.</b></li>'
+      +'<li><b>Load-test the Shed 3 floor before specifying it.</b> It is half the built area.</li>'
+      +'<li><b>Resolve the March 2027 to April 2028 gap</b> between end of Phase 2 and the stated launch.</li></ol>'
+      +H2('9. Sign-off')
+      +T([["Prepared by","","",""],["Infra consultant","","",""],["Operations","","",""],
+          ["Finance","","",""],["Approved by","","",""]],["Role","Name","Signature","Date"])
+      +'</body></html>';
+    st2.textContent="Uploading…";
+    const res=await callTool("create_file",{title:"ASL Vikrant (Unit 3) — Restoration and Development Plan ("+dstr(new Date()).replace(/-/g,"")+")",
+      parentId:F_DOCS,contentMimeType:"text/html",textContent:h});
+    const u=res.viewUrl||("https://docs.google.com/document/d/"+res.id+"/edit");
+    st2.innerHTML='Report created. <a href="'+u+'" target="_blank">Open in Google Docs</a>';
+  }catch(e){ st2.textContent="Failed: "+e.message; }
+}
+
+/* ---------- backup, restore, sharing ---------- */
+const BK=m=>{ $("#backupStatus").innerHTML=m; };
+const PREFIX="VIKRANT plan data";
+function snapshot(){ return JSON.stringify({_app:"vikrant-control-room",_v:1,
+  _saved:new Date().toISOString(),data:S},null,1); }
+function applySnapshot(txt){
+  const o=JSON.parse(txt);
+  const d=o&&o.data?o.data:o;
+  if(!d||!d.boq) throw new Error("that file does not look like a Vikrant working file");
+  S=Object.assign(S,d);
+  if(!Array.isArray(S.tasks)) S.tasks=[];
+  if(!Array.isArray(S.photos)) S.photos=[];
+  if(!Array.isArray(S.extraAreas)) S.extraAreas=[];
+  Object.keys(RATES0).forEach(k=>{ if(S.rates[k]==null) S.rates[k]=RATES0[k].v; });
+  save(); redraw();
+}
+async function saveToDrive(){
+  BK("Saving…");
+  try{
+    const title=PREFIX+" — "+dstr(new Date())+" "+String(new Date().getHours()).padStart(2,"0")
+      +String(new Date().getMinutes()).padStart(2,"0")+".json";
+    const res=await callTool("create_file",{title:title,parentId:F_WORK,
+      contentMimeType:"application/json",textContent:snapshot(),disableConversionToGoogleType:true});
+    BK('Saved as <b>'+esc(title)+'</b> in your Drive folder. '
+      +(res.viewUrl?'<a href="'+res.viewUrl+'" target="_blank">Open</a>':''));
+    listBackups();
+  }catch(e){ BK('<span style="color:#B80001">Save failed: '+esc(e.message)+'</span>'); }
+}
+async function listBackups(){
+  try{
+    const r=await callTool("search_files",{query:"parentId = '"+F_WORK+"' and title contains '"+PREFIX+"'",
+      pageSize:25,excludeContentSnippets:true});
+    const fs2=(r.files||[]).sort((a,b)=>String(b.title).localeCompare(String(a.title)));
+    if(!fs2.length){ $("#backupList").innerHTML=""; return; }
+    $("#backupList").innerHTML='<tr><th>Saved working files in Drive</th><th>Modified</th><th></th></tr>'
+      +fs2.map(f=>'<tr><td>'+esc(f.title)+'</td><td class="small">'
+        +esc(String(f.modifiedTime||"").slice(0,16).replace("T"," "))+'</td>'
+        +'<td><button class="sm" data-rest="'+f.id+'">Restore this</button></td></tr>').join("");
+    document.querySelectorAll("[data-rest]").forEach(b=>{b.onclick=async()=>{
+      if(!confirm("Restore this file? Everything currently in the view will be replaced.")) return;
+      BK("Restoring…");
+      try{
+        const d=await callTool("download_file_content",{fileId:b.dataset.rest});
+        const b64=d.content||d.base64Content;
+        const txt=decodeURIComponent(escape(atob(b64)));
+        applySnapshot(txt); BK("Restored.");
+      }catch(e){ BK('<span style="color:#B80001">Restore failed: '+esc(e.message)+'</span>'); }};});
+  }catch(e){ /* folder not reachable — silent */ }
+}
+function downloadBackup(){
+  try{
+    const blob=new Blob([snapshot()],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="VIKRANT-plan-"+dstr(new Date())+".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    BK("Backup downloaded. Keep it with the project records.");
+  }catch(e){ BK('<span style="color:#B80001">This view could not write a file. Use "Save working file to Drive" instead.</span>'); }
+}
+
+/* ---------- camera capture ---------- */
+let camStream=null, camFacing="environment";
+async function openCam(){
+  const msg=$("#camMsg"); msg.textContent="";
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    msg.innerHTML='<span style="color:#B80001">This view cannot reach a camera. '
+      +'Shoot on your phone and upload to Drive instead.</span>'; $("#camBox").style.display="block"; return; }
+  try{
+    if(camStream) camStream.getTracks().forEach(t=>t.stop());
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:camFacing},
+      width:{ideal:1920},height:{ideal:1080}},audio:false});
+    const v=$("#camVid"); v.srcObject=camStream; $("#camBox").style.display="block";
+    try{ await v.play(); }catch(e){}
+    msg.textContent="Camera live. Frame the area and press Capture.";
+  }catch(e){
+    $("#camBox").style.display="block";
+    const why=(e&&e.name==="NotAllowedError")?"permission was refused"
+      :(e&&e.name==="NotFoundError")?"no camera was found on this computer"
+      :(e&&e.message)||"it is blocked here";
+    msg.innerHTML='<span style="color:#B80001">Camera unavailable — '+esc(why)+'. '
+      +'Use <b>Choose photos from a folder</b>, or shoot on your phone and upload to Drive.</span>';
+  }
+}
+function closeCam(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+  $("#camBox").style.display="none"; }
+async function camCapture(){
+  const v=$("#camVid");
+  if(!camStream||!v.videoWidth){ $("#camMsg").textContent="Camera is not running."; return; }
+  const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight;
+  c.getContext("2d").drawImage(v,0,0,c.width,c.height);
+  const data=await shrinkTo(c.toDataURL("image/jpeg",.85),1100,.78);
+  const area=$("#pUpArea").value||"";
+  const id="cam"+Date.now();
+  IMG[id]=data; try{ await imgPut(id,data); }catch(e){}
+  const stamp=new Date().toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+  S.photos.push({id:id,name:(area||"Site")+" — "+stamp,area:area,local:true});
+  save(); drawPhotos(); drawZone();
+  $("#camMsg").textContent="Captured"+(area?(" into "+area):" — tag it below")+". Take another or Close.";
+  if(hasDrive()){ try{ await pushPhotoToDrive(S.photos[S.photos.length-1]); storageLine(); drawPhotos();
+    $("#camMsg").textContent="Captured and stored in Drive. Take another or Close."; }catch(e){} }
+}
+
+/* ---------- permanent photo storage in Drive ---------- */
+const hasDrive=()=>!!(window.cowork&&window.cowork.callMcpTool);
+async function pushPhotoToDrive(p){
+  if(!hasDrive()) throw new Error("no Drive connection from this view");
+  const data=IMG[p.id]; if(!data) throw new Error("no image in memory");
+  const b64=String(data).split(",")[1]; if(!b64) throw new Error("image not readable");
+  const safe=(p.area||"Untagged").replace(/[\\/:*?"<>|]/g,"-");
+  const res=await callTool("create_file",{
+    title:"VIKRANT photo — "+safe+" — "+(p.name||p.id)+(/\.(jpe?g|png)$/i.test(p.name||"")?"":".jpg"),
+    parentId:F_PHOTOS, contentMimeType:"image/jpeg", base64Content:b64,
+    disableConversionToGoogleType:true});
+  p.driveId=res.id||null; p.local=false; save();
+  return p.driveId;
+}
+async function backupPhotos(silent){
+  const todo=S.photos.filter(p=>!p.driveId&&IMG[p.id]);
+  if(!todo.length){ if(!silent) plog("Every photo is already stored in Drive."); return; }
+  if(!hasDrive()){ if(!silent) plog("No Drive connection from this view — photos stay on this computer only.",true); return; }
+  let ok=0,bad=0;
+  for(const p of todo){
+    try{ await pushPhotoToDrive(p); ok++; }catch(e){ bad++; }
+    if(!silent) storageLine("Backing up "+(ok+bad)+" of "+todo.length+"…");
+  }
+  save(); storageLine(); drawPhotos();
+  if(!silent) plog(ok+" photo(s) now stored permanently in Drive"+(bad?", "+bad+" failed":"")+".");
+}
+async function restorePhotosFromDrive(){
+  const need=S.photos.filter(p=>!IMG[p.id]&&(p.driveId||!p.local));
+  if(!need.length||!hasDrive()) return 0;
+  let n=0;
+  for(const p of need){
+    const fid=p.driveId||p.id;
+    try{
+      const d=await callTool("download_file_content",{fileId:fid});
+      const b64=d.content||d.base64Content; if(!b64) continue;
+      IMG[p.id]="data:"+(d.mimeType&&d.mimeType.indexOf("image/")===0?d.mimeType:"image/jpeg")+";base64,"+b64;
+      imgPut(p.id,IMG[p.id]); n++;
+      storageLine("Restoring photographs from Drive… "+n+" of "+need.length);
+    }catch(e){}
+  }
+  storageLine(); drawPhotos(); drawZone();
+  return n;
+}
+function storageLine(msg){
+  const el=$("#storeLine"); if(!el) return;
+  if(msg){ el.innerHTML='<b>'+esc(msg)+'</b>'; return; }
+  const tot=S.photos.length, inDrive=S.photos.filter(p=>p.driveId||!p.local).length,
+        loaded=S.photos.filter(p=>IMG[p.id]).length;
+  el.innerHTML='<b>Photo storage.</b> '+tot+' photograph(s) · <b>'+inDrive+'</b> stored permanently in Drive · '
+    +loaded+' loaded right now'
+    +(tot-inDrive>0?' · <span style="color:#B80001">'+(tot-inDrive)
+      +' only on this computer and will be lost — press Back up to Drive</span>':'')
+    +(tot&&inDrive===tot?' · <span style="color:#4E7A33">safe, they will come back every time you open this</span>':'');
+}
+
+/* ---------- match a Drive folder name to an area ---------- */
+function areaFromFolder(fname){
+  if(!fname) return "";
+  const n=String(fname).toLowerCase().replace(/[_\-]+/g," ").replace(/\s+/g," ").trim();
+  const keys=AREAKEYS();
+  let hit=keys.find(a=>n===a.toLowerCase()); if(hit) return hit;
+  hit=keys.find(a=>n.indexOf(a.toLowerCase())>=0); if(hit) return hit;
+  const m=n.match(/shed\s*([1-9])/); if(m&&keys.indexOf("Shed "+m[1])>=0) return "Shed "+m[1];
+  if(/office/.test(n)&&keys.indexOf("Office block")>=0) return "Office block";
+  if(/(first|1st|upper)\s*floor/.test(n)&&keys.indexOf("First floor")>=0) return "First floor";
+  if(/(yard|exterior|outside|external|compound)/.test(n)&&keys.indexOf("Front yard")>=0) return "Front yard";
+  if(/(utility|tank|pump)/.test(n)&&keys.indexOf("Utility block")>=0) return "Utility block";
+  return "";
+}
+
+/* ---------- photo system diagnostics ---------- */
+async function photoDiag(){
+  const out=[]; const ok=b=>b?'<span style="color:#4E7A33">WORKS</span>':'<span style="color:#B80001">BLOCKED</span>';
+  out.push('<b>Photo system check</b>');
+  const hasCowork=!!(window.cowork&&window.cowork.callMcpTool);
+  out.push('Drive connection: '+ok(hasCowork)
+    +(hasCowork?'':' — this copy has no Drive link, so "Load from Drive" cannot work. Upload from the computer instead.'));
+  let fileOK=true; try{ document.createElement("input").type="file"; }catch(e){ fileOK=false; }
+  out.push('File picker: '+ok(fileOK));
+  let idbOK=false; try{ await imgPut("__t","x"); idbOK=true; }catch(e){ idbOK=false; }
+  out.push('Photo storage between sessions: '+ok(idbOK)
+    +(idbOK?'':' — photos will still work but must be re-added each session.'));
+  const withImg=S.photos.filter(p=>IMG[p.id]).length;
+  out.push('Photos recorded: <b>'+S.photos.length+'</b>, of which <b>'+withImg+'</b> have an image loaded'
+    +(S.photos.length&&!withImg?' — the records are there but the pictures did not download. Press Load from Drive again, or re-upload.':''));
+  const tagged=S.photos.filter(p=>p.area).length;
+  out.push('Tagged to an area: <b>'+tagged+'</b>'+(S.photos.length&&!tagged?' — untagged photos will not show inside a block panel.':''));
+  if(hasCowork){
+    const id=parseFolder($("#purl").value);
+    out.push('Folder id read from the link: '+(id?('<b>'+esc(id)+'</b>'):'<span style="color:#B80001">could not read a folder id</span>'));
+    if(id){ try{ const r=await callTool("search_files",{query:"parentId = '"+id+"'",pageSize:20,excludeContentSnippets:true});
+        const fs2=r.files||[];
+        out.push('Folder reachable: '+ok(true)+' — '+fs2.length+' item(s), '
+          +fs2.filter(x=>(x.mimeType||"").indexOf("image/")===0).length+' image(s) directly inside, '
+          +fs2.filter(x=>x.mimeType==="application/vnd.google-apps.folder").length+' subfolder(s)');
+        if(!fs2.filter(x=>(x.mimeType||"").indexOf("image/")===0).length)
+          out.push('&nbsp;&nbsp;→ no images at this level. Tick <b>subfolders</b> before pressing Load from Drive.');
+      }catch(e){ out.push('Folder reachable: '+ok(false)+' — '+esc(e.message)); } }
+  }
+  $("#pdiag").innerHTML='<div style="border:1px solid #dfe3e8;border-radius:7px;padding:9px 11px;background:#F6F6F6">'
+    +out.join("<br/>")+'</div>';
+}
+
+/* ---------- change journal ---------- */
+function logChange(msg){
+  S.log.push({t:new Date().toISOString(),m:msg});
+  if(S.log.length>400) S.log=S.log.slice(-400);
+  save(); drawChangeBar();
+}
+const pendingCount=()=>Math.max(0,S.log.length-(S.savedCount||0));
+function drawChangeBar(){
+  const el=$("#changeBar"); if(!el) return;
+  const n=pendingCount();
+  el.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;'
+    +'border:1px solid '+(n?"#F6C547":"#dfe3e8")+';background:'+(n?"#FEFAEE":"#F6F6F6")
+    +';border-radius:8px;padding:8px 12px">'
+    +'<b style="font-size:12px;color:'+(n?"#7A5C00":"#4E7A33")+'">'
+    +(n?(n+' change'+(n>1?'s':'')+' not yet saved'):'Everything is saved')+'</b>'
+    +'<button class="sm" id="cbView">See what changed</button>'
+    +(n?'<button class="sm primary" id="cbSave">Save all changes</button>':'')
+    +'<span class="small" style="margin-left:auto">'
+    +(S.savedAt?('last saved '+esc(String(S.savedAt).replace("T"," ").slice(0,16))):'not saved yet')+'</span></div>';
+  if($("#cbView")) $("#cbView").onclick=showChanges;
+  if($("#cbSave")) $("#cbSave").onclick=saveAllChanges;
+}
+function showChanges(){
+  const n=pendingCount(), L=S.log.slice().reverse();
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">'
+    +'What you have changed</div>'
+    +'<div class="small" style="margin-bottom:10px">'+(n?(n+' change(s) since the last save.'):'Nothing pending.')
+    +' Newest first.</div>'
+    +(L.length?'<table>'+L.map((e,i)=>'<tr><td style="width:120px" class="small">'
+      +esc(String(e.t).replace("T"," ").slice(5,16))+'</td><td>'+esc(e.m)+'</td>'
+      +'<td style="width:70px">'+(i<n?'<span class="pill a">pending</span>':'<span class="pill g">saved</span>')
+      +'</td></tr>').join("")+'</table>'
+      :'<div class="small">No changes recorded yet.</div>')
+    +'<div style="margin-top:12px">'+(n?'<button class="primary" id="cSave">Save all changes now</button>':'')
+    +'<button id="cClose">Close</button></div>');
+  $("#cClose").onclick=closeModal;
+  if($("#cSave")) $("#cSave").onclick=async()=>{ closeModal(); await saveAllChanges(); };
+}
+async function saveAllChanges(){
+  const n=pendingCount();
+  if(hasDrive()){
+    BK("Saving "+n+" change(s) to Drive…");
+    try{ await saveToDrive(); }catch(e){}
+    try{ await backupPhotos(true); }catch(e){}
+  }
+  S.savedCount=S.log.length; S.savedAt=new Date().toISOString(); save();
+  drawChangeBar(); storageLine();
+  BK(hasDrive()? (n+" change(s) saved to Drive, photographs included.")
+               : (n+" change(s) saved on this computer. No Drive connection from this view."));
+}
+
+/* ---------- kinds of thing you can place on the plan ---------- */
+const KINDS={
+  shed:    {l:"Building / shed",     f:"#0C013D", o:.22, g:"\u25A3"},
+  store:   {l:"Store room",          f:"#C17056", o:.35, g:"\u25A6"},
+  washroom:{l:"Washroom / toilet",   f:"#59B6B0", o:.45, g:"\u25CB"},
+  stairs:  {l:"Stairs",              f:"#BEBDB8", o:.55, g:"\u2261"},
+  pond:    {l:"Pond / water tank",   f:"#064DA0", o:.40, g:"\u2248"},
+  trees:   {l:"Trees / green area",  f:"#81B463", o:.45, g:"\u2663"},
+  parking: {l:"Parking",             f:"#BEBDB8", o:.40, g:"P"},
+  road:    {l:"Road / pathway",      f:"#BEBDB8", o:.28, g:"\u2550"},
+  gate:    {l:"Gate / entry",        f:"#B80001", o:.45, g:"\u25AD"},
+  utility: {l:"Utility / plant room",f:"#F6C547", o:.45, g:"\u26A1"},
+  yard:    {l:"Open yard",           f:"#BEBDB8", o:.22, g:""},
+  future:  {l:"Future expansion",    f:"#BEBDB8", o:.30, g:"", dash:true}
+};
+const KIND=z=>KINDS[z&&z.kind?z.kind:"future"]||KINDS.future;
+
+/* ---------- future / vacant zones ---------- */
+let placing=null;
+function addZonePrompt(){
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">'
+    +'Add something to the plan</div>'
+    +'<div class="small" style="margin-bottom:12px">Give it a name and a size, then click on the plan to place it.</div>'
+    +fRow("What is it",'<select id="zKind" style="width:100%">'
+      +Object.keys(KINDS).map(k=>'<option value="'+k+'">'+esc(KINDS[k].l)+'</option>').join("")+'</select>')
+    +fRow("Name",'<input id="zName" style="width:100%" placeholder="e.g. Store room, Pump house, Mango trees">')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">'
+    +fRow("Width (ft)",'<input id="zW" style="width:100%" value="20">')
+    +fRow("Depth (ft)",'<input id="zL" style="width:100%" value="20">')
+    +fRow("Phase",'<select id="zPh" style="width:100%"><option value="2">Phase 2</option>'
+      +'<option value="1">Phase 1</option></select>')+'</div>'
+    +fRow("What is planned here",'<input id="zUse" style="width:100%" placeholder="leave blank if undecided">')
+    +'<div style="margin-top:6px"><button class="primary" id="zGo">Place on plan</button>'
+    +'<button id="zCancel">Cancel</button></div>');
+  $("#zKind").onchange=()=>{ const k=$("#zKind").value;
+    if(!$("#zName").value.trim()) $("#zName").placeholder="e.g. "+KINDS[k].l; };
+  $("#zCancel").onclick=closeModal;
+  $("#zGo").onclick=()=>{
+    const n=($("#zName").value||"").trim()||KINDS[$("#zKind").value].l;
+    if(Object.keys(Z()).indexOf(n)>=0){ alert('"'+n+'" already exists on the plan.'); return; }
+    const w=parseFloat($("#zW").value)||0, l=parseFloat($("#zL").value)||0;
+    if(w<=0||l<=0){ alert("Width and depth are both needed."); return; }
+    placing={name:n,w:w,l:l,x:0,y:0,phase:+$("#zPh").value,kind:$("#zKind").value,
+      use:($("#zUse").value||"").trim()||KINDS[$("#zKind").value].l,future:true};
+    closeModal();
+    $("#placeMsg").textContent="Now click on the plan where this "+w+" × "+l+" ft "
+      +KINDS[placing.kind].l.toLowerCase()+" sits.";
+    drawPlan();
+  };
+}
+function removeZone(){
+  const k=S.sel, i=USERZ.findIndex(z=>z.name===k);
+  if(i<0){ alert("Select one of your own zones first. Surveyed blocks from the drawing cannot be removed."); return; }
+  const used=S.boq.filter(b=>b.area===k).length+S.tasks.filter(t=>t.area===k).length;
+  if(!confirm('Remove "'+k+'"?'+(used?" It has "+used+" linked BOQ line(s) and work item(s); those stay but become unassigned.":""))) return;
+  USERZ.splice(i,1); S.userZones=USERZ; S.sel="Shed 3";
+  logChange('Removed "'+k+'" from the plan'); save(); redraw();
+}
+function drawOpenLand(){
+  const zs=Z();
+  const ground=Object.keys(zs).filter(k=>!zs[k].above&&k!=="Front yard")
+    .reduce((s,k)=>s+AREA(k),0);
+  const plot=PLOT.w*PLOT.l;
+  const future=USERZ.reduce((s,z)=>s+(z.above?0:z.w*z.l),0);
+  const open=plot-ground;
+  const el=$("#openLand"); if(!el) return;
+  el.innerHTML='<b>Land budget.</b> Plot '+Math.round(plot).toLocaleString("en-IN")+' sq ft · '
+    +'ground coverage '+Math.round(ground).toLocaleString("en-IN")+' sq ft ('+(ground/plot*100).toFixed(1)+'%) · '
+    +'<b>open ground '+Math.round(open).toLocaleString("en-IN")+' sq ft ('+(open/plot*100).toFixed(1)+'%)</b>'
+    +(future?' · of which '+Math.round(future).toLocaleString("en-IN")+' sq ft now earmarked for future zones.':'.')
+    +'<br/>Any new covered area is subject to the permissible ground coverage, FAR and setbacks for the plot — '
+    +'confirm with the sanctioned building plan before committing to a footprint.';
+}
+
+/* ---------- focused editors ---------- */
+function closeModal(){ $("#modal").style.display="none"; $("#modalBox").innerHTML=""; }
+function openModal(html){ $("#modalBox").innerHTML=html; $("#modal").style.display="flex";
+  $("#modal").onclick=e=>{ if(e.target.id==="modal") closeModal(); }; }
+const fRow=(lab,ctl)=>'<div style="margin-bottom:9px"><label style="display:block;font-size:10px;'
+  +'font-weight:600;color:#B80001;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">'
+  +lab+'</label>'+ctl+'</div>';
+const opts=(arr,cur)=>arr.map(x=>'<option'+(String(cur)===String(x)?" selected":"")+'>'+esc(x)+'</option>').join("");
+
+function openBoqEditor(id){
+  const b=S.boq.find(x=>x.id===id); if(!b) return;
+  const D=RATEDEF();
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">'
+    +'Edit BOQ line</div><div class="small" style="margin-bottom:12px">'+esc(b.area)+' · '+esc(b.trade)+'</div>'
+    +fRow("Description",'<textarea id="mDesc" style="width:100%;min-height:56px">'+esc(b.desc)+'</textarea>')
+    +fRow("Basis / note",'<input id="mNote" style="width:100%" value="'+attr(b.note)+'">')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">'
+    +fRow("Area",'<select id="mArea" style="width:100%">'+opts(AREAKEYS(),b.area)+'</select>')
+    +fRow("Trade",'<select id="mTrade" style="width:100%">'
+      +opts(["Civil","Electrical","Interiors","Utilities","HVAC","Fire","Security","Equipment","Other"],b.trade)+'</select>')
+    +fRow("Phase",'<select id="mPhase" style="width:100%">'+opts([1,2],b.phase)+'</select>')+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Quantity",'<input id="mQty" style="width:100%" value="'+b.qty+'">')
+    +fRow("Unit",'<input id="mUnit" style="width:100%" value="'+attr(b.unit)+'">')+'</div>'
+    +fRow("Priced from",'<select id="mRk" style="width:100%"><option value="">Fixed price — not linked</option>'
+      +Object.keys(D).map(k=>'<option value="'+k+'"'+(b.rateKey===k&&b.rate==null?" selected":"")+'>'
+        +esc(D[k].d)+' ('+esc(D[k].u)+')</option>').join("")+'</select>')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Rate ₹",'<input id="mRate" style="width:100%" value="'+rateOf(b)+'">')
+    +fRow("Amount ₹",'<input id="mAmt" style="width:100%" value="'+Math.round(amt(b))+'">')+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Status",'<select id="mStat" style="width:100%">'
+      +opts(["Not started","Tendered","Awarded","In progress","Done"],b.status)+'</select>')
+    +fRow("Owner",'<input id="mOwner" list="peopleDL" style="width:100%" value="'+attr(b.owner)+'">')+'</div>'
+    +'<div style="margin-top:6px;display:flex;gap:8px;align-items:center">'
+    +'<button class="primary" id="mSave">Save</button><button id="mCancel">Cancel</button>'
+    +'<span style="flex:1"></span><button class="warn" id="mDel">Delete line</button></div>');
+  const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,""))||0;
+  const sync=(from)=>{ const q=num($("#mQty").value)||1;
+    if(from==="rate") $("#mAmt").value=Math.round(num($("#mRate").value)*q);
+    else $("#mRate").value=Math.round(num($("#mAmt").value)/q*100)/100; };
+  $("#mRate").oninput=()=>sync("rate"); $("#mAmt").oninput=()=>sync("amt");
+  $("#mQty").oninput=()=>sync("rate");
+  $("#mRk").onchange=()=>{ const k=$("#mRk").value;
+    if(k){ $("#mRate").value=S.rates[k]!=null?S.rates[k]:RATEDEF()[k].v; sync("rate"); } };
+  $("#mCancel").onclick=closeModal;
+  $("#mDel").onclick=()=>{ if(!confirm("Delete this BOQ line?"))return;
+    logChange('Deleted BOQ line "'+b.desc.slice(0,60)+'" from '+b.area);
+    S.boq=S.boq.filter(x=>x.id!==id); S.tasks.forEach(t=>{ if(t.boqId===id) t.boqId=null; });
+    save(); closeModal(); redraw(); };
+  $("#mSave").onclick=()=>{
+    b.desc=$("#mDesc").value; b.note=$("#mNote").value; b.area=$("#mArea").value;
+    b.trade=$("#mTrade").value; b.phase=+$("#mPhase").value;
+    b.qty=num($("#mQty").value); b.unit=$("#mUnit").value;
+    const k=$("#mRk").value, r=num($("#mRate").value);
+    if(k && r===(S.rates[k]!=null?S.rates[k]:RATEDEF()[k].v)){ b.rateKey=k; b.rate=null; }
+    else { b.rateKey=k||null; b.rate=r; }
+    b.status=$("#mStat").value; b.owner=$("#mOwner").value;
+    logChange('Edited BOQ line "'+b.desc.slice(0,60)+'" in '+b.area+' — now '+inr(amt(b)));
+    const t=S.tasks.find(x=>x.boqId===id); if(t){ t.desc=b.desc; t.area=b.area; t.owner=b.owner; }
+    save(); closeModal(); redraw(); };
+}
+
+function openTaskEditor(id){
+  const t=S.tasks.find(x=>x.id===id); if(!t) return;
+  const b=S.boq.find(x=>x.id===t.boqId);
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">'
+    +'Edit work item</div><div class="small" style="margin-bottom:12px">'+esc(t.area)+'</div>'
+    +fRow("Work to be done",'<textarea id="kDesc" style="width:100%;min-height:64px">'+esc(t.desc)+'</textarea>')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Area",'<select id="kArea" style="width:100%">'+opts(AREAKEYS(),t.area)+'</select>')
+    +fRow("Phase",'<select id="kPhase" style="width:100%">'+opts([1,2],t.phase||1)+'</select>')+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Person allotted",'<input id="kOwner" list="peopleDL" style="width:100%" value="'+attr(t.owner)+'">')
+    +fRow("Target date",'<input id="kDue" type="date" style="width:100%" value="'+attr(t.due)+'">')+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Status",'<select id="kStat" style="width:100%">'
+      +opts(["Not started","In progress","Blocked","Done"],t.status)+'</select>')
+    +fRow("Amount ₹"+(b?"":" (creates a BOQ line)"),'<input id="kAmt" style="width:100%" value="'
+      +(b?Math.round(amt(b)):"")+'" placeholder="leave blank if not costed">')+'</div>'
+    +'<div style="margin-top:6px;display:flex;gap:8px;align-items:center">'
+    +'<button class="primary" id="kSave">Save</button><button id="kCancel">Cancel</button>'
+    +'<span style="flex:1"></span><button class="warn" id="kDel">Delete item</button></div>');
+  const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,""))||0;
+  $("#kCancel").onclick=closeModal;
+  $("#kDel").onclick=()=>{ if(!confirm("Delete this work item"+(t.boqId?" and its BOQ line":"")+"?"))return;
+    if(t.boqId) S.boq=S.boq.filter(x=>x.id!==t.boqId);
+    S.tasks=S.tasks.filter(x=>x.id!==id); save(); closeModal(); redraw(); };
+  $("#kSave").onclick=()=>{
+    t.desc=$("#kDesc").value; t.area=$("#kArea").value; t.phase=+$("#kPhase").value;
+    t.owner=$("#kOwner").value; t.due=$("#kDue").value; t.status=$("#kStat").value;
+    logChange('Work item "'+t.desc.slice(0,60)+'" in '+t.area
+      +(t.owner?(' — '+t.owner):'')+' — '+t.status);
+    const v=$("#kAmt").value.trim();
+    let bb=S.boq.find(x=>x.id===t.boqId);
+    if(v!==""){
+      if(!bb){ const nid="b"+Date.now();
+        bb={id:nid,area:t.area,trade:"Other",desc:t.desc,unit:"lump sum",qty:1,rateKey:null,rate:0,
+            phase:t.phase,note:"From work item",status:"Not started",owner:t.owner};
+        S.boq.push(bb); t.boqId=nid; }
+      bb.qty=bb.qty||1; bb.rate=num(v)/bb.qty; bb.rateKey=null;
+      bb.desc=t.desc; bb.area=t.area; bb.phase=t.phase; bb.owner=t.owner;
+      bb.status=(t.status==="Done")?"Done":(t.status==="In progress"?"In progress":"Not started");
+    }
+    save(); closeModal(); redraw(); };
+}
+
+/* ---------- export a complete, self-contained copy ---------- */
+function buildSelfContained(withPhotos){
+  const style=document.querySelector("style").outerHTML;
+  const code=document.querySelector("script").textContent;
+  const imgs={};
+  if(withPhotos) S.photos.forEach(p=>{ if(IMG[p.id]) imgs[p.id]=IMG[p.id]; });
+  const boot=JSON.stringify({S:S,IMG:imgs}).replace(/</g,"\\u003c").replace(/\u2028|\u2029/g,"");
+  const S1="<"+"script>", S2="<"+"/"+"script>";
+  return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>VIKRANT — Restoration Control Room</title>"
+    +style+"</head><body>"+SKELETON
+    +S1+"window.BOOTDATA="+boot+";"+S2
+    +S1+code+S2+"</body></html>";
+}
+function sizeOf(s){ return (new Blob([s]).size/1048576).toFixed(2)+" MB"; }
+function exportCopy(withPhotos){
+  const html=buildSelfContained(withPhotos);
+  try{
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([html],{type:"text/html"}));
+    a.download="VIKRANT Control Room — "+dstr(new Date())+(withPhotos?" (with photos)":"")+".html";
+    document.body.appendChild(a); a.click(); a.remove();
+    BK("Complete copy downloaded ("+sizeOf(html)+"). Everything you have entered is inside that one file.");
+  }catch(e){ BK('<span style="color:#B80001">Could not write the file here. Use "Send complete copy to Drive" instead.</span>'); }
+}
+async function exportCopyToDrive(withPhotos){
+  BK("Building a complete copy…");
+  try{
+    const html=buildSelfContained(withPhotos);
+    BK("Uploading "+sizeOf(html)+"…");
+    const res=await callTool("create_file",{
+      title:"VIKRANT Control Room — "+dstr(new Date())+(withPhotos?" (with photos)":"")+".html",
+      parentId:F_DOCS,contentMimeType:"text/html",textContent:html,disableConversionToGoogleType:true});
+    BK('Sent to Drive ('+sizeOf(html)+'). '+(res.viewUrl?'<a href="'+res.viewUrl+'" target="_blank">Open</a> — ':'')
+      +'share that file and whoever opens it sees everything exactly as you left it.');
+  }catch(e){ BK('<span style="color:#B80001">Upload failed: '+esc(e.message)+'</span>'); }
+}
+
+/* ---------- tabs and boot ---------- */
+const TABS=[["plan","Site plan"],["boq","BOQ &amp; cost"],["task","Work items"],["photo","Photos"],
+            ["sched","Schedule"],["appr","Approvals"],["cash","Cash flow"],["risk","Risks"],
+            ["brief","Brief &amp; export"]];
+function showTab(id){ S.tab=id; save();
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===id));
+  document.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.id==="p_"+id)); }
+function drawTabs(){ $("#tabs").innerHTML=TABS.map(t=>'<div class="tab" data-t="'+t[0]+'">'+t[1]+'</div>').join("");
+  document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>showTab(t.dataset.t)); }
+
+function redraw(){ drawChangeBar(); drawKPIs(); drawPlan(); drawOpenLand(); drawZone(); drawAreaTable(); drawBOQ(); drawRates();
+  drawTasks(); drawPhotos(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
+
+$("#grpBy").onchange=drawBOQ;
+$("#boqFind").oninput=drawBOQ;
+function setInline(v){ S.inline=!!v; save();
+  const a=$("#inlineChk"), b2=$("#inlineChk2");
+  if(a) a.checked=S.inline; if(b2) b2.checked=S.inline; redraw(); }
+$("#inlineChk").onchange=e=>setInline(e.target.checked);
+$("#inlineChk2").onchange=e=>setInline(e.target.checked);
+if($("#inlineChk")) $("#inlineChk").checked=!!S.inline;
+if($("#inlineChk2")) $("#inlineChk2").checked=!!S.inline;
+$("#addRow").onclick=()=>{ const id="b"+Date.now();
+  S.boq.push({id:id,area:S.sel,trade:"Civil",desc:"",unit:"lump sum",qty:1,rateKey:null,rate:0,
+    phase:1,note:"Added manually",status:"Not started",owner:""}); save(); redraw();
+  const el=document.querySelector('[data-desc="'+id+'"]'); if(el){el.scrollIntoView({block:"center"});el.focus();} };
+$("#addRate").onclick=addRate;
+$("#addZone").onclick=addZonePrompt;
+$("#delZone").onclick=removeZone;
+$("#newArea").onclick=addNewArea;
+$("#resetBoq").onclick=()=>{ if(!confirm("Reset the BOQ to computed defaults? Your edits will be lost."))return;
+  S.boq=defaultBOQ(); save(); redraw(); };
+$("#addAct").onclick=()=>{ S.acts.push({id:"a"+Date.now(),name:"New activity",area:"All",
+  start:dstr(new Date()),days:7,phase:1,crit:false,owner:"",pct:0}); save(); redraw(); };
+$("#addAppr").onclick=()=>{ S.appr.push({id:"ap"+Date.now(),name:"New approval",auth:"",lead:"",
+  status:"Not started",owner:"",target:"",note:""}); save(); redraw(); };
+$("#addRisk").onclick=()=>{ S.risks.push({id:"rk"+Date.now(),desc:"New risk",cat:"",like:"Medium",
+  imp:"Medium",mit:"",owner:"",status:"Open"}); save(); redraw(); };
+$("#expBoq").onclick=exportBOQ;
+$("#expDoc").onclick=exportDoc;
+$("#doPrint").onclick=()=>window.print();
+$("#saveDrive").onclick=saveToDrive;
+$("#loadDrive").onclick=listBackups;
+$("#dlBackup").onclick=downloadBackup;
+$("#shareDl").onclick=()=>exportCopy(false);
+$("#shareDlP").onclick=()=>exportCopy(true);
+$("#shareDrive").onclick=()=>exportCopyToDrive(false);
+$("#shareDriveP").onclick=()=>exportCopyToDrive(true);
+$("#upBackup").onclick=()=>$("#fileIn").click();
+$("#fileIn").onchange=e=>{ const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ applySnapshot(r.result); BK("Restored from "+esc(f.name)+"."); }
+                 catch(err){ BK('<span style="color:#B80001">'+esc(err.message)+'</span>'); } };
+  r.readAsText(f); e.target.value=""; };
+$("#addTaskTop").onclick=()=>{ S.tasks.push({id:"t"+Date.now(),area:S.sel,desc:"New work item",
+  owner:"",due:"",status:"Not started",boqId:null,phase:1}); save(); redraw(); };
+$("#tFilter").onchange=drawTasks; $("#tStat").onchange=drawTasks;
+$("#pgo").onclick=loadPhotos;
+$("#pDiag").onclick=photoDiag;
+$("#pBackup").onclick=()=>backupPhotos(false);
+$("#pRestore").onclick=async()=>{ const n=await restorePhotosFromDrive();
+  plog(n?(n+" photograph(s) restored from Drive."):"Nothing to restore."); };
+$("#pCam").onclick=openCam;
+$("#camShot").onclick=camCapture;
+$("#camClose").onclick=closeCam;
+$("#camSwap").onclick=()=>{ camFacing=(camFacing==="environment")?"user":"environment"; openCam(); };
+(function(){ const dz=$("#dropZone"), gz=$("#photoGrid");
+  [dz,gz].forEach(el=>{ if(!el) return;
+    el.addEventListener("dragover",e=>{e.preventDefault();
+      dz.style.borderColor="#0C013D"; dz.style.color="#0C013D";});
+    el.addEventListener("dragleave",()=>{dz.style.borderColor="#BEBDB8";dz.style.color="#6b7684";});
+    el.addEventListener("drop",e=>{e.preventDefault();
+      dz.style.borderColor="#BEBDB8"; dz.style.color="#6b7684";
+      const fl=[...(e.dataTransfer&&e.dataTransfer.files||[])];
+      if(fl.length) handleUpload(fl); }); }); })();
+$("#ptest").onclick=testDrive;
+$("#pUpload").onclick=()=>$("#photoIn").click();
+$("#pNewArea").onclick=()=>{ const n=addNewArea(); if(n){ $("#pUpArea").value=n; } };
+$("#photoIn").onchange=e=>{ handleUpload([...e.target.files]); e.target.value=""; };
+$("#purl").value="https://drive.google.com/drive/folders/"+ROOT;
+$("#pUpArea").innerHTML='<option value="">Tag later</option>'
+  +AREAKEYS().map(a=>'<option>'+esc(a)+'</option>').join("");
+
+drawTabs(); redraw(); showTab(S.tab||"plan");
+storageLine();
+imgLoadAll().then(async n=>{
+  if(n){ drawPhotos(); drawZone(); }
+  storageLine();
+  const back=await restorePhotosFromDrive();
+  if(back||n) storageLine();
+});
+</script>
+</body>
+</html>
