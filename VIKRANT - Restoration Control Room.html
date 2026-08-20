@@ -30,13 +30,15 @@ th { background:#EDEDF3; font-weight:600; color:#0C013D; position:sticky; top:0 
 td.n,th.n { text-align:right; white-space:nowrap }
 tr.grp td { background:#EDEDF3; font-weight:600; color:#0C013D; text-transform:uppercase; letter-spacing:.3px }
 tr.tot td { background:#E0E0EA; font-weight:700 }
-.tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:2px solid #0C013D; margin:14px 0 0; position:relative }
-#tabIndicator{ position:absolute; bottom:-2px; height:2px; background:#B80001; border-radius:2px 2px 0 0;
+.tabsHint { display:flex; align-items:center; gap:5px; font-size:10.5px; color:#8a93a3; margin:16px 0 4px; letter-spacing:.2px }
+.tabs { display:flex; flex-wrap:wrap; gap:6px; border-bottom:2px solid #0C013D; margin:0; position:relative }
+#tabIndicator{ position:absolute; bottom:-2px; height:3px; background:#B80001; border-radius:2px 2px 0 0;
   transition:left .28s cubic-bezier(.4,0,.2,1), width .28s cubic-bezier(.4,0,.2,1); pointer-events:none }
-.tab { padding:8px 14px; cursor:pointer; border:1px solid transparent; border-bottom:none;
-       border-radius:6px 6px 0 0; font-size:13px; color:#57606a }
-.tab.on { background:#fff; border-color:#e1e4e8; color:#B80001; font-weight:600;
-          box-shadow:0 2px 0 0 #fff; margin-bottom:-2px }
+.tab { padding:8px 15px; cursor:pointer; border:1px solid #e1e4e8; border-bottom:none; background:#F6F6F6;
+       border-radius:7px 7px 0 0; font-size:13px; color:#42506b; font-weight:500 }
+.tab:hover:not(.on) { background:#fff; border-color:#B80001; color:#B80001 }
+.tab.on { background:#0C013D; border-color:#0C013D; color:#fff; font-weight:700;
+          box-shadow:0 2px 10px rgba(12,1,61,.28); margin-bottom:-2px }
 .page { display:none; padding-top:14px } .page.on { display:block }
 .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:12px 0 4px }
 .kpi { border:1px solid #dfe3e8; border-radius:8px; padding:10px 12px; background:#F6F6F6 }
@@ -79,7 +81,7 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 .rateGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:6px 14px }
 .rateGrid label { display:flex; align-items:center; gap:7px; font-size:11.5px }
 .rateGrid label span { flex:1; color:#42506b }
-@media print { .tabs,.tools,button{display:none} .page{display:block!important} }
+@media print { .tabs,.tabsHint,.tools,button{display:none} .page{display:block!important} }
 
 /* ---------- animation ---------- */
 button{ transition:background .15s ease,transform .1s ease,box-shadow .15s ease }
@@ -87,7 +89,7 @@ button:hover:not(:disabled){ transform:translateY(-1px) }
 button:active:not(:disabled){ transform:translateY(0) }
 .kpi{ transition:transform .15s ease,box-shadow .15s ease; animation:kpiIn .35s ease }
 .kpi:hover{ transform:translateY(-2px); box-shadow:0 4px 14px rgba(12,1,61,.12) }
-.tab{ transition:background .15s ease,color .15s ease }
+.tab{ transition:background .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease }
 .page.on{ animation:pageIn .32s cubic-bezier(.16,1,.3,1) }
 .barrow .fl{ transition:width .6s ease } .gbar{ transition:width .5s ease }
 #syncBar{ display:flex; align-items:center; flex-wrap:wrap }
@@ -132,6 +134,7 @@ quotations before you commit money. Structural, electrical and fire designs need
 this is a planning and control tool, not a design or a professional cost certificate.
 </div>
 
+<div class="tabsHint">👆 These are sections &mdash; click any tab below to switch what you're viewing</div>
 <div class="tabs" id="tabs"></div>
 
 <!-- ============ SITE PLAN ============ -->
@@ -195,10 +198,14 @@ this is a planning and control tool, not a design or a professional cost certifi
   <h2>Execution schedule</h2>
   <div class="note red" id="schedWarn"></div>
   <div class="tools"><button id="addAct">Add activity</button>
+    <button id="saveSched" class="primary">💾 Save schedule</button>
     <span class="small">Bars: <span class="pill r">critical</span> <span class="pill">Phase 1</span>
     <span class="pill a">Phase 2</span> <span class="pill g">complete</span></span></div>
   <div class="gantt" id="gantt"></div>
   <h3>Activity list</h3>
+  <p class="small">Edit any cell below and the Gantt chart above updates and saves right away &mdash; no extra step
+  needed. Use <b>Save schedule</b> only if you want to push your changes to the team immediately instead of
+  waiting a second or two.</p>
   <table id="actTable"></table>
 </div>
 
@@ -325,6 +332,14 @@ this is a planning and control tool, not a design or a professional cost certifi
   seconds. Photographs upload straight to permanent cloud storage the moment you add them. There is nothing to
   manually back up for the team to stay in sync — the buttons below are for taking an offline copy.</div>
   <div class="tools">
+    <div style="margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid #e1e4e8">
+      <b style="font-size:12px">Autosave straight to a file on this computer</b>
+      <div class="small" style="margin:3px 0 6px">Link a .html file once and every change you make from then on
+      &mdash; activities, BOQ, work items, anything &mdash; writes into that same file automatically, a second or
+      two after you stop typing. No re-uploading, no remembering to click Download. Works in Chrome and Edge.</div>
+      <button id="linkFileBtn" class="primary">🔗 Link a file for autosave</button>
+      <div id="fileSyncStatus" class="small" style="margin-top:8px"></div>
+    </div>
     <button id="dlBackup">Download local backup (.json)</button>
     <button id="upBackup">Restore from a local file</button>
     <div style="margin-top:9px;padding-top:9px;border-top:1px solid #e1e4e8">
@@ -609,6 +624,7 @@ const save=()=>{
     const m=document.getElementById("saveWarn");
     if(m) m.textContent="Local storage is full — download a backup now."; }
   scheduleSync();
+  scheduleFileSync();
 };
 
 const backendConfigured=()=>!!API_BASE&&API_BASE.indexOf("YOUR-BACKEND-URL")<0;
@@ -1273,7 +1289,8 @@ function drawActs(){
   $("#actTable").innerHTML=h;
   const bind=(sel,fn)=>document.querySelectorAll(sel).forEach(i=>{i.onchange=e=>{
     const id=e.target.dataset[Object.keys(e.target.dataset)[0]];
-    fn(S.acts.find(x=>x.id===id),e.target); save(); redraw();};});
+    fn(S.acts.find(x=>x.id===id),e.target); save(); redraw();
+    toast("Saved — Gantt chart updated.");};});
   bind("[data-an]",(a,t)=>a.name=t.value); bind("[data-aa]",(a,t)=>a.area=t.value);
   bind("[data-as]",(a,t)=>a.start=t.value); bind("[data-ad]",(a,t)=>a.days=parseInt(t.value)||1);
   bind("[data-ap]",(a,t)=>a.phase=+t.value); bind("[data-ac]",(a,t)=>a.crit=t.checked);
@@ -2257,10 +2274,100 @@ function exportCopy(withPhotos){
   }catch(e){ BK('<span style="color:#B80001">This browser could not write the file: '+esc(e.message)+'</span>'); }
 }
 
+/* ---------- autosave straight to a file on disk (Chrome/Edge — File System Access API) ----------
+   Once linked, every save() call writes the current state into that same .html file a moment later,
+   so reopening the file directly shows the latest data even with no server involved. --------------- */
+const FS_SUPPORTED=!!(window.showSaveFilePicker);
+let fileHandle=null, fileHandleName=null, fileSyncTimer=null, lastFileSyncAt=null;
+function idbOpen(){ return new Promise((res,rej)=>{
+  const r=indexedDB.open("vikrant_fs",1);
+  r.onupgradeneeded=()=>r.result.createObjectStore("handles");
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function idbSet(key,val){ const db=await idbOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction("handles","readwrite");
+    tx.objectStore("handles").put(val,key); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+async function idbGet(key){ const db=await idbOpen();
+  return new Promise((res,rej)=>{ const tx=db.transaction("handles","readonly");
+    const rq=tx.objectStore("handles").get(key);
+    rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }
+function drawFileSyncStatus(state,msg){
+  const el=$("#fileSyncStatus"); if(!el) return;
+  const name=esc(fileHandleName||"");
+  if(state==="linked") el.innerHTML='<span style="color:#4E7A33">📁 Linked to <b>'+name+'</b> — it updates '
+      +'automatically as you edit'+(lastFileSyncAt?(' (last saved '+lastFileSyncAt.toLocaleTimeString()+')'):'')
+      +'.</span> <button class="sm" id="unlinkFileBtn">Unlink</button>';
+  else if(state==="saving") el.innerHTML='<span class="small">Saving to <b>'+name+'</b>…</span>';
+  else if(state==="needsPermission") el.innerHTML='<span style="color:#7A5C00">📁 Was linked to <b>'+name+'</b> — '
+      +'this browser tab needs permission again after reloading.</span> '
+      +'<button class="sm primary" id="reconnectFileBtn">Reconnect</button>';
+  else if(state==="denied") el.innerHTML='<span style="color:#B80001">Permission to save to <b>'+name+'</b> was '
+      +'refused.</span> <button class="sm" id="linkFileBtn2">Link a file</button>';
+  else if(state==="error") el.innerHTML='<span style="color:#B80001">Could not save to '+name+': '+esc(msg||"")
+      +'</span> <button class="sm" id="linkFileBtn2">Relink</button>';
+  else el.innerHTML=FS_SUPPORTED
+      ? '<span class="small">Not linked yet — your edits are only in the browser and the shared backend until '
+        +'you link a file.</span>'
+      : '<span class="small" style="color:#B80001">This browser can\'t save straight to a file (needs Chrome or '
+        +'Edge). Use <b>Download complete copy</b> below instead.</span>';
+  const u=$("#unlinkFileBtn"); if(u) u.onclick=unlinkFile;
+  const r=$("#reconnectFileBtn"); if(r) r.onclick=reconnectFile;
+  const l2=$("#linkFileBtn2"); if(l2) l2.onclick=linkFileForAutosave;
+}
+async function writeToFile(showToast){
+  if(!fileHandle) return;
+  try{
+    const perm=await fileHandle.queryPermission({mode:"readwrite"});
+    if(perm!=="granted"){ drawFileSyncStatus("needsPermission"); return; }
+    drawFileSyncStatus("saving");
+    const html=buildSelfContained(false);
+    const writable=await fileHandle.createWritable();
+    await writable.write(html); await writable.close();
+    lastFileSyncAt=new Date();
+    drawFileSyncStatus("linked");
+    if(showToast) toast("Linked — "+fileHandleName+" now updates automatically as you edit.");
+  }catch(e){ drawFileSyncStatus("error",e.message); }
+}
+function scheduleFileSync(){ if(!fileHandle) return; clearTimeout(fileSyncTimer);
+  fileSyncTimer=setTimeout(()=>writeToFile(false),1200); }
+async function linkFileForAutosave(){
+  if(!FS_SUPPORTED){ toast("This browser can't save straight to a file — try Chrome or Edge, or use Download "
+    +"complete copy instead.",true); return; }
+  try{
+    const handle=await window.showSaveFilePicker({suggestedName:"VIKRANT Control Room.html",
+      types:[{description:"HTML file",accept:{"text/html":[".html"]}}]});
+    fileHandle=handle; fileHandleName=handle.name;
+    try{ await idbSet("fileHandle",handle); }catch(e){}
+    await writeToFile(true);
+  }catch(e){ if(e.name!=="AbortError") toast("Could not link the file: "+e.message,true); }
+}
+async function reconnectFile(){
+  if(!fileHandle) return;
+  try{
+    const perm=await fileHandle.requestPermission({mode:"readwrite"});
+    if(perm==="granted"){ toast("Reconnected to "+fileHandleName+"."); scheduleFileSync(); drawFileSyncStatus("linked"); }
+    else drawFileSyncStatus("denied");
+  }catch(e){ toast("Could not reconnect: "+e.message,true); }
+}
+async function unlinkFile(){
+  fileHandle=null; fileHandleName=null;
+  try{ await idbSet("fileHandle",null); }catch(e){}
+  drawFileSyncStatus("none");
+}
+async function tryReconnectFileOnBoot(){
+  if(!FS_SUPPORTED){ drawFileSyncStatus("none"); return; }
+  try{
+    const h=await idbGet("fileHandle");
+    if(!h){ drawFileSyncStatus("none"); return; }
+    fileHandle=h; fileHandleName=h.name;
+    const perm=await h.queryPermission({mode:"readwrite"});
+    drawFileSyncStatus(perm==="granted"?"linked":"needsPermission");
+  }catch(e){ drawFileSyncStatus("none"); }
+}
+
 /* ---------- tabs and boot ---------- */
-const TABS=[["plan","Site plan"],["boq","BOQ &amp; cost"],["task","Work items"],["photo","Photos"],
-            ["daylog","Daily log"],["sched","Schedule"],["appr","Approvals"],["cash","Cash flow"],["risk","Risks"],
-            ["brief","Brief &amp; export"]];
+const TABS=[["plan","🗺️ Site plan"],["boq","💰 BOQ &amp; cost"],["task","🧱 Work items"],["photo","📷 Photos"],
+            ["daylog","📝 Daily log"],["sched","📅 Schedule"],["appr","✅ Approvals"],["cash","💵 Cash flow"],["risk","⚠️ Risks"],
+            ["brief","📄 Brief &amp; export"]];
 function showTab(id){ S.tab=id; save();
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===id));
   document.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.id==="p_"+id));
@@ -2299,6 +2406,9 @@ $("#resetBoq").onclick=()=>{ if(!confirm("Reset the BOQ to computed defaults? Yo
   S.boq=defaultBOQ(); save(); redraw(); };
 $("#addAct").onclick=()=>{ S.acts.push({id:"a"+Date.now(),name:"New activity",area:"All",
   start:dstr(new Date()),days:7,phase:1,crit:false,owner:"",pct:0}); save(); redraw(); };
+$("#saveSched").onclick=()=>{ save(); pushState();
+  toast(backendConfigured()?"Schedule saved and pushed to the team.":"Schedule saved on this device.",!backendConfigured()); };
+$("#linkFileBtn").onclick=linkFileForAutosave;
 $("#addAppr").onclick=()=>{ S.appr.push({id:"ap"+Date.now(),name:"New approval",auth:"",lead:"",
   status:"Not started",owner:"",target:"",note:""}); save(); redraw(); };
 $("#addRisk").onclick=()=>{ S.risks.push({id:"rk"+Date.now(),desc:"New risk",cat:"",like:"Medium",
@@ -2351,6 +2461,7 @@ $("#pUpArea").innerHTML='<option value="">Tag later</option>'
 S.photos.forEach(p=>{ if(p.url) IMG[p.id]=p.url; });
 drawTabs(); redraw(); showTab(S.tab||"plan");
 storageLine();
+tryReconnectFileOnBoot();
 if(!backendConfigured()){
   setSyncState("offline","set API_BASE near the top of the script to your deployed backend");
 } else {
