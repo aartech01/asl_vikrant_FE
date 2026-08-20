@@ -120,10 +120,13 @@ button:active:not(:disabled){ transform:translateY(0) }
     <div style="font-family:'Barlow',Arial,sans-serif;font-size:12.5px;color:#B80001">
       We live our passion through engineering.</div>
   </div>
-  <div style="flex:none;background:#fff;border:1px solid #dfe3e8;border-radius:10px;padding:5px;
-              box-shadow:0 2px 10px rgba(12,1,61,.14)">
-    <img src="aartech%20logo%204%20on%20red%20bg.svg" alt="Aartech Solonics Limited logo"
-         style="height:112px;width:auto;display:block;border-radius:6px">
+  <div style="flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+    <span id="adminLock" onclick="promptAdminUnlock()"></span>
+    <div style="background:#fff;border:1px solid #dfe3e8;border-radius:10px;padding:5px;
+                box-shadow:0 2px 10px rgba(12,1,61,.14)">
+      <img src="aartech%20logo%204%20on%20red%20bg.svg" alt="Aartech Solonics Limited logo"
+           style="height:112px;width:auto;display:block;border-radius:6px">
+    </div>
   </div>
 </div>
 <p class="sub">Plot 101.7 × 189.7 ft (0.443 acre) ·
@@ -378,6 +381,30 @@ const SKELETON=(function(){ const b=document.body.cloneNode(true);
    localStorage.setItem("vikrant_api_base","https://your-url") then reload. */
 const API_BASE=localStorage.getItem("vikrant_api_base")||"https://asl-vikrant-be.onrender.com";
 const LSK="asl_unit3_exec_v1";
+
+/* ---------- admin unlock ----------
+   Everyone can view the site; only someone who enters the admin key can make
+   changes that persist to the shared backend (enforced server-side too — see
+   requireAdmin in the API — so this is UX, not the actual security boundary). */
+const ADMIN_LSK="vikrant_admin_key";
+const isAdmin=()=>!!localStorage.getItem(ADMIN_LSK);
+const adminHeaders=()=>({ "x-admin-key": localStorage.getItem(ADMIN_LSK)||"" });
+function promptAdminUnlock(){
+  const val=prompt(isAdmin()?"Admin unlocked. Enter a new key to switch, or Cancel to lock this browser again.":"Enter the admin key to unlock editing:");
+  if(val===null) return;
+  if(val===""){ localStorage.removeItem(ADMIN_LSK); }
+  else{ localStorage.setItem(ADMIN_LSK,val); }
+  renderAdminLock();
+}
+function renderAdminLock(){
+  const el=document.getElementById("adminLock");
+  if(!el) return;
+  const on=isAdmin();
+  el.textContent=on?"🔓 Edit mode":"🔒 View only";
+  el.title=on?"Click to lock (or switch admin key)":"Click to unlock editing with the admin key";
+  el.style.cssText="cursor:pointer;font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;border:1px solid "+
+    (on?"#4E7A33;color:#4E7A33;background:#F1F7EC":"#d0d7de;color:#57606a;background:#F6F6F6");
+}
 const TODAY=new Date(2026,7,7);
 const OPS=new Date(2026,8,17);      // 17 Sept 2026
 const LAUNCH=new Date(2028,3,1);    // 1 Apr 2028
@@ -661,10 +688,13 @@ function toast(msg,bad){
 }
 async function pushState(){
   if(!backendConfigured()){ setSyncState("offline","backend URL not set yet — see API_BASE"); return; }
+  if(!isAdmin()){ setSyncState("offline","view only — unlock editing to sync changes"); return; }
   setSyncState("syncing");
   try{
-    const r=await fetch(API_BASE+"/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},
+    const r=await fetch(API_BASE+"/api/state",{method:"PUT",
+      headers:Object.assign({"Content-Type":"application/json"},adminHeaders()),
       body:JSON.stringify({state:S})});
+    if(r.status===401){ setSyncState("offline","admin key rejected — click 🔒 to re-enter it"); return; }
     if(!r.ok) throw new Error("HTTP "+r.status);
     const d=await r.json();
     lastPulledAt=d.updatedAt;
@@ -820,10 +850,12 @@ function statusOfArea(a){
 /* ---------- uploaded site map (full resolution, replaces nothing — sits above the schematic plan) ---------- */
 async function uploadSiteMap(file){
   if(!backendConfigured()){ $("#mapMsg").textContent="No backend configured yet — set API_BASE near the top of the script."; return; }
+  if(!isAdmin()){ $("#mapMsg").textContent="View only — click 🔒 above and enter the admin key to edit."; return; }
   $("#mapMsg").textContent="Uploading full-resolution map…";
   try{
     const fd=new FormData(); fd.append("map",file,file.name||"site-map.jpg");
-    const r=await fetch(API_BASE+"/api/sitemap",{method:"POST",body:fd});
+    const r=await fetch(API_BASE+"/api/sitemap",{method:"POST",headers:adminHeaders(),body:fd});
+    if(r.status===401) throw new Error("admin key rejected — click 🔒 to re-enter it");
     if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||("HTTP "+r.status)); }
     const m=await r.json();
     S.siteMap=m; save(); drawSiteMap();
@@ -847,9 +879,10 @@ function drawSiteMap(){
   $("#mapImgEl").onclick=openFull;
   $("#mapFull").onclick=openFull;
   $("#mapRemove").onclick=async()=>{
+    if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
     if(!confirm("Remove the uploaded site map?")) return;
     try{
-      if(backendConfigured()){ const r=await fetch(API_BASE+"/api/sitemap",{method:"DELETE"}); if(!r.ok) throw new Error("HTTP "+r.status); }
+      if(backendConfigured()){ const r=await fetch(API_BASE+"/api/sitemap",{method:"DELETE",headers:adminHeaders()}); if(!r.ok) throw new Error("HTTP "+r.status); }
       S.siteMap=null; save(); drawSiteMap(); logChange("Site map removed"); toast("Site map removed");
     }catch(e){ toast("Could not remove map — "+e.message,true); }
   };
@@ -1572,7 +1605,8 @@ async function uploadPhotoFile(file,area){
   const fd=new FormData();
   fd.append("photo",blob,file.name||"photo.jpg");
   fd.append("area",area||"");
-  const r=await fetch(API_BASE+"/api/photos",{method:"POST",body:fd});
+  const r=await fetch(API_BASE+"/api/photos",{method:"POST",headers:adminHeaders(),body:fd});
+  if(r.status===401) throw new Error("admin key rejected — click 🔒 to re-enter it");
   if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||("upload failed: HTTP "+r.status)); }
   return r.json();
 }
@@ -1582,6 +1616,7 @@ async function handleUpload(files){
   const imgs=[...files].filter(f=>f.type.indexOf("image/")===0);
   if(!imgs.length) return;
   if(!backendConfigured()){ plog("No backend configured yet — set API_BASE near the top of the script before photos can upload.",true); return; }
+  if(!isAdmin()){ plog("View only — click 🔒 above and enter the admin key to upload photos.",true); return; }
   let ok=0, fail=0;
   plog("Uploading "+imgs.length+" photo(s)…");
   for(const f of imgs){
@@ -1601,8 +1636,10 @@ async function handleUpload(files){
 async function patchPhotoField(id,field,value){
   try{
     if(!backendConfigured()) return;
+    if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
     const body={}; body[field]=value;
-    const r=await fetch(API_BASE+"/api/photos/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const r=await fetch(API_BASE+"/api/photos/"+id,{method:"PATCH",
+      headers:Object.assign({"Content-Type":"application/json"},adminHeaders()),body:JSON.stringify(body)});
     if(!r.ok) throw new Error("HTTP "+r.status);
   }catch(e){ toast("Could not save photo tag — "+e.message,true); }
 }
@@ -1649,6 +1686,7 @@ function drawPhotos(){
    backend to drop it from Cloudinary and the shared database — see DELETE /api/photos/:id. -------- */
 async function deletePhoto(id){
   const p=S.photos.find(x=>x.id===id); if(!p) return;
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
   const pins=S.tasks.filter(t=>t.photoId===id);
   if(!confirm('Delete "'+(p.name||"this photo")+'"?'
     +(pins.length?(' This also removes '+pins.length+' punch-list pin'+(pins.length>1?'s':'')+' attached to it.'):'')
@@ -1659,7 +1697,7 @@ async function deletePhoto(id){
   save(); redraw();
   let ok=true;
   if(backendConfigured()){
-    try{ const r=await fetch(API_BASE+"/api/photos/"+id,{method:"DELETE"}); ok=r.ok; }
+    try{ const r=await fetch(API_BASE+"/api/photos/"+id,{method:"DELETE",headers:adminHeaders()}); ok=r.ok; }
     catch(e){ ok=false; }
   }
   toast(ok?"Photo deleted.":"Deleted here, but couldn't remove it from the shared server — it may reappear.",!ok);
@@ -1998,6 +2036,7 @@ async function camCapture(){
   const v=$("#camVid");
   if(!camStream||!v.videoWidth){ $("#camMsg").textContent="Camera is not running."; return; }
   if(!backendConfigured()){ $("#camMsg").textContent="No backend configured yet — set API_BASE near the top of the script."; return; }
+  if(!isAdmin()){ $("#camMsg").textContent="View only — click 🔒 above and enter the admin key to upload photos."; return; }
   const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight;
   c.getContext("2d").drawImage(v,0,0,c.width,c.height);
   const data=await shrinkTo(c.toDataURL("image/jpeg",.85),1600,.82);
@@ -2490,6 +2529,7 @@ $("#pUpArea").innerHTML='<option value="">Tag later</option>'
 
 /* every photo already carrying a Cloudinary URL renders immediately, before any network round-trip */
 S.photos.forEach(p=>{ if(p.url) IMG[p.id]=p.url; });
+renderAdminLock();
 drawTabs(); redraw(); showTab(S.tab||"plan");
 storageLine();
 tryReconnectFileOnBoot();
