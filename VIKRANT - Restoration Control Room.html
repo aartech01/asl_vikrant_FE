@@ -670,7 +670,7 @@ USERZ=S.userZones;
 if(!S.customRates||typeof S.customRates!=="object") S.customRates={};
 /* the full rate card = built-in benchmarks plus anything you have added */
 const RATEDEF=()=>Object.assign({},RATES0,S.customRates);
-const AREAKEYS=()=>Object.keys(Z()).concat(["Site"]).concat(S.extraAreas);
+const AREAKEYS=()=>Object.keys(Z()).concat(["Site","Other"]).concat(S.extraAreas);
 const IMG={};   // photo id -> URL (Cloudinary) or dataURL (inside a self-contained exported copy)
 if(window.BOOTDATA&&window.BOOTDATA.IMG) Object.assign(IMG,window.BOOTDATA.IMG);
 
@@ -1205,11 +1205,10 @@ function drawBOQ(){
     S.boq.find(x=>x.id===e.target.dataset.un).unit=e.target.value; save();};});
   document.querySelectorAll("[data-addto]").forEach(btn=>{btn.onclick=()=>{
     const k=btn.dataset.addto, id="b"+Date.now();
-    const line={id:id,area:by==="area"?k:S.sel,trade:by==="trade"?k:"Civil",desc:"",unit:"lump sum",
+    const line={id:id,area:by==="area"?k:(S.sel||"Other"),trade:by==="trade"?k:"Civil",desc:"",unit:"lump sum",
       qty:1,rateKey:null,rate:0,phase:by==="phase"?+k:1,note:"Added manually",status:"Not started",owner:""};
     S.boq.push(line); save(); drawBOQ(); drawKPIs();
-    const el=document.querySelector('[data-desc="'+id+'"]');
-    if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.focus(); }};});
+    flashBoqRow(id); toast("New BOQ line added.");};});
   document.querySelectorAll("[data-p]").forEach(i=>{i.onchange=e=>{
     S.boq.find(x=>x.id===e.target.dataset.p).phase=+e.target.value; save(); redraw();};});
   document.querySelectorAll("[data-s]").forEach(i=>{i.onchange=e=>{
@@ -2495,14 +2494,31 @@ $("#inlineChk").onchange=e=>setInline(e.target.checked);
 $("#inlineChk2").onchange=e=>setInline(e.target.checked);
 if($("#inlineChk")) $("#inlineChk").checked=!!S.inline;
 if($("#inlineChk2")) $("#inlineChk2").checked=!!S.inline;
+/* Jump to and briefly flash a just-added BOQ row — works whether the table is showing the
+   read-only rows or the inline-editable ones, since only one of [data-desc]/[data-edit]
+   exists per row depending on the "quick edit in table" toggle. */
+function flashBoqRow(id){
+  const el=document.querySelector('[data-desc="'+id+'"]')||document.querySelector('[data-edit="'+id+'"]');
+  if(!el) return;
+  el.scrollIntoView({block:"center"});
+  if(el.tagName==="INPUT") el.focus();
+  const row=el.closest("tr");
+  if(row){ row.style.transition="background .3s"; row.style.background="#FEF6E0";
+    setTimeout(()=>{ row.style.background=""; },1800); }
+}
 $("#addRow").onclick=()=>{ const id="b"+Date.now();
-  S.boq.push({id:id,area:S.sel,trade:"Civil",desc:"",unit:"lump sum",qty:1,rateKey:null,rate:0,
+  const area=S.sel||"Other";
+  S.boq.push({id:id,area:area,trade:"Civil",desc:"",unit:"lump sum",qty:1,rateKey:null,rate:0,
     phase:1,note:"Added manually",status:"Not started",owner:""}); save(); redraw();
-  const el=document.querySelector('[data-desc="'+id+'"]'); if(el){el.scrollIntoView({block:"center"});el.focus();} };
+  flashBoqRow(id); toast('New BOQ line added under "'+area+'".'); };
 $("#addRate").onclick=addRate;
 $("#addZone").onclick=addZonePrompt;
 $("#delZone").onclick=removeZone;
-$("#newArea").onclick=addNewArea;
+$("#newArea").onclick=()=>{ const n=addNewArea(); if(!n) return;
+  const id="b"+Date.now();
+  S.boq.push({id:id,area:n,trade:"Civil",desc:"",unit:"lump sum",qty:1,rateKey:null,rate:0,
+    phase:1,note:"Added manually",status:"Not started",owner:""}); save(); redraw();
+  flashBoqRow(id); toast('Area "'+n+'" added with a starter BOQ line.'); };
 $("#resetBoq").onclick=()=>{ if(!confirm("Reset the BOQ to computed defaults? Your edits will be lost."))return;
   S.boq=defaultBOQ(); save(); redraw(); };
 $("#addAct").onclick=()=>{ S.acts.push({id:"a"+Date.now(),name:"New activity",area:"All",
