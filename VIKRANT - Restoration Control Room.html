@@ -22,6 +22,9 @@ button.warn { background:#FEF6E0; border-color:#F6C547; color:#7A5C00 }
 button.sm { font-size:11px; padding:2px 7px; margin:0 3px 0 0 }
 input,select,textarea { font:inherit; font-size:12px; padding:4px 6px; border:1px solid #d0d7de;
                         border-radius:5px; background:#fff }
+input:disabled,select:disabled,textarea:disabled,button:disabled { background:#F2F2F2; color:#8a93a3;
+  cursor:not-allowed; opacity:.8 }
+[contenteditable="false"] { cursor:not-allowed }
 input.num { text-align:right; width:88px }
 input.qty { text-align:right; width:76px }
 table { border-collapse:collapse; width:100%; font-size:12px }
@@ -395,6 +398,7 @@ function promptAdminUnlock(){
   if(val===""){ localStorage.removeItem(ADMIN_LSK); }
   else{ localStorage.setItem(ADMIN_LSK,val); }
   renderAdminLock();
+  lockEditableInputs();
 }
 function renderAdminLock(){
   const el=document.getElementById("adminLock");
@@ -404,6 +408,33 @@ function renderAdminLock(){
   el.title=on?"Click to lock (or switch admin key)":"Click to unlock editing with the admin key";
   el.style.cssText="cursor:pointer;font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;border:1px solid "+
     (on?"#4E7A33;color:#4E7A33;background:#F1F7EC":"#d0d7de;color:#57606a;background:#F6F6F6");
+}
+/* Every table cell / editor field is a real input bound straight to local state, so unlocking is
+   not enough on its own — without this, a visitor could still type into a cell (it just wouldn't
+   sync). This disables every editable control site-wide while locked, and a MutationObserver
+   re-applies it to anything rendered after (modals, re-drawn tables) without touching every
+   individual render function. */
+const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn"]);
+const VIEWONLY_LOCK_BTNS=new Set(["mapUpload","addZone","delZone","addRow","newArea","resetBoq","addRate",
+  "addAct","saveSched","addAppr","addRisk","addTaskTop","pUpload","pCam","pNewArea","camShot","dlAdd","mSave","kSave"]);
+function lockEditableInputs(){
+  const admin=isAdmin();
+  document.querySelectorAll("input,select,textarea").forEach(el=>{
+    if(VIEWONLY_KEEP.has(el.id)) return;
+    el.disabled=!admin;
+  });
+  document.querySelectorAll("[contenteditable]").forEach(el=>{
+    el.setAttribute("contenteditable",admin?"true":"false");
+  });
+  document.querySelectorAll("button").forEach(b=>{
+    if(VIEWONLY_LOCK_BTNS.has(b.id)||b.hasAttribute("data-d")||b.hasAttribute("data-addto")) b.disabled=!admin;
+  });
+}
+let editLockObserver=null;
+function startEditLockObserver(){
+  if(editLockObserver) return;
+  editLockObserver=new MutationObserver(()=>{ if(!isAdmin()) lockEditableInputs(); });
+  editLockObserver.observe(document.body,{childList:true,subtree:true});
 }
 const TODAY=new Date(2026,7,7);
 const OPS=new Date(2026,8,17);      // 17 Sept 2026
@@ -2531,6 +2562,8 @@ $("#pUpArea").innerHTML='<option value="">Tag later</option>'
 S.photos.forEach(p=>{ if(p.url) IMG[p.id]=p.url; });
 renderAdminLock();
 drawTabs(); redraw(); showTab(S.tab||"plan");
+lockEditableInputs();
+startEditLockObserver();
 storageLine();
 tryReconnectFileOnBoot();
 if(!backendConfigured()){
