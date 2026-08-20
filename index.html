@@ -112,12 +112,19 @@ button:active:not(:disabled){ transform:translateY(0) }
 </head>
 <body>
 
-<div style="border-left:6px solid #B80001;padding:2px 0 2px 14px;margin-bottom:4px">
-  <div style="font-size:9.5px;letter-spacing:1.4px;color:#0C013D;font-weight:600;text-transform:uppercase">
-    Aartech Solonics Limited &nbsp;·&nbsp; Unit 3</div>
-  <h1>Vikrant — Restoration &amp; Development Control Room</h1>
-  <div style="font-family:'Barlow',Arial,sans-serif;font-size:12.5px;color:#B80001">
-    We live our passion through engineering.</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:18px;border-left:6px solid #B80001;padding:2px 0 2px 14px;margin-bottom:4px">
+  <div>
+    <div style="font-size:9.5px;letter-spacing:1.4px;color:#0C013D;font-weight:600;text-transform:uppercase">
+      Aartech Solonics Limited &nbsp;·&nbsp; Unit 3</div>
+    <h1>Vikrant — Restoration &amp; Development Control Room</h1>
+    <div style="font-family:'Barlow',Arial,sans-serif;font-size:12.5px;color:#B80001">
+      We live our passion through engineering.</div>
+  </div>
+  <div style="flex:none;background:#fff;border:1px solid #dfe3e8;border-radius:10px;padding:5px;
+              box-shadow:0 2px 10px rgba(12,1,61,.14)">
+    <img src="aartech%20logo%204%20on%20red%20bg.svg" alt="Aartech Solonics Limited logo"
+         style="height:112px;width:auto;display:block;border-radius:6px">
+  </div>
 </div>
 <p class="sub">Plot 101.7 × 189.7 ft (0.443 acre) ·
 covered 10,895 sq ft · geometry read from drawing <i>asl unit 3 map</i></p>
@@ -290,11 +297,6 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div class="tools"><button id="pDiag">Check photo system</button></div>
   <div id="pdiag" class="small" style="margin-bottom:8px"></div>
   <div id="plog" class="small"></div>
-  <div class="tools" id="photoBulkBar" style="display:none;align-items:center;gap:8px;margin-top:10px">
-    <b class="small" id="photoSelCount" style="color:#0C013D"></b>
-    <button id="pDelSel" class="warn sm">🗑️ Delete selected</button>
-    <button id="pDeselAll" class="sm">Clear selection</button>
-  </div>
   <div class="grid" id="photoGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px;margin-top:12px"></div>
   <p class="small" style="margin-top:8px">Click a photo to open it, drop punch-list pins on it, or tag it as
   <b>Before</b> / <b>After</b> from the dropdown under it to use it in the comparison below.</p>
@@ -1604,30 +1606,19 @@ async function patchPhotoField(id,field,value){
     if(!r.ok) throw new Error("HTTP "+r.status);
   }catch(e){ toast("Could not save photo tag — "+e.message,true); }
 }
-let selectedPhotoIds=new Set();
-function drawPhotoBulkBar(){
-  const bar=$("#photoBulkBar"); if(!bar) return;
-  const n=selectedPhotoIds.size;
-  bar.style.display=n?"flex":"none";
-  const c=$("#photoSelCount"); if(c) c.textContent=n+" photo"+(n===1?"":"s")+" selected";
-}
 function drawPhotos(){
   $("#photoGrid").innerHTML=S.photos.map(p=>{
     const pins=S.tasks.filter(t=>t.photoId===p.id);
     const openPins=pins.filter(t=>t.status!=="Done").length;
-    const sel=selectedPhotoIds.has(p.id);
     return '<div style="border:1px solid #dfe3e8;border-radius:7px;overflow:hidden;background:#fff'
-    +(p.area?';border-color:#0C013D':'')+(sel?';box-shadow:0 0 0 3px rgba(184,0,1,.35)':'')+'">'
+    +(p.area?';border-color:#0C013D':'')+'">'
     +'<div style="position:relative">'
-    +'<label style="position:absolute;top:4px;left:4px;z-index:2;background:rgba(255,255,255,.9);border-radius:4px;'
-    +'padding:2px 4px;display:flex;align-items:center;cursor:pointer" title="Select for bulk delete">'
-    +'<input type="checkbox" data-psel="'+p.id+'"'+(sel?" checked":"")+' style="margin:0"></label>'
     +(IMG[p.id]?'<img src="'+IMG[p.id]+'" data-pv="'+p.id+'" style="width:100%;height:110px;object-fit:cover;cursor:zoom-in;display:block">'
       :'<div style="height:110px;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px">not loaded</div>')
     +(pins.length?'<span style="position:absolute;top:4px;right:4px;background:'+(openPins?"#B80001":"#4E7A33")
       +';color:#fff;font-size:10px;padding:1px 6px;border-radius:9px">'+pins.length+' pin'+(pins.length>1?"s":"")+'</span>':'')
-    +(p.kind==="before"?'<span style="position:absolute;bottom:4px;left:4px;background:#0C013D;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">BEFORE</span>'
-      :p.kind==="after"?'<span style="position:absolute;bottom:4px;left:4px;background:#4E7A33;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">AFTER</span>':'')
+    +(p.kind==="before"?'<span style="position:absolute;top:4px;left:4px;background:#0C013D;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">BEFORE</span>'
+      :p.kind==="after"?'<span style="position:absolute;top:4px;left:4px;background:#4E7A33;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">AFTER</span>':'')
     +'</div>'
     +'<div class="small" style="padding:4px 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'
     +'<select data-pa="'+p.id+'" style="width:calc(100% - 12px);margin:5px 6px 3px;font-size:11px">'
@@ -1644,11 +1635,6 @@ function drawPhotos(){
     +'</div>';
   }).join("")
     ||'<div class="small">No photos loaded yet.</div>';
-  drawPhotoBulkBar();
-  document.querySelectorAll("[data-psel]").forEach(i=>{i.onchange=e=>{
-    const id=e.target.dataset.psel;
-    if(e.target.checked) selectedPhotoIds.add(id); else selectedPhotoIds.delete(id);
-    drawPhotos();};});
   document.querySelectorAll("[data-pdel]").forEach(b=>{b.onclick=()=>deletePhoto(b.dataset.pdel);});
   document.querySelectorAll("[data-pa]").forEach(i=>{i.onchange=e=>{
     const p=S.photos.find(x=>x.id===e.target.dataset.pa); p.area=e.target.value;
@@ -1661,35 +1647,22 @@ function drawPhotos(){
 /* ---------- deleting photos ----------
    Removes the photo (and any punch-list pins on it) from local state right away, then asks the
    backend to drop it from Cloudinary and the shared database — see DELETE /api/photos/:id. -------- */
-function removePhotoLocal(id){
-  S.photos=S.photos.filter(x=>x.id!==id);
-  S.tasks=S.tasks.filter(t=>t.photoId!==id);
-  delete IMG[id];
-  selectedPhotoIds.delete(id);
-}
-async function deletePhotoOnServer(id){
-  if(!backendConfigured()) return true;
-  try{ const r=await fetch(API_BASE+"/api/photos/"+id,{method:"DELETE"}); return r.ok; }
-  catch(e){ return false; }
-}
 async function deletePhoto(id){
   const p=S.photos.find(x=>x.id===id); if(!p) return;
   const pins=S.tasks.filter(t=>t.photoId===id);
   if(!confirm('Delete "'+(p.name||"this photo")+'"?'
     +(pins.length?(' This also removes '+pins.length+' punch-list pin'+(pins.length>1?'s':'')+' attached to it.'):'')
     +' This cannot be undone.')) return;
-  removePhotoLocal(id); save(); redraw();
-  const ok=await deletePhotoOnServer(id);
+  S.photos=S.photos.filter(x=>x.id!==id);
+  S.tasks=S.tasks.filter(t=>t.photoId!==id);
+  delete IMG[id];
+  save(); redraw();
+  let ok=true;
+  if(backendConfigured()){
+    try{ const r=await fetch(API_BASE+"/api/photos/"+id,{method:"DELETE"}); ok=r.ok; }
+    catch(e){ ok=false; }
+  }
   toast(ok?"Photo deleted.":"Deleted here, but couldn't remove it from the shared server — it may reappear.",!ok);
-}
-async function deleteSelectedPhotos(){
-  const ids=[...selectedPhotoIds]; if(!ids.length) return;
-  if(!confirm('Delete '+ids.length+' selected photo'+(ids.length>1?'s':'')+'? This cannot be undone.')) return;
-  ids.forEach(removePhotoLocal); save(); redraw();
-  const results=await Promise.all(ids.map(deletePhotoOnServer));
-  const failed=results.filter(r=>!r).length;
-  toast(failed?(failed+' of '+ids.length+' could not be removed from the shared server.')
-    :('Deleted '+ids.length+' photo'+(ids.length>1?'s':'')+'.'),!!failed);
 }
 /* ---------- photo lightbox with punch-list pins ---------- */
 function renderPhotoLightbox(photoId){
@@ -2512,8 +2485,6 @@ $("#mapIn").onchange=e=>{ const f=e.target.files[0]; if(f) uploadSiteMap(f); e.t
 $("#pUpload").onclick=()=>$("#photoIn").click();
 $("#pNewArea").onclick=()=>{ const n=addNewArea(); if(n){ $("#pUpArea").value=n; } };
 $("#photoIn").onchange=e=>{ handleUpload([...e.target.files]); e.target.value=""; };
-$("#pDelSel").onclick=deleteSelectedPhotos;
-$("#pDeselAll").onclick=()=>{ selectedPhotoIds.clear(); drawPhotos(); };
 $("#pUpArea").innerHTML='<option value="">Tag later</option>'
   +AREAKEYS().map(a=>'<option>'+esc(a)+'</option>').join("");
 
