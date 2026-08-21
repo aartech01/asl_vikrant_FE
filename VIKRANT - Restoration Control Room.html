@@ -603,7 +603,7 @@ const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","ma
   "pUpArea","cmpArea","bulkArea","bulkKind","gFilterPhase","gFilterOwner","gFilterStatus"]);
 const VIEWONLY_LOCK_BTNS=new Set(["mapUpload","addZone","delZone","addRow","newArea","resetBoq","addRate",
   "addAct","saveSched","addAppr","addRisk","addTaskTop","dlAdd","mSave","kSave",
-  "vAdd","qSave","qFilePick"]);
+  "vAdd","qSave","qFilePick","dlESave","dlEDel"]);
 function lockEditableInputs(){
   const admin=isAdmin();
   document.querySelectorAll("input,select,textarea").forEach(el=>{
@@ -617,7 +617,8 @@ function lockEditableInputs(){
   });
   document.querySelectorAll("button").forEach(b=>{
     const lock=(VIEWONLY_LOCK_BTNS.has(b.id)||b.hasAttribute("data-d")||b.hasAttribute("data-addto")
-      ||b.hasAttribute("data-vdel")||b.hasAttribute("data-qdel"))&&!admin;
+      ||b.hasAttribute("data-vdel")||b.hasAttribute("data-qdel")
+      ||b.hasAttribute("data-dle")||b.hasAttribute("data-dlx"))&&!admin;
     b.classList.toggle("locked",lock);
     b.toggleAttribute("aria-disabled",lock);
   });
@@ -2358,13 +2359,46 @@ function drawDailyLog(){
     +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
     +'<b style="color:#0C013D">'+esc(l.date)+'</b>'
     +'<span class="small">'+esc(l.weather||"")+(l.crew?' · '+l.crew+' on site':'')
-    +' <button class="sm warn" data-dlx="'+l.id+'" style="margin-left:8px">×</button></span></div>'
+    +' <button class="sm" data-dle="'+l.id+'" style="margin-left:8px">Edit</button>'
+    +' <button class="sm warn" data-dlx="'+l.id+'">×</button></span></div>'
     +(l.notes?'<div class="small" style="margin-top:4px;white-space:pre-wrap">'+esc(l.notes)+'</div>':'')
     +'</div>').join("")
     :'<div class="small">No daily log entries yet.</div>';
+  document.querySelectorAll("[data-dle]").forEach(x=>{x.onclick=()=>openDailyLogEditor(x.dataset.dle);});
   document.querySelectorAll("[data-dlx]").forEach(x=>{x.onclick=()=>{
     if(!confirm("Delete this daily log entry?")) return;
-    S.dailyLogs=S.dailyLogs.filter(y=>y.id!==x.dataset.dlx); save(); drawDailyLog();};});
+    const l=S.dailyLogs.find(y=>y.id===x.dataset.dlx);
+    S.dailyLogs=S.dailyLogs.filter(y=>y.id!==x.dataset.dlx);
+    if(l) logChange("Daily log entry deleted for "+l.date);
+    save(); drawDailyLog();};});
+}
+function openDailyLogEditor(id){
+  const l=S.dailyLogs.find(x=>x.id===id); if(!l) return;
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">'
+    +'Edit daily log entry</div>'
+    +fRow("Date",'<input type="date" id="dlEDate" style="width:100%" value="'+attr(l.date)+'">')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Weather",'<select id="dlEWeather" style="width:100%">'
+      +opts(["Clear","Cloudy","Rain — full day","Rain — partial day","Extreme heat"],l.weather)+'</select>')
+    +fRow("Crew on site",'<input type="number" min="0" id="dlECrew" style="width:100%" value="'+(l.crew||0)+'">')
+    +'</div>'
+    +fRow("Notes",'<textarea id="dlENotes" style="width:100%;min-height:90px">'+esc(l.notes||"")+'</textarea>')
+    +'<div style="margin-top:6px;display:flex;gap:8px;align-items:center">'
+    +'<button class="primary" id="dlESave">Save</button><button id="dlECancel">Cancel</button>'
+    +'<span style="flex:1"></span><button class="warn" id="dlEDel">Delete entry</button></div>');
+  $("#dlECancel").onclick=closeModal;
+  $("#dlEDel").onclick=()=>{
+    if(!confirm("Delete this daily log entry?")) return;
+    S.dailyLogs=S.dailyLogs.filter(x=>x.id!==id);
+    logChange("Daily log entry deleted for "+l.date);
+    save(); closeModal(); drawDailyLog();
+  };
+  $("#dlESave").onclick=()=>{
+    l.date=$("#dlEDate").value||l.date; l.weather=$("#dlEWeather").value;
+    l.crew=parseInt($("#dlECrew").value)||0; l.notes=$("#dlENotes").value.trim();
+    logChange("Daily log entry edited for "+l.date);
+    save(); closeModal(); drawDailyLog(); toast("Daily log entry updated.");
+  };
 }
 
 /* ---------- brief ---------- */
