@@ -185,6 +185,7 @@ button:active:not(:disabled){ transform:translateY(0) }
   </div>
   <div style="flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
     <div style="display:flex;gap:6px">
+      <span id="nameTag" onclick="promptName()"></span>
       <span id="themeToggle" onclick="toggleTheme()"></span>
       <span id="adminLock" onclick="promptAdminUnlock()"></span>
     </div>
@@ -487,6 +488,27 @@ function renderThemeToggle(){
   const dark=localStorage.getItem(THEME_LSK)==="dark";
   el.textContent=dark?"☀️ Light mode":"🌙 Dark mode";
   el.title=dark?"Switch to light mode":"Switch to dark mode";
+  el.style.cssText="cursor:pointer;font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;"
+    +"border:1px solid #d0d7de;color:#57606a;background:#F6F6F6";
+}
+/* ---------- who's making changes ----------
+   One shared admin key means everyone edits as the same "identity" — the change journal below
+   only ever said *what* changed, never *who*. This is a purely optional, per-browser name tag
+   (not authentication — anyone can type anything) attached to entries logChange() records, so a
+   team can tell at a glance who marked what Done. */
+const NAME_LSK="vikrant_user_name";
+const myName=()=>localStorage.getItem(NAME_LSK)||"";
+function promptName(){
+  const val=prompt("Your name — shown next to changes you make, so the team can see who did what:",myName());
+  if(val===null) return;
+  localStorage.setItem(NAME_LSK,val.trim());
+  renderNameTag();
+}
+function renderNameTag(){
+  const el=document.getElementById("nameTag"); if(!el) return;
+  const n=myName();
+  el.textContent=n?("👤 "+n):"👤 Set your name";
+  el.title=n?"Click to change the name shown next to your changes":"Click to add your name to the change journal";
   el.style.cssText="cursor:pointer;font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;"
     +"border:1px solid #d0d7de;color:#57606a;background:#F6F6F6";
 }
@@ -1178,7 +1200,7 @@ function drawZone(){
   h+='<div style="margin-top:12px;font-size:12px"><b>Photographs ('+ph.length+')</b>'
     +' <button class="sm" id="upHere">+ upload here</button>';
   if(ph.length){ h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:5px">'
-    +ph.map(p=>'<img src="'+(IMG[p.id]||"")+'" class="no-invert" data-zp="'+p.id+'" style="width:100%;height:60px;object-fit:cover;'
+    +ph.map(p=>'<img src="'+(IMG[p.id]||"")+'" class="no-invert" loading="lazy" data-zp="'+p.id+'" style="width:100%;height:60px;object-fit:cover;'
     +'border-radius:4px;border:1px solid #dfe3e8;cursor:zoom-in" title="'+attr(p.name)+'">').join("")+'</div>'; }
   else h+='<div class="small">None yet. Press <b>+ upload here</b> to add straight from this computer, or pull the '
     +'survey set from Drive on the Photos tab and tag them.</div>';
@@ -1875,7 +1897,7 @@ function drawPhotos(){
     const openPins=pins.filter(t=>t.status!=="Done").length;
     return '<div class="pcard'+(p.area?" tagged":"")+'">'
     +'<div style="position:relative">'
-    +(IMG[p.id]?'<img src="'+IMG[p.id]+'" class="no-invert" data-pv="'+p.id+'" style="width:100%;max-height:340px;object-fit:cover;cursor:zoom-in;display:block">'
+    +(IMG[p.id]?'<img src="'+IMG[p.id]+'" class="no-invert" loading="lazy" data-pv="'+p.id+'" style="width:100%;max-height:340px;object-fit:cover;cursor:zoom-in;display:block">'
       :'<div class="skel" style="height:160px"></div>')
     +'<label style="position:absolute;top:5px;left:5px;background:rgba(12,1,61,.55);border-radius:5px;'
       +'width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer">'
@@ -2348,8 +2370,8 @@ async function downloadProjectStory(){
       +(pairs.length?pairs.map(pr=>
         '<div class="area"><h2>'+esc(pr.area)+'</h2>'
         +'<div class="pair" data-pair>'
-        +'<img src="'+attr(pr.after.url)+'">'
-        +'<img class="before" src="'+attr(pr.before.url)+'">'
+        +'<img src="'+attr(pr.after.url)+'" loading="lazy">'
+        +'<img class="before" src="'+attr(pr.before.url)+'" loading="lazy">'
         +'<div class="line"></div><div class="dot">&#8596;</div>'
         +'<input type="range" min="0" max="100" value="50">'
         +'<span class="pill" style="left:10px;background:#0C013D">BEFORE</span>'
@@ -2460,7 +2482,7 @@ async function photoDiag(){
 
 /* ---------- change journal ---------- */
 function logChange(msg){
-  S.log.push({t:new Date().toISOString(),m:msg});
+  S.log.push({t:new Date().toISOString(),m:msg,who:myName()||null});
   if(S.log.length>400) S.log=S.log.slice(-400);
   save(); drawChangeBar();
 }
@@ -2487,7 +2509,9 @@ function showChanges(){
     +'<div class="small" style="margin-bottom:10px">'+(n?(n+' change(s) since the last save.'):'Nothing pending.')
     +' Newest first.</div>'
     +(L.length?'<table>'+L.map((e,i)=>'<tr><td style="width:120px" class="small">'
-      +esc(String(e.t).replace("T"," ").slice(5,16))+'</td><td>'+esc(e.m)+'</td>'
+      +esc(String(e.t).replace("T"," ").slice(5,16))+'</td>'
+      +'<td style="width:90px" class="small">'+esc(e.who||"—")+'</td>'
+      +'<td>'+esc(e.m)+'</td>'
       +'<td style="width:70px">'+(i<n?'<span class="pill a">pending</span>':'<span class="pill g">saved</span>')
       +'</td></tr>').join("")+'</table>'
       :'<div class="small">No changes recorded yet.</div>')
@@ -2947,6 +2971,7 @@ $("#pUpArea").innerHTML='<option value="">Tag later</option>'
 S.photos.forEach(p=>{ if(p.url) IMG[p.id]=p.url; });
 applyTheme(localStorage.getItem(THEME_LSK)||"light");
 renderThemeToggle();
+renderNameTag();
 renderAdminLock();
 drawTabs(); redraw(); showTab(S.tab||"plan");
 lockEditableInputs();
