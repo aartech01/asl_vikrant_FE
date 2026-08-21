@@ -111,6 +111,18 @@ body.dark-mode .no-invert{ filter:invert(1) hue-rotate(180deg) }
   color:#fff; margin-top:3px; letter-spacing:.2px }
 .hero-text .sub2{ color:rgba(255,255,255,.68); margin-top:2px }
 
+/* hover shine sweep on cards — a light diagonal glint on hover */
+.kpi,.kpi-hero{ position:relative; overflow:hidden }
+.kpi::after,.kpi-hero::after{ content:""; position:absolute; top:0; left:-60%; width:35%; height:100%;
+  background:linear-gradient(120deg,transparent,rgba(255,255,255,.45),transparent);
+  transform:skewX(-20deg); transition:left .65s ease; pointer-events:none }
+.kpi:hover::after,.kpi-hero:hover::after{ left:130% }
+
+/* skeleton shimmer while a photo is still loading from Cloudinary */
+.skel{ background:linear-gradient(90deg,#eceff3 25%,#f8f9fb 37%,#eceff3 63%);
+  background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:4px }
+@keyframes shimmer{ 0%{background-position:100% 0} 100%{background-position:0 0} }
+
 /* ---------- animation ---------- */
 button{ transition:background .15s ease,transform .1s ease,box-shadow .15s ease }
 button:hover:not(:disabled){ transform:translateY(-1px) }
@@ -861,6 +873,29 @@ function drawKPIs(){
   ].map(k=>'<div class="kpi '+(k[3]||"")+'"><div class="lab">'+k[0]+'</div><div class="val">'+k[1]
    +'</div><div class="sub2">'+k[2]+'</div></div>').join("");
   $("#kpis").innerHTML=hero+rest;
+  animateCounters($("#kpis"));
+}
+/* ---------- count-up animation ----------
+   Purely cosmetic: finds the first number inside each KPI value and eases it
+   up from 0 on every redraw. The exact source string is restored at the end,
+   so nothing here can leave a KPI showing a rounded/mid-animation value. */
+function animateCounters(container){
+  container.querySelectorAll(".val,.ring-label,.hero-sub").forEach(el=>{
+    const text=el.textContent;
+    const m=text.match(/-?\d[\d,]*\.?\d*/);
+    if(!m) return;
+    const target=parseFloat(m[0].replace(/,/g,""));
+    if(isNaN(target)) return;
+    const decimals=(m[0].split(".")[1]||"").length;
+    const before=text.slice(0,m.index), after=text.slice(m.index+m[0].length);
+    const start=performance.now(), dur=800;
+    (function tick(now){
+      const p=Math.min(1,(now-start)/dur);
+      const eased=1-Math.pow(1-p,3);
+      el.textContent=before+(target*eased).toFixed(decimals)+after;
+      if(p<1) requestAnimationFrame(tick); else el.textContent=text;
+    })(start);
+  });
 }
 
 /* ---------- ASL brand ---------- */
@@ -1741,7 +1776,7 @@ function drawPhotos(){
     +(p.area?';border-color:#0C013D':'')+'">'
     +'<div style="position:relative">'
     +(IMG[p.id]?'<img src="'+IMG[p.id]+'" class="no-invert" data-pv="'+p.id+'" style="width:100%;height:110px;object-fit:cover;cursor:zoom-in;display:block">'
-      :'<div style="height:110px;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px">not loaded</div>')
+      :'<div class="skel" style="height:110px"></div>')
     +(pins.length?'<span style="position:absolute;top:4px;right:4px;background:'+(openPins?"#B80001":"#4E7A33")
       +';color:#fff;font-size:10px;padding:1px 6px;border-radius:9px">'+pins.length+' pin'+(pins.length>1?"s":"")+'</span>':'')
     +(p.kind==="before"?'<span style="position:absolute;top:4px;left:4px;background:#0C013D;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">BEFORE</span>'
