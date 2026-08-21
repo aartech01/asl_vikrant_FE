@@ -22,7 +22,8 @@ button.warn { background:#FEF6E0; border-color:#F6C547; color:#7A5C00 }
 button.sm { font-size:11px; padding:2px 7px; margin:0 3px 0 0 }
 input,select,textarea { font:inherit; font-size:12px; padding:4px 6px; border:1px solid #d0d7de;
                         border-radius:5px; background:#fff }
-input:disabled,select:disabled,textarea:disabled,button:disabled { background:#F2F2F2; color:#8a93a3;
+input:disabled,select:disabled,textarea:disabled,button:disabled,
+input.locked,select.locked,textarea.locked,button.locked { background:#F2F2F2; color:#8a93a3;
   cursor:not-allowed; opacity:.8 }
 [contenteditable="false"] { cursor:not-allowed }
 input.num { text-align:right; width:88px }
@@ -472,23 +473,29 @@ function renderAdminLock(){
 }
 /* Every table cell / editor field is a real input bound straight to local state, so unlocking is
    not enough on its own — without this, a visitor could still type into a cell (it just wouldn't
-   sync). This disables every editable control site-wide while locked, and a MutationObserver
-   re-applies it to anything rendered after (modals, re-drawn tables) without touching every
-   individual render function. */
+   sync). This soft-locks every editable control site-wide while locked (a "locked" class, not the
+   real disabled attribute — a genuinely disabled element fires no click/focus/change events at
+   all, which is exactly what stopped us from telling a visitor *why* nothing happened; see the
+   interception block below), and a MutationObserver re-applies it to anything rendered after
+   (modals, re-drawn tables) without touching every individual render function. */
 const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn","pUpArea","cmpArea"]);
 const VIEWONLY_LOCK_BTNS=new Set(["mapUpload","addZone","delZone","addRow","newArea","resetBoq","addRate",
   "addAct","saveSched","addAppr","addRisk","addTaskTop","dlAdd","mSave","kSave"]);
 function lockEditableInputs(){
   const admin=isAdmin();
   document.querySelectorAll("input,select,textarea").forEach(el=>{
-    if(VIEWONLY_KEEP.has(el.id)||el.hasAttribute("data-pa")||el.hasAttribute("data-pk")) return;
-    el.disabled=!admin;
+    const keep=VIEWONLY_KEEP.has(el.id)||el.hasAttribute("data-pa")||el.hasAttribute("data-pk");
+    const lock=!keep&&!admin;
+    el.classList.toggle("locked",lock);
+    el.toggleAttribute("aria-disabled",lock);
   });
   document.querySelectorAll("[contenteditable]").forEach(el=>{
     el.setAttribute("contenteditable",admin?"true":"false");
   });
   document.querySelectorAll("button").forEach(b=>{
-    if(VIEWONLY_LOCK_BTNS.has(b.id)||b.hasAttribute("data-d")||b.hasAttribute("data-addto")) b.disabled=!admin;
+    const lock=(VIEWONLY_LOCK_BTNS.has(b.id)||b.hasAttribute("data-d")||b.hasAttribute("data-addto"))&&!admin;
+    b.classList.toggle("locked",lock);
+    b.toggleAttribute("aria-disabled",lock);
   });
 }
 let editLockObserver=null;
@@ -497,6 +504,39 @@ function startEditLockObserver(){
   editLockObserver=new MutationObserver(()=>{ if(!isAdmin()) lockEditableInputs(); });
   editLockObserver.observe(document.body,{childList:true,subtree:true});
 }
+/* ---------- "it's locked" popup ----------
+   Attempting to use anything soft-locked above (or a table cell with contenteditable=false)
+   shows a toast instead of silently doing nothing. Every listener is on document, in the
+   capture phase, so it runs before the target's own handler — for click/change this actually
+   stops the edit from happening at all; for mousedown it stops the input ever gaining focus
+   or a <select> opening its dropdown in the first place. That capture-phase interception, not
+   the visual styling, is what makes this safe to rely on. */
+let lastLockToast=0;
+function lockToast(){
+  const now=Date.now();
+  if(now-lastLockToast<600) return;
+  lastLockToast=now;
+  toast("🔒 View only — click the lock icon above and enter the admin key to edit.",true);
+}
+function lockedAncestor(el){
+  if(isAdmin()||!el||!el.closest) return null;
+  return el.closest(".locked,[contenteditable='false']");
+}
+["mousedown","click","change","input"].forEach(type=>{
+  document.addEventListener(type,e=>{
+    const hit=lockedAncestor(e.target);
+    if(!hit) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    lockToast();
+  },true);
+});
+document.addEventListener("keydown",e=>{
+  const hit=lockedAncestor(document.activeElement);
+  if(!hit) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  document.activeElement.blur();
+  lockToast();
+},true);
 const TODAY=new Date(2026,7,7);
 const OPS=new Date(2026,8,17);      // 17 Sept 2026
 const LAUNCH=new Date(2028,3,1);    // 1 Apr 2028
