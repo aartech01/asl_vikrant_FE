@@ -2376,6 +2376,21 @@ function drawOpenLand(){
 function closeModal(){ $("#modal").style.display="none"; $("#modalBox").innerHTML=""; }
 function openModal(html){ $("#modalBox").innerHTML=html; $("#modal").style.display="flex";
   $("#modal").onclick=e=>{ if(e.target.id==="modal") closeModal(); }; }
+/* ---------- styled confirm popup ----------
+   For destructive admin actions (BOQ reset, etc.) — a plain browser confirm() is easy to miss
+   or dismiss on reflex. This uses the app's own modal so the warning and the two choices are
+   impossible to overlook, even for someone who already holds the admin key. */
+function confirmModal(o){
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#B80001;text-transform:uppercase">'
+    +esc(o.title)+'</div>'
+    +'<div style="font-size:12.5px;color:#42506b;margin:10px 0 18px;line-height:1.55">'+o.body+'</div>'
+    +'<div style="display:flex;justify-content:flex-end;gap:8px">'
+    +'<button id="cfCancel">Cancel</button>'
+    +'<button id="cfOk" class="warn">'+esc(o.confirmLabel||"Confirm")+'</button>'
+    +'</div>');
+  $("#cfCancel").onclick=closeModal;
+  $("#cfOk").onclick=()=>{ closeModal(); o.onConfirm(); };
+}
 const fRow=(lab,ctl)=>'<div style="margin-bottom:9px"><label style="display:block;font-size:10px;'
   +'font-weight:600;color:#B80001;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">'
   +lab+'</label>'+ctl+'</div>';
@@ -2653,8 +2668,17 @@ $("#newArea").onclick=()=>{ const n=addNewArea(); if(!n) return;
   S.boq.push({id:id,area:n,trade:"Civil",desc:"",unit:"lump sum",qty:1,rateKey:null,rate:0,
     phase:1,note:"Added manually",status:"Not started",owner:""}); save(); redraw();
   flashBoqRow(id); toast('Area "'+n+'" added with a starter BOQ line.'); };
-$("#resetBoq").onclick=()=>{ if(!confirm("Reset the BOQ to computed defaults? Your edits will be lost."))return;
-  S.boq=defaultBOQ(); save(); redraw(); };
+$("#resetBoq").onclick=()=>{
+  confirmModal({
+    title:"Reset BOQ to computed defaults?",
+    body:"This replaces <b>every</b> BOQ line — rates, quantities, statuses and any manual notes — with the "
+      +"freshly computed defaults from the drawing and condition assessment. Any edits made since are "
+      +"permanently lost. <b>This cannot be undone.</b>",
+    confirmLabel:"Yes, reset it",
+    onConfirm:()=>{ S.boq=defaultBOQ(); save(); redraw(); logChange("BOQ reset to computed defaults");
+      toast("BOQ reset to computed defaults."); }
+  });
+};
 $("#addAct").onclick=()=>{ S.acts.push({id:"a"+Date.now(),name:"New activity",area:"All",
   start:dstr(new Date()),days:7,phase:1,crit:false,owner:"",pct:0}); save(); redraw(); };
 $("#saveSched").onclick=()=>{ save(); pushState();
