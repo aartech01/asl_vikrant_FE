@@ -2,6 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
+<!-- SheetJS: reads vendor quotations submitted as .xlsx/.csv so their rate/qty rows can be
+     auto-parsed instead of retyped. Loaded from a CDN — if that fails (offline, blocked), Excel
+     quotes just fall back to manual entry like PDFs/scans already do; nothing else depends on it. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root { color-scheme: light }
 * { box-sizing: border-box }
@@ -73,9 +77,13 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 .gantt table { font-size:11px; min-width:900px }
 .gantt td.cell { padding:0; height:22px; width:15px; border-left:1px solid #f0f2f4 }
 .gantt td.m0 { border-left:1px solid #c4ccd4 }
-.gbar { height:13px; border-radius:3px; background:#0C013D; margin:4px 0 }
-.gbar.p2 { background:#2602C2 } .gbar.crit { background:#B80001 }
-.gbar.done { background:#4E7A33 }
+.gbar { position:relative; height:13px; border-radius:3px; background:rgba(12,1,61,.1); margin:4px 0;
+  overflow:hidden; border-left:3px solid #0C013D }
+.gbar.p2 { border-left-color:#2602C2 }
+.gbar-fill { position:absolute; inset:0; border-radius:0 3px 3px 0 }
+.gbar.ontrack .gbar-fill, .gbar.done .gbar-fill { background:#4E7A33 }
+.gbar.delayed .gbar-fill { background:#F6C547 }
+.gbar.critical .gbar-fill { background:#B80001 }
 .mile { color:#B80001; font-weight:700 }
 .pill { font-size:10px; padding:1px 7px; border-radius:9px; background:#EDEDF3; color:#42506b; white-space:nowrap }
 .pill.r { background:#FBE3E3; color:#B80001 } .pill.a { background:#FEF6E0; color:#7A5C00 }
@@ -154,7 +162,7 @@ button:active:not(:disabled){ transform:translateY(0) }
 .kpi:hover{ transform:translateY(-2px); box-shadow:0 4px 14px rgba(12,1,61,.12) }
 .tab{ transition:background .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease }
 .page.on{ animation:pageIn .32s cubic-bezier(.16,1,.3,1) }
-.barrow .fl{ transition:width .6s ease } .gbar{ transition:width .5s ease }
+.barrow .fl{ transition:width .6s ease } .gbar-fill{ transition:width .5s ease }
 #syncBar{ display:flex; align-items:center; flex-wrap:wrap }
 .sync-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:none }
 .sync-dot.live{ animation:pulse 2s infinite }
@@ -275,9 +283,17 @@ this is a planning and control tool, not a design or a professional cost certifi
   <h2>Execution schedule</h2>
   <div class="note red" id="schedWarn"></div>
   <div class="tools"><button id="addAct">Add activity</button>
-    <button id="saveSched" class="primary">💾 Save schedule</button>
-    <span class="small">Bars: <span class="pill r">critical</span> <span class="pill">Phase 1</span>
-    <span class="pill a">Phase 2</span> <span class="pill g">complete</span></span></div>
+    <button id="saveSched" class="primary">💾 Save schedule</button></div>
+  <div class="tools" style="align-items:center">
+    <label class="small">Phase <select id="gFilterPhase"><option value="">All</option>
+      <option value="1">Phase 1</option><option value="2">Phase 2</option></select></label>
+    <label class="small">Vendor / owner <select id="gFilterOwner"><option value="">All</option></select></label>
+    <label class="small">Status <select id="gFilterStatus"><option value="">All</option>
+      <option value="critical">Critical</option><option value="delayed">Delayed</option>
+      <option value="ontrack">On track</option><option value="done">Done</option></select></label>
+    <span class="small">Bars: <span class="pill g">on track / done</span> <span class="pill a">delayed</span>
+    <span class="pill r">critical</span> — fill shows % complete, left edge shows phase</span>
+  </div>
   <div class="gantt" id="gantt"></div>
   <h3>Activity list</h3>
   <p class="small">Edit any cell below and the Gantt chart above updates and saves right away &mdash; no extra step
@@ -385,6 +401,50 @@ this is a planning and control tool, not a design or a professional cost certifi
   <h3 style="margin-top:22px">Before / after comparison</h3>
   <div class="tools"><label>Area <select id="cmpArea"></select></label></div>
   <div id="compareBox"></div>
+</div>
+
+<!-- ============ VENDOR QUOTES ============ -->
+<div class="page" id="p_vendor">
+  <h2>Vendor quotations and comparison</h2>
+  <p class="small">Upload a vendor's quotation and see it compared against your rate card and any other vendor
+  quoted for the same item. <b>Excel / CSV</b> quotes are parsed automatically as a first pass — always check
+  the numbers before saving. <b>PDF and scanned/photographed</b> quotes are attached as a reference file; type
+  the rate, delivery and terms in yourself.</p>
+
+  <h3>Vendors</h3>
+  <div class="tools">
+    <input id="vName" placeholder="Vendor / contractor name" style="width:220px">
+    <input id="vContact" placeholder="Contact — phone or email (optional)" style="width:240px">
+    <button id="vAdd" class="primary">Add vendor</button>
+  </div>
+  <div id="vendorList" class="small" style="margin-bottom:14px"></div>
+
+  <h3>Add a quotation</h3>
+  <div class="tools" style="flex-wrap:wrap;align-items:center">
+    <select id="qVendor" style="min-width:170px"></select>
+    <select id="qRateKey" style="min-width:230px"></select>
+    <input id="qItemFree" placeholder="Item description" style="width:200px;display:none">
+    <input id="qRate" class="num" placeholder="Rate ₹" style="width:90px">
+    <input id="qUnit" placeholder="Unit" style="width:80px">
+    <input id="qDelivery" class="num" placeholder="Delivery, days" style="width:110px">
+    <label class="small" style="display:flex;align-items:center;gap:4px">
+      <input type="checkbox" id="qCompliant" checked> Meets spec</label>
+  </div>
+  <div class="tools"><input id="qTerms" placeholder="Payment terms, warranty, validity, notes…" style="width:100%"></div>
+  <div class="tools" style="align-items:center">
+    <button id="qFilePick">Attach quotation file (Excel, CSV, PDF or image)</button>
+    <input type="file" id="qFileIn" accept=".xlsx,.xls,.csv,.pdf,image/*" style="display:none">
+    <span id="qFileName" class="small"></span>
+    <button id="qSave" class="primary">Save quotation</button>
+  </div>
+  <div id="qParseMsg" class="small" style="margin-bottom:10px"></div>
+
+  <h3 style="margin-top:22px">Comparison by item</h3>
+  <p class="small">Lowest rate is highlighted green, fastest delivery gets a badge, quotes flagged non-compliant
+  are marked red. Rates are shown against your current rate-card benchmark where the item is on it.</p>
+  <div class="tools"><button id="qExport">Download comparison as CSV</button>
+    <button id="qPrint">Print / save as PDF</button></div>
+  <div id="quoteCompare"></div>
 </div>
 
 <!-- ============ DAILY LOG ============ -->
@@ -539,9 +599,11 @@ function renderAdminLock(){
    all, which is exactly what stopped us from telling a visitor *why* nothing happened; see the
    interception block below), and a MutationObserver re-applies it to anything rendered after
    (modals, re-drawn tables) without touching every individual render function. */
-const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn","pUpArea","cmpArea","bulkArea","bulkKind"]);
+const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn",
+  "pUpArea","cmpArea","bulkArea","bulkKind","gFilterPhase","gFilterOwner","gFilterStatus"]);
 const VIEWONLY_LOCK_BTNS=new Set(["mapUpload","addZone","delZone","addRow","newArea","resetBoq","addRate",
-  "addAct","saveSched","addAppr","addRisk","addTaskTop","dlAdd","mSave","kSave"]);
+  "addAct","saveSched","addAppr","addRisk","addTaskTop","dlAdd","mSave","kSave",
+  "vAdd","qSave","qFilePick"]);
 function lockEditableInputs(){
   const admin=isAdmin();
   document.querySelectorAll("input,select,textarea").forEach(el=>{
@@ -554,7 +616,8 @@ function lockEditableInputs(){
     el.setAttribute("contenteditable",admin?"true":"false");
   });
   document.querySelectorAll("button").forEach(b=>{
-    const lock=(VIEWONLY_LOCK_BTNS.has(b.id)||b.hasAttribute("data-d")||b.hasAttribute("data-addto"))&&!admin;
+    const lock=(VIEWONLY_LOCK_BTNS.has(b.id)||b.hasAttribute("data-d")||b.hasAttribute("data-addto")
+      ||b.hasAttribute("data-vdel")||b.hasAttribute("data-qdel"))&&!admin;
     b.classList.toggle("locked",lock);
     b.toggleAttribute("aria-disabled",lock);
   });
@@ -827,6 +890,8 @@ if(!Array.isArray(S.dailyLogs)) S.dailyLogs=[];
 if(!Array.isArray(S.extraAreas)) S.extraAreas=[];
 if(!Array.isArray(S.userZones)) S.userZones=[];
 if(!Array.isArray(S.log)) S.log=[];
+if(!Array.isArray(S.vendors)) S.vendors=[];
+if(!Array.isArray(S.quotes)) S.quotes=[];
 if(S.savedCount==null) S.savedCount=0;
 USERZ=S.userZones;
 if(!S.customRates||typeof S.customRates!=="object") S.customRates={};
@@ -911,6 +976,8 @@ async function pullState(){
     if(!Array.isArray(S.tasks)) S.tasks=[];
     if(!Array.isArray(S.photos)) S.photos=[];
     if(!Array.isArray(S.dailyLogs)) S.dailyLogs=[];
+    if(!Array.isArray(S.vendors)) S.vendors=[];
+    if(!Array.isArray(S.quotes)) S.quotes=[];
     USERZ=S.userZones=S.userZones||[];
     S.photos.forEach(p=>{ if(p.url) IMG[p.id]=p.url; });
     lastPulledAt=d.updatedAt;
@@ -1312,6 +1379,11 @@ function drawAreaTable(){
 }
 
 /* ---------- BOQ ---------- */
+/* rough %-complete per BOQ status, for the mini progress bar next to each line — a proxy, since
+   BOQ lines don't carry their own numeric % the way schedule activities do */
+const STATUS_PCT={"Not started":0,"Tendered":15,"Awarded":30,"In progress":65,"Done":100};
+const miniBar=pct=>'<div style="background:#E4E4EA;border-radius:3px;height:6px;margin-top:3px;overflow:hidden;min-width:50px">'
+  +'<div style="height:100%;width:'+pct+'%;background:'+(pct>=100?"#4E7A33":pct>0?"#0C013D":"#BEBDB8")+'"></div></div>';
 function drawBOQ(){
   const by=$("#grpBy").value;
   const q=($("#boqFind")&&$("#boqFind").value||"").trim().toLowerCase();
@@ -1335,7 +1407,7 @@ function drawBOQ(){
           +'<td class="n">'+inr(rateOf(b))+(b.rate!=null?'<div class="small">fixed</div>':'')+'</td>'
           +'<td class="n"><b>'+inr(amt(b))+'</b></td>'
           +'<td>P'+b.phase+'</td>'
-          +'<td>'+esc(b.status)+'</td>'
+          +'<td>'+esc(b.status)+miniBar(STATUS_PCT[b.status]||0)+'</td>'
           +'<td>'+(b.owner?esc(b.owner):'<span class="small">—</span>')+'</td>'
           +'<td style="white-space:nowrap"><button class="sm" data-edit="'+b.id+'">Edit</button>'
           +'<button class="sm warn" data-d="'+b.id+'">×</button></td></tr>';
@@ -1361,7 +1433,8 @@ function drawBOQ(){
         +'<td><select data-p="'+b.id+'"><option value="1"'+(b.phase===1?" selected":"")+'>1</option>'
         +'<option value="2"'+(b.phase===2?" selected":"")+'>2</option></select></td>'
         +'<td><select data-s="'+b.id+'">'+["Not started","Tendered","Awarded","In progress","Done"]
-          .map(x=>'<option'+(b.status===x?" selected":"")+'>'+x+'</option>').join("")+'</select></td>'
+          .map(x=>'<option'+(b.status===x?" selected":"")+'>'+x+'</option>').join("")+'</select>'
+          +miniBar(STATUS_PCT[b.status]||0)+'</td>'
         +'<td><input data-o="'+b.id+'" value="'+attr(b.owner)+'" style="width:92px"></td>'
         +'<td style="white-space:nowrap"><button class="sm" data-edit="'+b.id+'" title="Open this line">Edit</button>'
         +'<button class="sm warn" data-d="'+b.id+'">×</button></td></tr>';
@@ -1500,11 +1573,29 @@ function cpm(){
     out[a.id]={es:ES[a.id],ef:EF[a.id],lf:LF[a.id],float:fl,critical:fl<=0}; });
   return {n:out,finish:finish};
 }
+/* on-track/delayed/critical is computed fresh from dates+status each draw, not stored — so it can
+   never drift from what the schedule table actually says */
+function actState(a){
+  if(a.pct>=100) return "done";
+  const finish=dadd(dparse(a.start),a.days);
+  if(finish<TODAY) return "delayed";        // should have finished by now and hasn't
+  if(a.crit) return "critical";             // on the critical path, still at risk
+  return "ontrack";
+}
 function drawGantt(){
-  const starts=S.acts.map(a=>dparse(a.start));
-  const ends=S.acts.map(a=>dadd(dparse(a.start),a.days));
+  const fPhase=$("#gFilterPhase")?.value||"", fOwner=$("#gFilterOwner")?.value||"", fStatus=$("#gFilterStatus")?.value||"";
+  const ownerSel=$("#gFilterOwner");
+  if(ownerSel){
+    const owners=[...new Set(S.acts.map(a=>a.owner).filter(Boolean))].sort();
+    const cur=ownerSel.value;
+    ownerSel.innerHTML='<option value="">All</option>'+owners.map(o=>'<option'+(cur===o?" selected":"")+'>'+esc(o)+'</option>').join("");
+  }
+  const acts=S.acts.filter(a=>
+    (!fPhase||String(a.phase)===fPhase) && (!fOwner||a.owner===fOwner) && (!fStatus||actState(a)===fStatus));
+  const starts=(acts.length?acts:S.acts).map(a=>dparse(a.start));
+  const ends=(acts.length?acts:S.acts).map(a=>dadd(dparse(a.start),a.days));
   let min=new Date(Math.min.apply(null,starts.concat([TODAY])));
-  let max=new Date(Math.max.apply(null,ends));
+  let max=new Date(Math.max.apply(null,ends.concat([TODAY])));
   min=new Date(min.getFullYear(),min.getMonth(),1);
   const weeks=Math.ceil(days(min,max)/7)+2;
   let hdr='<tr><th style="min-width:230px">Activity</th><th style="min-width:90px">Owner</th>';
@@ -1516,18 +1607,22 @@ function drawGantt(){
       +(first?d.toLocaleDateString("en-GB",{month:"short"}):"")+'</th>'; }
   hdr+='</tr>';
   let body="";
-  S.acts.forEach(a=>{
+  acts.forEach(a=>{
     const s=dparse(a.start), off=Math.floor(days(min,s)/7), len=Math.max(1,Math.ceil(a.days/7));
-    const cls=a.pct>=100?"done":(a.crit?"crit":(a.phase===2?"p2":""));
-    body+='<tr><td>'+esc(a.name)+'</td><td class="small">'+esc(a.owner)+'</td>';
+    const state=actState(a), cls=state+(a.phase===2?" p2":"");
+    body+='<tr><td>'+esc(a.name)+(state==="done"?' <span style="color:#4E7A33">✓</span>':'')+'</td>'
+      +'<td class="small">'+esc(a.owner)+'</td>';
     for(let i=0;i<weeks;i++){
       body+='<td class="cell'+(mLab[i]?" m0":"")+'">';
-      if(i===off) body+='<div class="gbar '+cls+'" style="width:'+(len*15-3)+'px"></div>';
+      if(i===off) body+='<div class="gbar '+cls+'" style="width:'+(len*15-3)+'px" title="'
+        +esc(a.pct||0)+'% complete">'
+        +'<div class="gbar-fill" style="width:'+Math.min(100,Math.max(0,a.pct||0))+'%"></div></div>';
       body+='</td>';
     }
     body+='</tr>';
   });
-  $("#gantt").innerHTML='<table>'+hdr+body+'</table>';
+  $("#gantt").innerHTML='<table>'+hdr+body+'</table>'
+    +(acts.length?"":'<div class="small" style="padding:8px">No activities match this filter.</div>');
   const d1=days(TODAY,OPS);
   const p1=S.acts.filter(a=>a.phase===1&&dadd(dparse(a.start),a.days)>OPS);
   $("#schedWarn").innerHTML='<b>Schedule reality check.</b> '+d1+' days remain to the 17 September operations start. '
@@ -2065,6 +2160,194 @@ function drawCompare(){
     $("#cmpHandleLine").style.left=v+"%"; $("#cmpHandleDot").style.left=v+"%"; };
   range.oninput=update; update();
 }
+/* ---------- vendor quotations ----------
+   Deliberately admin-gated (see VIEWONLY_LOCK_BTNS/data-vdel/data-qdel below) — commercial vendor
+   terms are more sensitive than site photos, so this stays behind the same key as BOQ editing
+   unless you decide otherwise. Excel/CSV quotes get a best-effort auto-read of a rate/delivery
+   column via SheetJS; PDFs and scans are attached as a reference file and typed in by hand. */
+function addVendor(){
+  const name=$("#vName").value.trim();
+  if(!name){ toast("Enter a vendor name first.",true); return; }
+  const contact=$("#vContact").value.trim();
+  S.vendors.push({id:"v"+Date.now(),name,contact});
+  logChange('Added vendor "'+name+'"');
+  save(); $("#vName").value=""; $("#vContact").value=""; drawVendors();
+}
+function deleteVendor(id){
+  const v=S.vendors.find(x=>x.id===id); if(!v) return;
+  const used=S.quotes.filter(q=>q.vendorId===id).length;
+  if(!confirm('Remove "'+v.name+'"?'+(used?(' '+used+' saved quote(s) from them stay on record.'):'')))return;
+  S.vendors=S.vendors.filter(x=>x.id!==id);
+  logChange('Removed vendor "'+v.name+'"'); save(); drawVendors();
+}
+let pendingQuoteFile=null;
+function drawVendors(){
+  const vg=$("#vendorList"); if(!vg) return;
+  vg.innerHTML=S.vendors.length? S.vendors.map(v=>
+    '<span class="pill" style="margin:0 6px 6px 0;padding:4px 9px;display:inline-block">'+esc(v.name)
+    +(v.contact?(' — '+esc(v.contact)):'')
+    +' <button class="sm warn" style="margin-left:6px;padding:0 5px" data-vdel="'+v.id+'" title="Remove vendor">×</button></span>'
+  ).join("") : '<span class="small">No vendors added yet.</span>';
+  document.querySelectorAll("[data-vdel]").forEach(b=>{b.onclick=()=>deleteVendor(b.dataset.vdel);});
+  const qv=$("#qVendor");
+  if(qv) qv.innerHTML='<option value="">— choose vendor —</option>'
+    +S.vendors.map(v=>'<option value="'+v.id+'">'+esc(v.name)+'</option>').join("");
+  const D=RATEDEF();
+  const qrk=$("#qRateKey");
+  if(qrk) qrk.innerHTML='<option value="">— item not on the rate card —</option>'
+    +Object.keys(D).map(k=>'<option value="'+k+'">'+esc(D[k].d)+' ('+esc(D[k].u)+')</option>').join("");
+  drawQuoteCompare();
+}
+function toggleQItemFree(){
+  const k=$("#qRateKey").value;
+  $("#qItemFree").style.display=k?"none":"inline-block";
+  if(k){ const d=RATEDEF()[k]; if(d) $("#qUnit").value=d.u; }
+}
+async function uploadQuoteFile(file){
+  const fd=new FormData(); fd.append("file",file,file.name);
+  const r=await fetch(API_BASE+"/api/quotes",{method:"POST",headers:adminHeaders(),body:fd});
+  if(r.status===401) throw new Error("admin key rejected — click 🔒 to re-enter it");
+  if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||("upload failed: HTTP "+r.status)); }
+  return r.json();
+}
+function handleQuoteFile(file){
+  pendingQuoteFile=file;
+  $("#qFileName").textContent=file?file.name:"";
+  $("#qParseMsg").textContent="";
+  if(!file) return;
+  const ext=(file.name.split(".").pop()||"").toLowerCase();
+  if(!(ext==="xlsx"||ext==="xls"||ext==="csv")){
+    $("#qParseMsg").textContent='"'+file.name+'" attached as a reference file — enter the figures yourself.';
+    return;
+  }
+  if(!window.XLSX){
+    $("#qParseMsg").textContent="Spreadsheet reader didn't load (offline?) — attached as reference; enter the figures yourself.";
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:"array"});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
+      let rateCol=-1,delivCol=-1,hdrRow=-1;
+      for(let i=0;i<Math.min(rows.length,6);i++){
+        const row=(rows[i]||[]).map(c=>String(c||"").toLowerCase());
+        const rc=row.findIndex(c=>/rate|price|unit\s*cost/.test(c));
+        if(rc>=0){ rateCol=rc; delivCol=row.findIndex(c=>/deliver|lead\s*time|days/.test(c)); hdrRow=i; break; }
+      }
+      if(rateCol>=0 && rows[hdrRow+1]){
+        const dataRow=rows[hdrRow+1];
+        const rate=parseFloat(String(dataRow[rateCol]).replace(/[^0-9.\-]/g,""));
+        if(!isNaN(rate)) $("#qRate").value=rate;
+        if(delivCol>=0){
+          const d=parseFloat(String(dataRow[delivCol]).replace(/[^0-9.\-]/g,""));
+          if(!isNaN(d)) $("#qDelivery").value=d;
+        }
+        $("#qParseMsg").innerHTML='<span style="color:#4E7A33">Read "'+esc(file.name)+'" — rate'
+          +(delivCol>=0?" and delivery":"")+" pre-filled from row "+(hdrRow+2)+". Check them before saving.</span>";
+      } else {
+        $("#qParseMsg").textContent="Opened \""+file.name+"\" but couldn't find a clear rate column — enter the figures yourself.";
+      }
+    }catch(err){
+      $("#qParseMsg").innerHTML='<span style="color:#B80001">Could not read this file — enter the figures yourself.</span>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+async function saveQuote(){
+  if(!backendConfigured()){ toast("No backend configured yet — set API_BASE near the top of the script.",true); return; }
+  const vendor=S.vendors.find(v=>v.id===$("#qVendor").value);
+  if(!vendor){ toast("Choose a vendor first (or add one above).",true); return; }
+  const rateKey=$("#qRateKey").value||null;
+  const D=RATEDEF();
+  const itemDesc=rateKey?D[rateKey].d:$("#qItemFree").value.trim();
+  if(!itemDesc){ toast("Describe the item, or pick one from the rate card.",true); return; }
+  const rate=parseFloat($("#qRate").value);
+  if(!rate||rate<=0){ toast("Enter a rate.",true); return; }
+  const q={id:"qt"+Date.now(),vendorId:vendor.id,vendorName:vendor.name,rateKey,itemDesc,
+    unit:$("#qUnit").value.trim()||(rateKey?D[rateKey].u:""),
+    rate,deliveryDays:parseFloat($("#qDelivery").value)||null,
+    compliant:$("#qCompliant").checked,terms:$("#qTerms").value.trim(),
+    fileUrl:null,fileId:null,fileName:null,addedAt:new Date().toISOString()};
+  const btn=$("#qSave"); if(btn) btn.disabled=true;
+  try{
+    if(pendingQuoteFile){
+      $("#qParseMsg").textContent="Uploading file…";
+      const res=await uploadQuoteFile(pendingQuoteFile);
+      q.fileUrl=res.url; q.fileId=res.id; q.fileName=pendingQuoteFile.name;
+    }
+    S.quotes.push(q);
+    logChange('Added quote from "'+vendor.name+'" for "'+itemDesc.slice(0,50)+'"');
+    save();
+    pendingQuoteFile=null; $("#qFileName").textContent=""; $("#qFileIn").value="";
+    $("#qRate").value=""; $("#qDelivery").value=""; $("#qTerms").value=""; $("#qItemFree").value="";
+    $("#qParseMsg").textContent="";
+    drawVendors();
+    toast("Quotation saved.");
+  }catch(e){ toast("Could not save the quotation — "+e.message,true); }
+  finally{ if(btn) btn.disabled=false; }
+}
+async function deleteQuote(id){
+  const q=S.quotes.find(x=>x.id===id); if(!q) return;
+  if(!confirm('Delete the quote from "'+q.vendorName+'" for "'+q.itemDesc+'"?'))return;
+  S.quotes=S.quotes.filter(x=>x.id!==id);
+  logChange('Deleted quote from "'+q.vendorName+'"'); save(); drawVendors();
+  if(q.fileId && backendConfigured()){
+    try{ await fetch(API_BASE+"/api/quotes/"+encodeURIComponent(q.fileId),{method:"DELETE",headers:adminHeaders()}); }
+    catch(e){ /* metadata is already gone locally; an orphaned file in storage isn't harmful */ }
+  }
+}
+function quoteGroups(){
+  const groups={};
+  S.quotes.forEach(q=>{ const key=q.rateKey||("free:"+q.itemDesc); (groups[key]=groups[key]||[]).push(q); });
+  return groups;
+}
+function drawQuoteCompare(){
+  const box=$("#quoteCompare"); if(!box) return;
+  const groups=quoteGroups(), keys=Object.keys(groups);
+  if(!keys.length){ box.innerHTML='<div class="small">No quotations saved yet.</div>'; return; }
+  const D=RATEDEF();
+  box.innerHTML=keys.map(key=>{
+    const list=groups[key], itemDesc=list[0].itemDesc;
+    const benchRate=list[0].rateKey?(S.rates[list[0].rateKey]!=null?S.rates[list[0].rateKey]:D[list[0].rateKey].v):null;
+    const lowestRate=Math.min.apply(null,list.map(q=>q.rate));
+    const deliveries=list.filter(q=>q.deliveryDays!=null).map(q=>q.deliveryDays);
+    const fastest=deliveries.length?Math.min.apply(null,deliveries):null;
+    const rows=list.map(q=>{
+      const isLowest=q.rate===lowestRate, isFastest=fastest!=null&&q.deliveryDays===fastest;
+      const vsBench=benchRate?(((q.rate-benchRate)/benchRate)*100):null;
+      return '<tr style="background:'+(!q.compliant?"#FBE3E3":isLowest?"#E9F1E2":"transparent")+'">'
+        +'<td>'+esc(q.vendorName)+'</td>'
+        +'<td class="n">'+inr(q.rate)+(isLowest?' <span class="pill g">lowest</span>':'')+'</td>'
+        +'<td class="small">'+esc(q.unit)+'</td>'
+        +'<td class="n">'+(vsBench!=null?((vsBench>0?"+":"")+vsBench.toFixed(0)+"%"):"—")+'</td>'
+        +'<td class="n">'+(q.deliveryDays!=null?(q.deliveryDays+" d"):"—")+(isFastest?' <span class="pill">fastest</span>':'')+'</td>'
+        +'<td>'+(q.compliant?'<span class="pill g">meets spec</span>':'<span class="pill r">non-compliant</span>')+'</td>'
+        +'<td class="small">'+esc(q.terms||"—")+'</td>'
+        +'<td>'+(q.fileUrl?'<a href="'+attr(q.fileUrl)+'" target="_blank" rel="noopener">file</a>':'—')+'</td>'
+        +'<td><button class="sm warn" data-qdel="'+q.id+'">×</button></td></tr>';
+    }).join("");
+    return '<h3 style="margin-top:18px">'+esc(itemDesc)
+      +(benchRate?(' <span class="small" style="font-weight:400;text-transform:none">— rate card: '+inr(benchRate)+'</span>'):'')+'</h3>'
+      +'<div style="overflow-x:auto"><table><tr><th>Vendor</th><th class="n">Rate ₹</th><th>Unit</th>'
+      +'<th class="n">vs rate card</th><th class="n">Delivery</th><th>Compliance</th><th>Terms</th><th>File</th><th></th></tr>'
+      +rows+'</table></div>';
+  }).join("");
+  document.querySelectorAll("[data-qdel]").forEach(b=>{b.onclick=()=>deleteQuote(b.dataset.qdel);});
+}
+function exportQuoteCompare(){
+  const groups=quoteGroups();
+  const rows=[["Item","Vendor","Rate INR","Unit","vs rate card %","Delivery days","Compliant","Terms","File"]];
+  const D=RATEDEF();
+  Object.keys(groups).forEach(key=>{ groups[key].forEach(q=>{
+    const benchRate=q.rateKey?(S.rates[q.rateKey]!=null?S.rates[q.rateKey]:D[q.rateKey].v):null;
+    const vsBench=benchRate?(((q.rate-benchRate)/benchRate)*100).toFixed(0):"";
+    rows.push([q.itemDesc,q.vendorName,q.rate,q.unit,vsBench,q.deliveryDays||"",q.compliant?"Yes":"No",q.terms,q.fileUrl||""]);
+  });});
+  const csv=rows.map(r=>r.map(csvEsc).join(",")).join("\n");
+  downloadText("ASL Vikrant vendor comparison — "+dstr(new Date())+".csv",csv,"text/csv");
+  toast("Comparison downloaded.");
+}
 /* ---------- daily site log ---------- */
 function drawDailyLog(){
   const el=$("#dailyLogList"); if(!el) return;
@@ -2277,6 +2560,8 @@ function applySnapshot(txt){
   S=Object.assign(S,d);
   if(!Array.isArray(S.tasks)) S.tasks=[];
   if(!Array.isArray(S.photos)) S.photos=[];
+  if(!Array.isArray(S.vendors)) S.vendors=[];
+  if(!Array.isArray(S.quotes)) S.quotes=[];
   if(!Array.isArray(S.extraAreas)) S.extraAreas=[];
   Object.keys(RATES0).forEach(k=>{ if(S.rates[k]==null) S.rates[k]=RATES0[k].v; });
   save(); redraw();
@@ -2847,6 +3132,7 @@ async function tryReconnectFileOnBoot(){
 
 /* ---------- tabs and boot ---------- */
 const TABS=[["plan","🗺️ Site plan"],["boq","💰 BOQ &amp; cost"],["task","🧱 Work items"],["photo","📷 Photos"],
+            ["vendor","📑 Vendor quotes"],
             ["daylog","📝 Daily log"],["sched","📅 Schedule"],["appr","✅ Approvals"],["cash","💵 Cash flow"],["risk","⚠️ Risks"],
             ["brief","📄 Brief &amp; export"]];
 function showTab(id){ S.tab=id; save();
@@ -2864,7 +3150,7 @@ function drawTabs(){ $("#tabs").innerHTML=TABS.map(t=>'<div class="tab" data-t="
 window.addEventListener("resize",()=>positionTabIndicator());
 
 function redraw(){ drawChangeBar(); drawKPIs(); drawSiteMap(); drawPlan(); drawOpenLand(); drawZone(); drawAreaTable(); drawBOQ(); drawRates();
-  drawTasks(); drawPhotos(); drawCompare(); drawDailyLog(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
+  drawTasks(); drawPhotos(); drawCompare(); drawVendors(); drawDailyLog(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
 
 $("#grpBy").onchange=drawBOQ;
 $("#boqFind").oninput=drawBOQ;
@@ -2920,6 +3206,16 @@ $("#addAppr").onclick=()=>{ S.appr.push({id:"ap"+Date.now(),name:"New approval",
   status:"Not started",owner:"",target:"",note:""}); save(); redraw(); };
 $("#addRisk").onclick=()=>{ S.risks.push({id:"rk"+Date.now(),desc:"New risk",cat:"",like:"Medium",
   imp:"Medium",mit:"",owner:"",status:"Open"}); save(); redraw(); };
+$("#gFilterPhase").onchange=drawGantt;
+$("#gFilterOwner").onchange=drawGantt;
+$("#gFilterStatus").onchange=drawGantt;
+$("#vAdd").onclick=addVendor;
+$("#qRateKey").onchange=toggleQItemFree;
+$("#qFilePick").onclick=()=>$("#qFileIn").click();
+$("#qFileIn").onchange=e=>{ handleQuoteFile(e.target.files[0]||null); };
+$("#qSave").onclick=saveQuote;
+$("#qExport").onclick=exportQuoteCompare;
+$("#qPrint").onclick=()=>window.print();
 $("#expBoq").onclick=exportBOQ;
 $("#expDoc").onclick=exportDoc;
 $("#doPrint").onclick=()=>window.print();
