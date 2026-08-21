@@ -87,6 +87,21 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 .rateGrid label span { flex:1; color:#42506b }
 @media print { .tabs,.tabsHint,.tools,button{display:none} .page{display:block!important} }
 
+/* ---------- mobile: bottom nav + bigger tap targets ----------
+   Photo uploads happen from a phone on site far more than from a desk — a thumb-sized tab bar
+   pinned at the bottom (where a phone's own nav lives) and larger buttons matter more here than
+   on the desktop layout. */
+@media (max-width:600px){
+  body{ padding-bottom:60px }
+  .tabsHint{ display:none }
+  .tabs{ position:fixed; left:0; right:0; bottom:0; z-index:150; background:#fff; margin:0;
+    border-bottom:none; border-top:2px solid #0C013D; padding:5px 6px; flex-wrap:nowrap;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; box-shadow:0 -4px 14px rgba(12,1,61,.14) }
+  #tabIndicator{ display:none }
+  .tab{ flex:none; padding:10px 15px; border-radius:8px }
+  .tools button,.tools select,.tools input{ padding:9px 14px; font-size:13px }
+}
+
 /* ---------- dark mode ----------
    One global filter flips every colour on the page at once (no need to hand-theme
    hundreds of inline colours scattered through the render functions). Real photos,
@@ -123,6 +138,13 @@ body.dark-mode .no-invert{ filter:invert(1) hue-rotate(180deg) }
 .skel{ background:linear-gradient(90deg,#eceff3 25%,#f8f9fb 37%,#eceff3 63%);
   background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:4px }
 @keyframes shimmer{ 0%{background-position:100% 0} 100%{background-position:0 0} }
+
+/* masonry photo grid — plain CSS columns, each card kept whole (break-inside:avoid) so photos
+   of different aspect ratios sit at their natural height instead of a uniform crop */
+.masonry{ column-width:190px; column-gap:11px }
+.pcard{ break-inside:avoid; -webkit-column-break-inside:avoid; margin:0 0 11px; display:inline-block;
+  width:100%; border:1px solid #dfe3e8; border-radius:7px; overflow:hidden; background:#fff }
+.pcard.tagged{ border-color:#0C013D }
 
 /* ---------- animation ---------- */
 button{ transition:background .15s ease,transform .1s ease,box-shadow .15s ease }
@@ -344,9 +366,20 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div class="tools"><button id="pDiag">Check photo system</button></div>
   <div id="pdiag" class="small" style="margin-bottom:8px"></div>
   <div id="plog" class="small"></div>
-  <div class="grid" id="photoGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px;margin-top:12px"></div>
+  <div id="bulkBar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#EDEDF3;
+       border:1px solid #0C013D;border-radius:8px;padding:8px 12px;margin:10px 0">
+    <b id="bulkCount" style="font-size:12px;color:#0C013D"></b>
+    <label class="small">Tag as area <select id="bulkArea"></select></label>
+    <label class="small">Kind <select id="bulkKind">
+      <option value="__keep">Don't change</option><option value="">General / progress</option>
+      <option value="before">Before</option><option value="after">After</option></select></label>
+    <button id="bulkApply" class="primary sm">Apply to selected</button>
+    <button id="bulkClear" class="sm">Clear selection</button>
+  </div>
+  <div class="masonry" id="photoGrid" style="margin-top:12px"></div>
   <p class="small" style="margin-top:8px">Click a photo to open it, drop punch-list pins on it, or tag it as
-  <b>Before</b> / <b>After</b> from the dropdown under it to use it in the comparison below.</p>
+  <b>Before</b> / <b>After</b> from the dropdown under it to use it in the comparison below. Tick several photos
+  to tag them all at once with the bar above.</p>
 
   <h3 style="margin-top:22px">Before / after comparison</h3>
   <div class="tools"><label>Area <select id="cmpArea"></select></label></div>
@@ -379,6 +412,12 @@ this is a planning and control tool, not a design or a professional cost certifi
     <button id="doPrint">Print / save as PDF</button>
   </div>
   <div id="expStatus" class="small" style="margin-top:8px"></div>
+
+  <h3>Shareable project story</h3>
+  <p class="small">A clean one-pager — overall progress and your best before/after photo pairs by area, nothing
+  else. No costs, rates or internal notes. Safe to send to a client or investor as-is.</p>
+  <div class="tools"><button id="storyDl" class="primary">Download shareable story page</button></div>
+  <div id="storyStatus" class="small" style="margin-top:4px"></div>
 
   <h2>Saving, sharing and carrying this forward</h2>
   <div class="note"><b>Where everything is stored now.</b> Every change you make is saved automatically to a
@@ -478,13 +517,13 @@ function renderAdminLock(){
    all, which is exactly what stopped us from telling a visitor *why* nothing happened; see the
    interception block below), and a MutationObserver re-applies it to anything rendered after
    (modals, re-drawn tables) without touching every individual render function. */
-const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn","pUpArea","cmpArea"]);
+const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn","pUpArea","cmpArea","bulkArea","bulkKind"]);
 const VIEWONLY_LOCK_BTNS=new Set(["mapUpload","addZone","delZone","addRow","newArea","resetBoq","addRate",
   "addAct","saveSched","addAppr","addRisk","addTaskTop","dlAdd","mSave","kSave"]);
 function lockEditableInputs(){
   const admin=isAdmin();
   document.querySelectorAll("input,select,textarea").forEach(el=>{
-    const keep=VIEWONLY_KEEP.has(el.id)||el.hasAttribute("data-pa")||el.hasAttribute("data-pk");
+    const keep=VIEWONLY_KEEP.has(el.id)||el.hasAttribute("data-pa")||el.hasAttribute("data-pk")||el.hasAttribute("data-psel");
     const lock=!keep&&!admin;
     el.classList.toggle("locked",lock);
     el.toggleAttribute("aria-disabled",lock);
@@ -1765,17 +1804,38 @@ function shrinkTo(dataUrl,maxW,q){
       res(c.toDataURL("image/jpeg",q)); };
     im.onerror=()=>res(dataUrl); im.src=dataUrl; });
 }
+/* ---------- upload with retry ----------
+   A spotty site connection is the normal case for a photo upload, not the exception — a dropped
+   packet shouldn't need the person to notice and press upload again. Retries only on an actual
+   network failure (fetch throwing — offline, DNS, connection reset); a real server rejection
+   (401, bad file, etc.) surfaces immediately since retrying wouldn't fix it. */
+async function uploadBlobToBackend(blob,filename,area){
+  const fd=new FormData();
+  fd.append("photo",blob,filename);
+  fd.append("area",area||"");
+  const MAX_RETRIES=2;
+  for(let attempt=0;;attempt++){
+    let r;
+    try{
+      r=await fetch(API_BASE+"/api/photos",{method:"POST",headers:adminHeaders(),body:fd});
+    }catch(networkErr){
+      if(attempt<MAX_RETRIES){
+        plog(filename+" — connection hiccup, retrying ("+(attempt+1)+"/"+MAX_RETRIES+")…");
+        await new Promise(res=>setTimeout(res,1200*(attempt+1)));
+        continue;
+      }
+      throw new Error("network error after "+(MAX_RETRIES+1)+" attempts — check the connection and try again");
+    }
+    if(r.status===401) throw new Error("admin key rejected — click 🔒 to re-enter it");
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||("upload failed: HTTP "+r.status)); }
+    return r.json();
+  }
+}
 async function uploadPhotoFile(file,area){
   const raw=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(file); });
   const small=await shrinkTo(raw,1600,.82);
   const blob=await (await fetch(small)).blob();
-  const fd=new FormData();
-  fd.append("photo",blob,file.name||"photo.jpg");
-  fd.append("area",area||"");
-  const r=await fetch(API_BASE+"/api/photos",{method:"POST",headers:adminHeaders(),body:fd});
-  if(r.status===401) throw new Error("admin key rejected — click 🔒 to re-enter it");
-  if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||("upload failed: HTTP "+r.status)); }
-  return r.json();
+  return uploadBlobToBackend(blob,file.name||"photo.jpg",area);
 }
 async function handleUpload(files){
   const area=pendingArea||$("#pUpArea").value||"";
@@ -1808,19 +1868,22 @@ async function patchPhotoField(id,field,value){
     if(!r.ok) throw new Error("HTTP "+r.status);
   }catch(e){ toast("Could not save photo tag — "+e.message,true); }
 }
+const PSEL=new Set(); // photo ids currently ticked for bulk tagging
 function drawPhotos(){
   $("#photoGrid").innerHTML=S.photos.map(p=>{
     const pins=S.tasks.filter(t=>t.photoId===p.id);
     const openPins=pins.filter(t=>t.status!=="Done").length;
-    return '<div style="border:1px solid #dfe3e8;border-radius:7px;overflow:hidden;background:#fff'
-    +(p.area?';border-color:#0C013D':'')+'">'
+    return '<div class="pcard'+(p.area?" tagged":"")+'">'
     +'<div style="position:relative">'
-    +(IMG[p.id]?'<img src="'+IMG[p.id]+'" class="no-invert" data-pv="'+p.id+'" style="width:100%;height:110px;object-fit:cover;cursor:zoom-in;display:block">'
-      :'<div class="skel" style="height:110px"></div>')
-    +(pins.length?'<span style="position:absolute;top:4px;right:4px;background:'+(openPins?"#B80001":"#4E7A33")
+    +(IMG[p.id]?'<img src="'+IMG[p.id]+'" class="no-invert" data-pv="'+p.id+'" style="width:100%;max-height:340px;object-fit:cover;cursor:zoom-in;display:block">'
+      :'<div class="skel" style="height:160px"></div>')
+    +'<label style="position:absolute;top:5px;left:5px;background:rgba(12,1,61,.55);border-radius:5px;'
+      +'width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer">'
+      +'<input type="checkbox" data-psel="'+p.id+'"'+(PSEL.has(p.id)?" checked":"")+' style="margin:0;cursor:pointer"></label>'
+    +(pins.length?'<span style="position:absolute;top:5px;right:5px;background:'+(openPins?"#B80001":"#4E7A33")
       +';color:#fff;font-size:10px;padding:1px 6px;border-radius:9px">'+pins.length+' pin'+(pins.length>1?"s":"")+'</span>':'')
-    +(p.kind==="before"?'<span style="position:absolute;top:4px;left:4px;background:#0C013D;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">BEFORE</span>'
-      :p.kind==="after"?'<span style="position:absolute;top:4px;left:4px;background:#4E7A33;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">AFTER</span>':'')
+    +(p.kind==="before"?'<span style="position:absolute;bottom:5px;left:5px;background:#0C013D;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">BEFORE</span>'
+      :p.kind==="after"?'<span style="position:absolute;bottom:5px;left:5px;background:#4E7A33;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">AFTER</span>':'')
     +'</div>'
     +'<div class="small" style="padding:4px 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'
     +'<select data-pa="'+p.id+'" style="width:calc(100% - 12px);margin:5px 6px 3px;font-size:11px">'
@@ -1845,6 +1908,41 @@ function drawPhotos(){
     const p=S.photos.find(x=>x.id===e.target.dataset.pk); p.kind=e.target.value||null;
     save(); drawPhotos(); drawCompare(); patchPhotoField(p.id,"kind",p.kind);};});
   document.querySelectorAll("[data-pv]").forEach(i=>{i.onclick=()=>renderPhotoLightbox(i.dataset.pv);});
+  document.querySelectorAll("[data-psel]").forEach(cb=>{cb.onchange=e=>{
+    const id=e.target.dataset.psel;
+    if(e.target.checked) PSEL.add(id); else PSEL.delete(id);
+    updateBulkBar();};});
+  updateBulkBar();
+}
+/* ---------- bulk photo tagging ----------
+   Ticking several photos and using the bar above re-tags them all in one go instead of one
+   dropdown at a time — the same patchPhotoField() path as single tagging, just looped. */
+function updateBulkBar(){
+  const bar=$("#bulkBar"); if(!bar) return;
+  const n=PSEL.size;
+  bar.style.display=n?"flex":"none";
+  if($("#bulkCount")) $("#bulkCount").textContent=n+" photo"+(n===1?"":"s")+" selected";
+  const sel=$("#bulkArea");
+  if(sel) sel.innerHTML='<option value="">Untagged</option>'+AREAKEYS().map(a=>'<option>'+esc(a)+'</option>').join("");
+}
+async function bulkApplyTags(){
+  if(!PSEL.size) return;
+  const area=$("#bulkArea").value, kindSel=$("#bulkKind").value;
+  const ids=[...PSEL];
+  ids.forEach(id=>{
+    const p=S.photos.find(x=>x.id===id); if(!p) return;
+    p.area=area;
+    if(kindSel!=="__keep") p.kind=kindSel||null;
+  });
+  save(); drawZone(); drawCompare();
+  await Promise.all(ids.map(id=>{
+    const p=S.photos.find(x=>x.id===id); if(!p) return Promise.resolve();
+    const jobs=[patchPhotoField(id,"area",p.area)];
+    if(kindSel!=="__keep") jobs.push(patchPhotoField(id,"kind",p.kind));
+    return Promise.all(jobs);
+  }));
+  PSEL.clear(); drawPhotos();
+  toast("Tagged "+ids.length+" photo(s)"+(area?(" to "+area):" as untagged")+".");
 }
 /* ---------- deleting photos ----------
    Removes the photo (and any punch-list pins on it) from local state right away, then asks the
@@ -1858,7 +1956,7 @@ async function deletePhoto(id){
     +' This cannot be undone.')) return;
   S.photos=S.photos.filter(x=>x.id!==id);
   S.tasks=S.tasks.filter(t=>t.photoId!==id);
-  delete IMG[id];
+  delete IMG[id]; PSEL.delete(id);
   save(); redraw();
   let ok=true;
   if(backendConfigured()){
@@ -2172,6 +2270,119 @@ function downloadBackup(){
   }catch(e){ BK('<span style="color:#B80001">This browser could not write a file.</span>'); }
 }
 
+/* ---------- shareable project story ----------
+   A curated one-pager for someone outside the team — client, investor, whoever — who should see
+   progress, not the working dashboard. Deliberately leaves out cost, rates, schedule and every
+   other internal figure; only the overall % and tagged Before/After photo pairs go in. The photos
+   stay as their Cloudinary URLs (so the file stays small); the logo is inlined as a data URI so
+   the page still opens correctly as an email attachment with no other files alongside it. */
+async function downloadProjectStory(){
+  const btn=$("#storyDl"), status=$("#storyStatus");
+  if(btn) btn.disabled=true;
+  if(status) status.textContent="Building…";
+  try{
+    const t=totals();
+    const doneVal=S.boq.filter(b=>b.status==="Done").reduce((s,b)=>s+amt(b),0);
+    const pct=t.base?Math.round(doneVal/t.base*100):0;
+    const areas=[...new Set(S.photos.filter(p=>p.kind==="before"||p.kind==="after").map(p=>p.area).filter(Boolean))].sort();
+    const pairs=areas.map(a=>{
+      const before=S.photos.filter(p=>p.area===a&&p.kind==="before"&&p.url).slice(-1)[0];
+      const after=S.photos.filter(p=>p.area===a&&p.kind==="after"&&p.url).slice(-1)[0];
+      return before&&after?{area:a,before,after}:null;
+    }).filter(Boolean);
+    let logoDataUri="";
+    try{
+      const resp=await fetch("aartech%20logo%204%20on%20red%20bg.svg");
+      if(resp.ok){
+        const svgText=await resp.text();
+        logoDataUri="data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svgText)));
+      }
+    }catch(e){ /* opened without the svg alongside it (e.g. a moved copy) — page still works, just no logo */ }
+    const CIRC=326.7;
+    const html='<!DOCTYPE html><html><head><meta charset="utf-8">'
+      +'<title>Vikrant — Restoration Progress</title><style>'
+      +'*{box-sizing:border-box}body{margin:0;background:#0C013D;color:#fff;'
+        +'font-family:"Barlow","Segoe UI",Arial,sans-serif}'
+      +'.wrap{max-width:900px;margin:0 auto;padding:36px 24px 60px}'
+      +'.tag{color:#F6C547;font-size:13px;margin-top:6px}'
+      +'h1{font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif;font-weight:400;font-size:30px;'
+        +'letter-spacing:.3px;margin:14px 0 0;text-transform:uppercase}'
+      +'.hero{display:flex;align-items:center;gap:24px;background:rgba(255,255,255,.06);'
+        +'border-radius:14px;padding:22px;margin:26px 0 40px}'
+      +'.ring-wrap{position:relative;width:140px;height:140px;flex:none}'
+      +'.ring{width:140px;height:140px;transform:rotate(-90deg)}'
+      +'.ring-bg{fill:none;stroke:rgba(255,255,255,.18);stroke-width:13}'
+      +'.ring-fg{fill:none;stroke:#4E7A33;stroke-width:13;stroke-linecap:round;stroke-dasharray:'+CIRC+'}'
+      +'.ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}'
+      +'.ring-label b{font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif;font-size:32px;line-height:1}'
+      +'.ring-label span{font-size:10.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}'
+      +'.area{margin-bottom:44px}'
+      +'.area h2{font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif;font-weight:400;font-size:21px;'
+        +'text-transform:uppercase;margin:0 0 10px;color:#F6C547;letter-spacing:.3px}'
+      +'.pair{position:relative;border-radius:10px;overflow:hidden;height:420px;background:#000}'
+      +'.pair img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}'
+      +'.pair .before{clip-path:inset(0 50% 0 0)}'
+      +'.pair input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize}'
+      +'.line{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff;pointer-events:none}'
+      +'.dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:38px;height:38px;'
+        +'border-radius:50%;background:#fff;color:#0C013D;display:flex;align-items:center;justify-content:center;'
+        +'font-size:16px;pointer-events:none}'
+      +'.pill{position:absolute;bottom:10px;font-size:11px;padding:3px 9px;border-radius:9px;color:#fff;'
+        +'font-weight:600;pointer-events:none}'
+      +'.empty{opacity:.75;font-size:13px}'
+      +'footer{text-align:center;color:rgba(255,255,255,.5);font-size:11px;margin-top:44px}'
+      +'@media(max-width:640px){.hero{flex-direction:column;text-align:center}.pair{height:260px}}'
+      +'</style></head><body><div class="wrap">'
+      +(logoDataUri?'<img src="'+logoDataUri+'" style="height:48px" alt="Aartech Solonics Limited">':'')
+      +'<h1>Vikrant &mdash; Restoration &amp; Development</h1>'
+      +'<div class="tag">We live our passion through engineering.</div>'
+      +'<div class="hero">'
+        +'<div class="ring-wrap"><svg viewBox="0 0 120 120" class="ring">'
+        +'<circle cx="60" cy="60" r="52" class="ring-bg"/>'
+        +'<circle cx="60" cy="60" r="52" class="ring-fg" style="stroke-dashoffset:'+(CIRC-CIRC*pct/100)+'"/></svg>'
+        +'<div class="ring-label"><b>'+pct+'%</b><span>complete</span></div></div>'
+        +'<div><p style="font-size:13.5px;opacity:.9;margin:0;max-width:520px;line-height:1.6">'
+        +'A look at restoration progress across the Vikrant site, by value of work completed, with photographed '
+        +'before/after comparisons by area. Drag any photo below to compare.</p></div>'
+      +'</div>'
+      +(pairs.length?pairs.map(pr=>
+        '<div class="area"><h2>'+esc(pr.area)+'</h2>'
+        +'<div class="pair" data-pair>'
+        +'<img src="'+attr(pr.after.url)+'">'
+        +'<img class="before" src="'+attr(pr.before.url)+'">'
+        +'<div class="line"></div><div class="dot">&#8596;</div>'
+        +'<input type="range" min="0" max="100" value="50">'
+        +'<span class="pill" style="left:10px;background:#0C013D">BEFORE</span>'
+        +'<span class="pill" style="right:10px;background:#4E7A33">AFTER</span>'
+        +'</div></div>').join("")
+        :'<p class="empty">No before/after photo pairs are tagged yet — tag photos as Before and After by '
+        +'area on the Photos tab to populate this page.</p>')
+      +'<footer>Generated '+dstr(new Date())+' from the Vikrant Restoration &amp; Development Control Room '
+      +'&middot; Aartech Solonics Limited</footer>'
+      +'</div><'+'script>'
+      +'document.querySelectorAll("[data-pair]").forEach(function(p){'
+        +'var r=p.querySelector("input"),b=p.querySelector(".before"),'
+        +'l=p.querySelector(".line"),d=p.querySelector(".dot");'
+        +'function upd(){var v=r.value;b.style.clipPath="inset(0 "+(100-v)+"% 0 0)";'
+          +'l.style.left=v+"%";d.style.left=v+"%";}'
+        +'r.oninput=upd; upd();});'
+      +'<'+'/script></body></html>';
+    const blob=new Blob([html],{type:"text/html"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="Vikrant-progress-story-"+dstr(new Date())+".html";
+    document.body.appendChild(a); a.click(); a.remove();
+    if(status) status.textContent=pairs.length
+      ? "Downloaded, with "+pairs.length+" before/after pair(s)."
+      : "Downloaded — no before/after pairs tagged yet, so it's progress-only for now.";
+    toast("Story page downloaded — share it as-is.");
+  }catch(e){
+    if(status) status.innerHTML='<span style="color:#B80001">Could not build the story page — '+esc(e.message)+'</span>';
+  }finally{
+    if(btn) btn.disabled=false;
+  }
+}
+
 /* ---------- camera capture ---------- */
 let camStream=null, camFacing="environment";
 async function openCam(){
@@ -2209,10 +2420,7 @@ async function camCapture(){
   $("#camMsg").textContent="Uploading…";
   try{
     const blob=await (await fetch(data)).blob();
-    const fd=new FormData(); fd.append("photo",blob,"camera.jpg"); fd.append("area",area);
-    const r=await fetch(API_BASE+"/api/photos",{method:"POST",body:fd});
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const res=await r.json();
+    const res=await uploadBlobToBackend(blob,"camera.jpg",area);
     IMG[res.id]=res.url;
     S.photos.push({id:res.id,name:(area||"Site")+" — "+stamp,area:area,url:res.url});
     save(); drawPhotos(); drawZone(); storageLine();
@@ -2691,6 +2899,7 @@ $("#addRisk").onclick=()=>{ S.risks.push({id:"rk"+Date.now(),desc:"New risk",cat
 $("#expBoq").onclick=exportBOQ;
 $("#expDoc").onclick=exportDoc;
 $("#doPrint").onclick=()=>window.print();
+$("#storyDl").onclick=downloadProjectStory;
 $("#dlBackup").onclick=downloadBackup;
 $("#shareDl").onclick=()=>exportCopy(false);
 $("#shareDlP").onclick=()=>exportCopy(true);
@@ -2728,6 +2937,8 @@ $("#mapUpload").onclick=()=>$("#mapIn").click();
 $("#mapIn").onchange=e=>{ const f=e.target.files[0]; if(f) uploadSiteMap(f); e.target.value=""; };
 $("#pUpload").onclick=()=>$("#photoIn").click();
 $("#pNewArea").onclick=()=>{ const n=addNewArea(); if(n){ $("#pUpArea").value=n; } };
+$("#bulkApply").onclick=bulkApplyTags;
+$("#bulkClear").onclick=()=>{ PSEL.clear(); drawPhotos(); };
 $("#photoIn").onchange=e=>{ handleUpload([...e.target.files]); e.target.value=""; };
 $("#pUpArea").innerHTML='<option value="">Tag later</option>'
   +AREAKEYS().map(a=>'<option>'+esc(a)+'</option>').join("");
