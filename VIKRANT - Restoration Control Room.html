@@ -388,7 +388,10 @@ const LSK="asl_unit3_exec_v1";
 /* ---------- admin unlock ----------
    Everyone can view the site; only someone who enters the admin key can make
    changes that persist to the shared backend (enforced server-side too — see
-   requireAdmin in the API — so this is UX, not the actual security boundary). */
+   requireAdmin in the API — so this is UX, not the actual security boundary).
+   Exception: the Photos tab (upload, camera capture, area/kind tagging) is
+   open to any visitor, front end and back end both — only deleting a photo
+   still requires the admin key. */
 const ADMIN_LSK="vikrant_admin_key";
 const isAdmin=()=>!!localStorage.getItem(ADMIN_LSK);
 const adminHeaders=()=>({ "x-admin-key": localStorage.getItem(ADMIN_LSK)||"" });
@@ -414,13 +417,13 @@ function renderAdminLock(){
    sync). This disables every editable control site-wide while locked, and a MutationObserver
    re-applies it to anything rendered after (modals, re-drawn tables) without touching every
    individual render function. */
-const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn"]);
+const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn","pUpArea","cmpArea"]);
 const VIEWONLY_LOCK_BTNS=new Set(["mapUpload","addZone","delZone","addRow","newArea","resetBoq","addRate",
-  "addAct","saveSched","addAppr","addRisk","addTaskTop","pUpload","pCam","pNewArea","camShot","dlAdd","mSave","kSave"]);
+  "addAct","saveSched","addAppr","addRisk","addTaskTop","dlAdd","mSave","kSave"]);
 function lockEditableInputs(){
   const admin=isAdmin();
   document.querySelectorAll("input,select,textarea").forEach(el=>{
-    if(VIEWONLY_KEEP.has(el.id)) return;
+    if(VIEWONLY_KEEP.has(el.id)||el.hasAttribute("data-pa")||el.hasAttribute("data-pk")) return;
     el.disabled=!admin;
   });
   document.querySelectorAll("[contenteditable]").forEach(el=>{
@@ -1646,7 +1649,6 @@ async function handleUpload(files){
   const imgs=[...files].filter(f=>f.type.indexOf("image/")===0);
   if(!imgs.length) return;
   if(!backendConfigured()){ plog("No backend configured yet — set API_BASE near the top of the script before photos can upload.",true); return; }
-  if(!isAdmin()){ plog("View only — click 🔒 above and enter the admin key to upload photos.",true); return; }
   let ok=0, fail=0;
   plog("Uploading "+imgs.length+" photo(s)…");
   for(const f of imgs){
@@ -1666,7 +1668,6 @@ async function handleUpload(files){
 async function patchPhotoField(id,field,value){
   try{
     if(!backendConfigured()) return;
-    if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
     const body={}; body[field]=value;
     const r=await fetch(API_BASE+"/api/photos/"+id,{method:"PATCH",
       headers:Object.assign({"Content-Type":"application/json"},adminHeaders()),body:JSON.stringify(body)});
@@ -2066,7 +2067,6 @@ async function camCapture(){
   const v=$("#camVid");
   if(!camStream||!v.videoWidth){ $("#camMsg").textContent="Camera is not running."; return; }
   if(!backendConfigured()){ $("#camMsg").textContent="No backend configured yet — set API_BASE near the top of the script."; return; }
-  if(!isAdmin()){ $("#camMsg").textContent="View only — click 🔒 above and enter the admin key to upload photos."; return; }
   const c=document.createElement("canvas"); c.width=v.videoWidth; c.height=v.videoHeight;
   c.getContext("2d").drawImage(v,0,0,c.width,c.height);
   const data=await shrinkTo(c.toDataURL("image/jpeg",.85),1600,.82);
