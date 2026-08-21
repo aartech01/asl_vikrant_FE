@@ -86,6 +86,31 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 .rateGrid label span { flex:1; color:#42506b }
 @media print { .tabs,.tabsHint,.tools,button{display:none} .page{display:block!important} }
 
+/* ---------- dark mode ----------
+   One global filter flips every colour on the page at once (no need to hand-theme
+   hundreds of inline colours scattered through the render functions). Real photos,
+   the logo and the live camera feed carry .no-invert, which applies the identical
+   filter a second time — two passes of the same filter cancel out, so those stay
+   true-colour while everything else around them goes dark. */
+body.dark-mode{ filter:invert(1) hue-rotate(180deg) }
+body.dark-mode .no-invert{ filter:invert(1) hue-rotate(180deg) }
+@media print{ body.dark-mode,body.dark-mode .no-invert{ filter:none!important } }
+
+/* ---------- KPI hero (north-star metric) ---------- */
+.kpi-hero{ grid-column:1/-1; display:flex; align-items:center; gap:20px; border:1px solid #0C013D;
+  border-radius:10px; padding:16px 22px; background:linear-gradient(135deg,#0C013D,#241454);
+  box-shadow:0 4px 18px rgba(12,1,61,.28); animation:kpiIn .35s ease }
+.ring-wrap{ position:relative; width:92px; height:92px; flex:none }
+.ring{ width:92px; height:92px; transform:rotate(-90deg) }
+.ring-bg{ fill:none; stroke:rgba(255,255,255,.18); stroke-width:10 }
+.ring-fg{ fill:none; stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset .8s cubic-bezier(.16,1,.3,1) }
+.ring-label{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif; font-size:23px; color:#fff }
+.hero-text .lab{ font-size:10.5px; text-transform:uppercase; letter-spacing:.7px; color:#F6C547; font-weight:600 }
+.hero-text .hero-sub{ font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif; font-size:19px;
+  color:#fff; margin-top:3px; letter-spacing:.2px }
+.hero-text .sub2{ color:rgba(255,255,255,.68); margin-top:2px }
+
 /* ---------- animation ---------- */
 button{ transition:background .15s ease,transform .1s ease,box-shadow .15s ease }
 button:hover:not(:disabled){ transform:translateY(-1px) }
@@ -124,8 +149,11 @@ button:active:not(:disabled){ transform:translateY(0) }
       We live our passion through engineering.</div>
   </div>
   <div style="flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-    <span id="adminLock" onclick="promptAdminUnlock()"></span>
-    <div style="background:#fff;border:1px solid #dfe3e8;border-radius:10px;padding:5px;
+    <div style="display:flex;gap:6px">
+      <span id="themeToggle" onclick="toggleTheme()"></span>
+      <span id="adminLock" onclick="promptAdminUnlock()"></span>
+    </div>
+    <div class="no-invert" style="background:#fff;border:1px solid #dfe3e8;border-radius:10px;padding:5px;
                 box-shadow:0 2px 10px rgba(12,1,61,.14)">
       <img src="aartech%20logo%204%20on%20red%20bg.svg" alt="Aartech Solonics Limited logo"
            style="height:112px;width:auto;display:block;border-radius:6px">
@@ -288,7 +316,7 @@ this is a planning and control tool, not a design or a professional cost certifi
   </div>
   <div id="camBox" style="display:none;border:1px solid #0C013D;border-radius:8px;padding:10px;
        margin-bottom:10px;background:#F6F6F6;max-width:520px">
-    <video id="camVid" autoplay playsinline muted style="width:100%;border-radius:6px;background:#252525"></video>
+    <video id="camVid" class="no-invert" autoplay playsinline muted style="width:100%;border-radius:6px;background:#252525"></video>
     <div class="tools" style="margin-top:8px">
       <button id="camShot" class="primary">Capture</button>
       <button id="camSwap">Switch camera</button>
@@ -392,6 +420,24 @@ const LSK="asl_unit3_exec_v1";
    Exception: the Photos tab (upload, camera capture, area/kind tagging) is
    open to any visitor, front end and back end both — only deleting a photo
    still requires the admin key. */
+/* ---------- dark / light mode ----------
+   Purely a display filter (see the CSS above) — has nothing to do with the
+   admin lock. Preference is remembered per browser. */
+const THEME_LSK="vikrant_theme";
+function applyTheme(t){ document.body.classList.toggle("dark-mode",t==="dark"); }
+function toggleTheme(){
+  const next=(localStorage.getItem(THEME_LSK)==="dark")?"light":"dark";
+  localStorage.setItem(THEME_LSK,next);
+  applyTheme(next); renderThemeToggle();
+}
+function renderThemeToggle(){
+  const el=document.getElementById("themeToggle"); if(!el) return;
+  const dark=localStorage.getItem(THEME_LSK)==="dark";
+  el.textContent=dark?"☀️ Light mode":"🌙 Dark mode";
+  el.title=dark?"Switch to light mode":"Switch to dark mode";
+  el.style.cssText="cursor:pointer;font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;"
+    +"border:1px solid #d0d7de;color:#57606a;background:#F6F6F6";
+}
 const ADMIN_LSK="vikrant_admin_key";
 const isAdmin=()=>!!localStorage.getItem(ADMIN_LSK);
 const adminHeaders=()=>({ "x-admin-key": localStorage.getItem(ADMIN_LSK)||"" });
@@ -791,17 +837,30 @@ function drawKPIs(){
   const doneVal=S.boq.filter(b=>b.status==="Done").reduce((s,b)=>s+amt(b),0);
   const openAppr=S.appr.filter(a=>a.status!=="Granted").length;
   const hiRisk=S.risks.filter(r=>r.status==="Open"&&r.like==="High"&&r.imp==="High").length;
-  $("#kpis").innerHTML=[
+  const pct=t.base?Math.round(doneVal/t.base*100):0;
+  const ringColor=pct>=70?"#4E7A33":pct>=30?"#F6C547":"#B80001";
+  const CIRC=326.7; // 2 * pi * r(52)
+  const hero='<div class="kpi-hero">'
+    +'<div class="ring-wrap"><svg viewBox="0 0 120 120" class="ring">'
+    +'<circle cx="60" cy="60" r="52" class="ring-bg"/>'
+    +'<circle cx="60" cy="60" r="52" class="ring-fg" style="stroke:'+ringColor+';stroke-dasharray:'+CIRC
+    +';stroke-dashoffset:'+(CIRC-CIRC*pct/100)+'"/></svg>'
+    +'<div class="ring-label">'+pct+'%</div></div>'
+    +'<div class="hero-text"><div class="lab">Works completed &middot; the number that matters most</div>'
+    +'<div class="hero-sub">'+lakh(doneVal)+' of '+lakh(t.base)+' base cost done</div>'
+    +'<div class="sub2">By value — moves automatically as BOQ items are marked Done</div></div>'
+    +'</div>';
+  const rest=[
    ["Estimated project cost",lakh(t.grand),"incl. fees, contingency and GST"],
    ["Phase 1 works",lakh(byPhase(1)),"base cost, pre-oncost"],
    ["Phase 2 works",lakh(byPhase(2)),"base cost, pre-oncost"],
    ["To operations start",d1+" days",dstr(OPS)+" · Vishwakarma Puja",d1<60?"alert":""],
    ["To launch",Math.round(d2/30.4)+" months",dstr(LAUNCH)],
    ["Approvals outstanding",openAppr+" of "+S.appr.length,"statutory items open",openAppr>6?"alert":""],
-   ["Works completed",(t.base?Math.round(doneVal/t.base*100):0)+"%","by value",doneVal>0?"good":""],
    ["High / high risks",hiRisk,"likelihood and impact both high",hiRisk>0?"alert":""]
   ].map(k=>'<div class="kpi '+(k[3]||"")+'"><div class="lab">'+k[0]+'</div><div class="val">'+k[1]
    +'</div><div class="sub2">'+k[2]+'</div></div>').join("");
+  $("#kpis").innerHTML=hero+rest;
 }
 
 /* ---------- ASL brand ---------- */
@@ -906,7 +965,7 @@ function drawSiteMap(){
     +'<b style="font-size:12px;color:#0C013D">Uploaded site map'+(m.width?(' — '+m.width+' × '+m.height+' px'):'')+'</b>'
     +'<span><button class="sm" id="mapFull">View full size</button><button class="sm" id="mapRemove">Remove</button></span>'
     +'</div>'
-    +'<img src="'+attr(m.url)+'" style="width:100%;max-height:640px;object-fit:contain;border-radius:6px;cursor:zoom-in;background:#fff" id="mapImgEl">'
+    +'<img src="'+attr(m.url)+'" class="no-invert" style="width:100%;max-height:640px;object-fit:contain;border-radius:6px;cursor:zoom-in;background:#fff" id="mapImgEl">'
     +(m.name?'<div class="small" style="margin-top:4px">'+esc(m.name)+'</div>':'')
     +'</div>';
   const openFull=()=>window.open(m.url,"_blank");
@@ -1005,7 +1064,7 @@ function drawZone(){
   h+='<div style="margin-top:12px;font-size:12px"><b>Photographs ('+ph.length+')</b>'
     +' <button class="sm" id="upHere">+ upload here</button>';
   if(ph.length){ h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:5px">'
-    +ph.map(p=>'<img src="'+(IMG[p.id]||"")+'" data-zp="'+p.id+'" style="width:100%;height:60px;object-fit:cover;'
+    +ph.map(p=>'<img src="'+(IMG[p.id]||"")+'" class="no-invert" data-zp="'+p.id+'" style="width:100%;height:60px;object-fit:cover;'
     +'border-radius:4px;border:1px solid #dfe3e8;cursor:zoom-in" title="'+attr(p.name)+'">').join("")+'</div>'; }
   else h+='<div class="small">None yet. Press <b>+ upload here</b> to add straight from this computer, or pull the '
     +'survey set from Drive on the Photos tab and tag them.</div>';
@@ -1681,7 +1740,7 @@ function drawPhotos(){
     return '<div style="border:1px solid #dfe3e8;border-radius:7px;overflow:hidden;background:#fff'
     +(p.area?';border-color:#0C013D':'')+'">'
     +'<div style="position:relative">'
-    +(IMG[p.id]?'<img src="'+IMG[p.id]+'" data-pv="'+p.id+'" style="width:100%;height:110px;object-fit:cover;cursor:zoom-in;display:block">'
+    +(IMG[p.id]?'<img src="'+IMG[p.id]+'" class="no-invert" data-pv="'+p.id+'" style="width:100%;height:110px;object-fit:cover;cursor:zoom-in;display:block">'
       :'<div style="height:110px;display:flex;align-items:center;justify-content:center;color:#8b949e;font-size:11px">not loaded</div>')
     +(pins.length?'<span style="position:absolute;top:4px;right:4px;background:'+(openPins?"#B80001":"#4E7A33")
       +';color:#fff;font-size:10px;padding:1px 6px;border-radius:9px">'+pins.length+' pin'+(pins.length>1?"s":"")+'</span>':'')
@@ -1743,7 +1802,7 @@ function renderPhotoLightbox(photoId){
     +'<button class="sm" id="lbFull">Open original</button></div>'
     +'<div class="small" style="margin-bottom:6px">Click anywhere on the photo to drop a punch-list pin.</div>'
     +'<div id="lbImgWrap" style="position:relative;cursor:crosshair;border-radius:6px;overflow:hidden;line-height:0">'
-    +'<img src="'+attr(IMG[p.id]||p.url)+'" style="width:100%;display:block" id="lbImg">'
+    +'<img src="'+attr(IMG[p.id]||p.url)+'" class="no-invert" style="width:100%;display:block" id="lbImg">'
     +pins.map((t,i)=>'<div title="'+attr(t.desc)+'" style="position:absolute;left:'+t.px+'%;top:'+t.py
       +'%;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;'
       +'justify-content:center;font-size:10px;font-weight:700;color:#fff;background:'
@@ -1795,8 +1854,8 @@ function drawCompare(){
   const after=S.photos.filter(p=>p.area===area&&p.kind==="after"&&IMG[p.id]).slice(-1)[0];
   if(!before||!after){ box.innerHTML='<div class="small">'+esc(area)+' needs at least one photo tagged "Before" and one tagged "After" to compare.</div>'; return; }
   box.innerHTML='<div id="cmpWrap" style="position:relative;height:420px;max-width:640px;border-radius:8px;overflow:hidden;border:1px solid #dfe3e8;background:#000">'
-    +'<img src="'+attr(after.url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">'
-    +'<img id="cmpBeforeImg" src="'+attr(before.url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;clip-path:inset(0 50% 0 0)">'
+    +'<img src="'+attr(after.url)+'" class="no-invert" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">'
+    +'<img id="cmpBeforeImg" class="no-invert" src="'+attr(before.url)+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;clip-path:inset(0 50% 0 0)">'
     +'<div id="cmpHandleLine" style="position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff;box-shadow:0 0 6px rgba(0,0,0,.5);pointer-events:none"></div>'
     +'<div id="cmpHandleDot" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:34px;height:34px;'
     +'border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;'
@@ -2576,6 +2635,8 @@ $("#pUpArea").innerHTML='<option value="">Tag later</option>'
 
 /* every photo already carrying a Cloudinary URL renders immediately, before any network round-trip */
 S.photos.forEach(p=>{ if(p.url) IMG[p.id]=p.url; });
+applyTheme(localStorage.getItem(THEME_LSK)||"light");
+renderThemeToggle();
 renderAdminLock();
 drawTabs(); redraw(); showTab(S.tab||"plan");
 lockEditableInputs();
