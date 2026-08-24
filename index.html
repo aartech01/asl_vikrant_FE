@@ -603,7 +603,7 @@ const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","ma
   "pUpArea","cmpArea","bulkArea","bulkKind","gFilterPhase","gFilterOwner","gFilterStatus"]);
 const VIEWONLY_LOCK_BTNS=new Set(["mapUpload","addZone","delZone","addRow","newArea","resetBoq","addRate",
   "addAct","saveSched","addAppr","addRisk","addTaskTop","dlAdd","mSave","kSave",
-  "vAdd","qSave","qFilePick","dlESave","dlEDel"]);
+  "vAdd","qSave","qFilePick","dlESave","dlEDel","qESave","qEDel"]);
 function lockEditableInputs(){
   const admin=isAdmin();
   document.querySelectorAll("input,select,textarea").forEach(el=>{
@@ -617,7 +617,7 @@ function lockEditableInputs(){
   });
   document.querySelectorAll("button").forEach(b=>{
     const lock=(VIEWONLY_LOCK_BTNS.has(b.id)||b.hasAttribute("data-d")||b.hasAttribute("data-addto")
-      ||b.hasAttribute("data-vdel")||b.hasAttribute("data-qdel")
+      ||b.hasAttribute("data-vdel")||b.hasAttribute("data-qdel")||b.hasAttribute("data-qedit")
       ||b.hasAttribute("data-dle")||b.hasAttribute("data-dlx"))&&!admin;
     b.classList.toggle("locked",lock);
     b.toggleAttribute("aria-disabled",lock);
@@ -2326,7 +2326,8 @@ function drawQuoteCompare(){
         +'<td>'+(q.compliant?'<span class="pill g">meets spec</span>':'<span class="pill r">non-compliant</span>')+'</td>'
         +'<td class="small">'+esc(q.terms||"—")+'</td>'
         +'<td>'+(q.fileUrl?'<a href="'+attr(q.fileUrl)+'" target="_blank" rel="noopener">file</a>':'—')+'</td>'
-        +'<td><button class="sm warn" data-qdel="'+q.id+'">×</button></td></tr>';
+        +'<td style="white-space:nowrap"><button class="sm" data-qedit="'+q.id+'">Edit</button> '
+        +'<button class="sm warn" data-qdel="'+q.id+'">×</button></td></tr>';
     }).join("");
     return '<h3 style="margin-top:18px">'+esc(itemDesc)
       +(benchRate?(' <span class="small" style="font-weight:400;text-transform:none">— rate card: '+inr(benchRate)+'</span>'):'')+'</h3>'
@@ -2335,6 +2336,48 @@ function drawQuoteCompare(){
       +rows+'</table></div>';
   }).join("");
   document.querySelectorAll("[data-qdel]").forEach(b=>{b.onclick=()=>deleteQuote(b.dataset.qdel);});
+  document.querySelectorAll("[data-qedit]").forEach(b=>{b.onclick=()=>openQuoteEditor(b.dataset.qedit);});
+}
+function openQuoteEditor(id){
+  const q=S.quotes.find(x=>x.id===id); if(!q) return;
+  const D=RATEDEF();
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">'
+    +'Edit quotation</div>'
+    +fRow("Vendor",'<select id="qEVendor" style="width:100%">'
+      +S.vendors.map(v=>'<option value="'+v.id+'"'+(v.id===q.vendorId?" selected":"")+'>'+esc(v.name)+'</option>').join("")+'</select>')
+    +fRow("Item (rate card)",'<select id="qERateKey" style="width:100%">'
+      +'<option value=""'+(!q.rateKey?" selected":"")+'>— item not on the rate card —</option>'
+      +Object.keys(D).map(k=>'<option value="'+k+'"'+(k===q.rateKey?" selected":"")+'>'+esc(D[k].d)+' ('+esc(D[k].u)+')</option>').join("")
+      +'</select>')
+    +fRow("Item description (if not on rate card)",'<input id="qEItemFree" style="width:100%" value="'+attr(q.rateKey?"":q.itemDesc)+'">')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">'
+    +fRow("Rate ₹",'<input class="num" id="qERate" style="width:100%" value="'+attr(q.rate)+'">')
+    +fRow("Unit",'<input id="qEUnit" style="width:100%" value="'+attr(q.unit||"")+'">')
+    +fRow("Delivery, days",'<input class="num" id="qEDelivery" style="width:100%" value="'+attr(q.deliveryDays!=null?q.deliveryDays:"")+'">')
+    +'</div>'
+    +fRow("Meets spec",'<label class="small" style="display:flex;align-items:center;gap:4px">'
+      +'<input type="checkbox" id="qECompliant"'+(q.compliant?" checked":"")+'> Meets spec</label>')
+    +fRow("Terms",'<input id="qETerms" style="width:100%" value="'+attr(q.terms||"")+'">')
+    +'<div style="margin-top:6px;display:flex;gap:8px;align-items:center">'
+    +'<button class="primary" id="qESave">Save</button><button id="qECancel">Cancel</button>'
+    +'<span style="flex:1"></span><button class="warn" id="qEDel">Delete quote</button></div>');
+  $("#qECancel").onclick=closeModal;
+  $("#qEDel").onclick=async()=>{ closeModal(); await deleteQuote(id); };
+  $("#qESave").onclick=()=>{
+    const vendor=S.vendors.find(v=>v.id===$("#qEVendor").value);
+    if(!vendor){ toast("Choose a vendor.",true); return; }
+    const rateKey=$("#qERateKey").value||null;
+    const itemDesc=rateKey?D[rateKey].d:$("#qEItemFree").value.trim();
+    if(!itemDesc){ toast("Describe the item, or pick one from the rate card.",true); return; }
+    const rate=parseFloat($("#qERate").value);
+    if(!rate||rate<=0){ toast("Enter a rate.",true); return; }
+    q.vendorId=vendor.id; q.vendorName=vendor.name; q.rateKey=rateKey; q.itemDesc=itemDesc;
+    q.unit=$("#qEUnit").value.trim()||(rateKey?D[rateKey].u:"");
+    q.rate=rate; q.deliveryDays=parseFloat($("#qEDelivery").value)||null;
+    q.compliant=$("#qECompliant").checked; q.terms=$("#qETerms").value.trim();
+    logChange('Edited quote from "'+vendor.name+'" for "'+itemDesc.slice(0,50)+'"');
+    save(); closeModal(); drawVendors(); toast("Quotation updated.");
+  };
 }
 function exportQuoteCompare(){
   const groups=quoteGroups();
