@@ -715,7 +715,7 @@ document.addEventListener("keydown",e=>{
   document.activeElement.blur();
   lockToast();
 },true);
-const TODAY=new Date(2026,7,7);
+const TODAY=new Date(); TODAY.setHours(0,0,0,0);
 const OPS=new Date(2026,8,17);      // 17 Sept 2026
 const LAUNCH=new Date(2028,3,1);    // 1 Apr 2028
 
@@ -1048,7 +1048,7 @@ const inr=n=>"₹"+Math.round(n||0).toLocaleString("en-IN");
 const lakh=n=>{n=n||0; return n>=1e7?("₹"+(n/1e7).toFixed(2)+" Cr"):("₹"+(n/1e5).toFixed(2)+" L");};
 const rateOf=b=>b.rate!=null?b.rate:(S.rates[b.rateKey]||0);
 const amt=b=>(b.qty||0)*rateOf(b);
-const dstr=d=>d.toISOString().slice(0,10);
+const dstr=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const dadd=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
 const dparse=s=>{const p=String(s).split("-");return new Date(+p[0],+p[1]-1,+p[2]);};
 const days=(a,b)=>Math.round((b-a)/86400000);
