@@ -498,6 +498,20 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div id="quoteCompare"></div>
 </div>
 
+<!-- ============ EXPENSES ============ -->
+<div class="page" id="p_exp">
+  <h2>Expenses</h2>
+  <p class="small">Voucher-level cost tracking, mirroring the accounts team's ASL Unit-3 A-147 spreadsheet
+  (the "Expenses Sheet" tab). Sync pulls in new rows from that sheet for review — nothing is added
+  automatically. You can also add an expense directly here without touching the spreadsheet.</p>
+  <div class="tools">
+    <button id="expSyncBtn">🔄 Sync from Sheet</button>
+    <button id="expAddBtn" class="primary">+ Add expense</button>
+  </div>
+  <div id="expSummary" style="margin:10px 0 14px"></div>
+  <div id="expList"></div>
+</div>
+
 <!-- ============ DAILY LOG ============ -->
 <div class="page" id="p_daylog">
   <h2>Daily site log</h2>
@@ -941,6 +955,7 @@ if(!Array.isArray(S.tasks)) S.tasks=[];
 if(!Array.isArray(S.photos)) S.photos=[];
 if(S.siteMap===undefined) S.siteMap=null;
 if(!Array.isArray(S.dailyLogs)) S.dailyLogs=[];
+if(!Array.isArray(S.expenses)) S.expenses=[];
 if(!Array.isArray(S.extraAreas)) S.extraAreas=[];
 if(!Array.isArray(S.userZones)) S.userZones=[];
 if(!Array.isArray(S.log)) S.log=[];
@@ -1030,6 +1045,7 @@ async function pullState(){
     if(!Array.isArray(S.tasks)) S.tasks=[];
     if(!Array.isArray(S.photos)) S.photos=[];
     if(!Array.isArray(S.dailyLogs)) S.dailyLogs=[];
+    if(!Array.isArray(S.expenses)) S.expenses=[];
     if(!Array.isArray(S.vendors)) S.vendors=[];
     if(!Array.isArray(S.quotes)) S.quotes=[];
     USERZ=S.userZones=S.userZones||[];
@@ -3261,7 +3277,7 @@ async function tryReconnectFileOnBoot(){
 }
 
 /* ---------- tabs and boot ---------- */
-const TABS=[["plan","🗺️ Site plan"],["boq","💰 BOQ &amp; cost"],["task","🧱 Work items"],["photo","📷 Photos"],
+const TABS=[["plan","🗺️ Site plan"],["boq","💰 BOQ &amp; cost"],["exp","🧾 Expenses"],["task","🧱 Work items"],["photo","📷 Photos"],
             ["vendor","📑 Vendor quotes"],
             ["daylog","📝 Daily log"],["sched","📅 Schedule"],["appr","✅ Approvals"],["cash","💵 Cash flow"],["risk","⚠️ Risks"],
             ["brief","📄 Brief &amp; export"]];
@@ -3280,7 +3296,7 @@ function drawTabs(){ $("#tabs").innerHTML=TABS.map(t=>'<div class="tab" data-t="
 window.addEventListener("resize",()=>positionTabIndicator());
 
 function redraw(){ drawChangeBar(); drawKPIs(); drawSiteMap(); drawPlan(); drawOpenLand(); drawZone(); drawAreaTable(); drawBOQ(); drawRates();
-  drawTasks(); drawPhotos(); drawCompare(); drawVendors(); drawDailyLog(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
+  drawTasks(); drawPhotos(); drawCompare(); drawVendors(); drawExpenses(); drawDailyLog(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
 
 $("#grpBy").onchange=drawBOQ;
 $("#boqFind").oninput=drawBOQ;
@@ -3517,6 +3533,155 @@ function openChatSyncReview(candidates, spaceDisplayName){
       const r=await chatSyncAuthedPost("/api/chat-sync/commit",{items});
       closeModal(); toast(r.applied+" item(s) added to Vikrant");
       await pullState(); drawDailyLog(); redraw();
+    }catch(e){ toast(e.message,true); }
+  };
+}
+
+/* ---------- Expenses: voucher-level costs, synced from the accounts team's sheet or added by hand ---------- */
+function expGroupTotals(){
+  const g={};
+  S.expenses.forEach(e=>{ const k=e.classification||"Other"; g[k]=(g[k]||0)+(Number(e.total)||Number(e.amount)||0); });
+  return g;
+}
+function drawExpenses(){
+  const list=$("#expList"); if(!list) return;
+  const rows=[...S.expenses].sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+  const grand=rows.reduce((s,e)=>s+(Number(e.total)||Number(e.amount)||0),0);
+  const groups=expGroupTotals();
+  const sumEl=$("#expSummary");
+  if(sumEl){
+    sumEl.innerHTML='<div class="kpis" style="margin:0">'
+      +Object.keys(groups).sort().map(k=>'<div class="kpi"><div class="lab">'+esc(k)+'</div>'
+        +'<div class="val" style="font-size:19px">'+inr(groups[k])+'</div></div>').join("")
+      +'<div class="kpi good"><div class="lab">Total</div><div class="val" style="font-size:19px">'+inr(grand)+'</div></div>'
+      +'</div>';
+  }
+  list.innerHTML=rows.length?'<div style="overflow-x:auto"><table><tr><th>Date</th><th>Voucher No</th>'
+    +'<th>Classification</th><th>Ledger</th><th>Party</th><th>Description</th><th class="n">Amount</th>'
+    +'<th class="n">GST</th><th class="n">Total</th><th>Src</th><th></th></tr>'
+    +rows.map(e=>'<tr><td>'+esc(e.date||"")+'</td><td>'+esc(e.voucherNo||"—")+'</td><td>'+esc(e.classification||"")+'</td>'
+      +'<td>'+esc(e.ledger||"")+'</td><td>'+esc(e.partyName||"")+'</td><td>'+esc(e.desc||"")+'</td>'
+      +'<td class="n">'+inr(e.amount||0)+'</td><td class="n">'+inr(e.gst||0)+'</td><td class="n">'+inr(e.total||e.amount||0)+'</td>'
+      +'<td class="small">'+esc(e.source||"manual")+'</td>'
+      +'<td><button class="sm warn" data-expx="'+e.id+'">×</button></td></tr>').join("")
+    +'</table></div>'
+    :'<div class="small">No expenses recorded yet — sync from the sheet or add one manually.</div>';
+  document.querySelectorAll("[data-expx]").forEach(x=>{x.onclick=()=>{
+    if(!confirm("Delete this expense entry?")) return;
+    const e=S.expenses.find(y=>y.id===x.dataset.expx);
+    S.expenses=S.expenses.filter(y=>y.id!==x.dataset.expx);
+    if(e) logChange("Expense deleted: "+(e.desc||e.ledger||"")+" ₹"+(e.total||e.amount||0));
+    save(); drawExpenses();
+  };});
+}
+function openAddExpense(){
+  const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,""))||0;
+  const today=dstr(new Date());
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Add expense</div>'
+    +fRow("Date",'<input type="date" id="eDate" style="width:100%" value="'+today+'">')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Voucher No.",'<input id="eVoucher" style="width:100%">')
+    +fRow("Classification",'<select id="eClass" style="width:100%">'
+      +opts(["Capital Expenses - Land","Capital Expenses - Building","Manpower Expenses","OTHER EXPENSES"],"OTHER EXPENSES")+'</select>')
+    +'</div>'
+    +fRow("Ledger (as per TCSiON)",'<input id="eLedger" style="width:100%" placeholder="e.g. STAFF WELFARE EXPENSES">')
+    +fRow("Party name",'<input id="eParty" style="width:100%">')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Invoice No.",'<input id="eInvNo" style="width:100%">')
+    +fRow("Invoice date",'<input type="date" id="eInvDate" style="width:100%">')
+    +'</div>'
+    +fRow("Description",'<textarea id="eDesc" style="width:100%;min-height:50px"></textarea>')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">'
+    +fRow("Amount (Net) ₹",'<input type="number" id="eAmount" style="width:100%">')
+    +fRow("GST ₹",'<input type="number" id="eGst" style="width:100%" value="0">')
+    +fRow("Total ₹",'<input type="number" id="eTotal" style="width:100%" placeholder="auto if blank">')
+    +'</div>'
+    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">'
+    +'<button id="eCancel">Cancel</button><button id="eSave" class="primary">Add expense</button></div>');
+  $("#eCancel").onclick=closeModal;
+  $("#eSave").onclick=()=>{
+    const amount=num($("#eAmount").value), gst=num($("#eGst").value);
+    const totalRaw=$("#eTotal").value;
+    const total=totalRaw!==""?num(totalRaw):amount+gst;
+    const desc=$("#eDesc").value.trim(), ledger=$("#eLedger").value.trim();
+    S.expenses.push({id:"exp"+Date.now(), date:$("#eDate").value||today, voucherNo:$("#eVoucher").value.trim(),
+      classification:$("#eClass").value, ledger, partyName:$("#eParty").value.trim(),
+      invoiceNo:$("#eInvNo").value.trim(), invoiceDate:$("#eInvDate").value, desc,
+      amount, gst, total, source:"manual"});
+    logChange("Expense added: "+(desc||ledger)+" ₹"+total);
+    closeModal(); save(); drawExpenses(); toast("Expense added");
+  };
+}
+if($("#expAddBtn")) $("#expAddBtn").onclick=openAddExpense;
+
+$("#expSyncBtn").onclick=async()=>{
+  if(!backendConfigured()){ toast("No backend configured yet.",true); return; }
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
+  try{
+    const status=await chatSyncAuthedGet("/api/expense-sync/status");
+    if(!status.connected){
+      openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Connect Google</div>'
+        +'<div style="font-size:12.5px;color:#42506b;margin:10px 0 18px;line-height:1.55">'
+        +"One-time step: sign in with the Google account that can view the ASL Unit-3 A-147 spreadsheet. "
+        +'This opens in a new tab. (Already connected for Chat sync? You may need to reconnect once — this adds '
+        +'a new permission for reading spreadsheets.)</div>'
+        +'<div style="display:flex;justify-content:flex-end;gap:8px">'
+        +'<button id="csCancel">Cancel</button>'
+        +'<a id="csConnect" class="primary" target="_blank" style="text-decoration:none;padding:8px 14px;display:inline-block" '
+        +'href="'+API_BASE+'/api/chat-sync/oauth2/start?key='+encodeURIComponent(localStorage.getItem(ADMIN_LSK)||"")+'">Connect</a>'
+        +'</div>');
+      $("#csCancel").onclick=closeModal;
+      $("#csConnect").onclick=()=>setTimeout(closeModal,300);
+      return;
+    }
+    toast("Checking the spreadsheet for new rows…");
+    const data=await chatSyncAuthedGet("/api/expense-sync/preview");
+    openExpenseSyncReview(data.candidates||[], data.sheetTab);
+  }catch(e){ if(e.message!=="unauthorized") toast(e.message,true); }
+};
+function openExpenseSyncReview(candidates, sheetTab){
+  if(!candidates.length){
+    openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Sync from Sheet</div>'
+      +'<div class="small" style="margin:10px 0 18px">No new rows in &quot;'+esc(sheetTab||"")+'&quot; since the last sync.</div>'
+      +'<div style="display:flex;justify-content:flex-end"><button id="csClose" class="primary">Close</button></div>');
+    $("#csClose").onclick=closeModal;
+    return;
+  }
+  const rows=candidates.map((c,i)=>{
+    const r=c.row;
+    const dupNote=c.likelyDuplicate
+      ? '<div style="color:#B80001;font-size:11px;margin-top:4px">⚠ Looks already recorded'
+        +(c.likelyDuplicate.type==="boq"?(' in BOQ ("'+esc(c.likelyDuplicate.desc||"")+'")')
+          :c.likelyDuplicate.type==="dailyLog"?(' in daily log ('+esc(c.likelyDuplicate.date||"")+')')
+          :(' in expenses ("'+esc(c.likelyDuplicate.desc||"")+'")'))+'</div>'
+      : '';
+    return '<div style="border:1px solid #dfe3e8;border-radius:8px;padding:10px;margin-bottom:10px">'
+      +'<div style="font-size:12.5px;color:#0C013D"><b>'+esc(r.date)+'</b> · '+esc(r.classification)+' · '+esc(r.ledger)+'</div>'
+      +'<div class="small" style="margin-top:2px">'+esc(r.desc)+(r.partyName?' · '+esc(r.partyName):'')
+      +' · ₹'+esc(r.amount)+(r.gst?' +GST ₹'+esc(r.gst):'')+'</div>'
+      +dupNote
+      +'<div style="margin-top:8px">'
+      +'<select class="esAction" data-i="'+i+'">'
+      +'<option value="add"'+(c.likelyDuplicate?"":" selected")+'>Add to Expenses</option>'
+      +'<option value="skip"'+(c.likelyDuplicate?" selected":"")+'>Skip</option>'
+      +'</select></div></div>';
+  }).join("");
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Sync from Sheet</div>'
+    +'<div class="small" style="margin:6px 0 14px">&quot;'+esc(sheetTab||"")+'&quot; · review each row, then Commit.</div>'
+    +'<div style="max-height:50vh;overflow:auto">'+rows+'</div>'
+    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">'
+    +'<button id="csCancel">Cancel</button><button id="csCommit" class="primary">Commit selected</button></div>');
+  $("#csCancel").onclick=closeModal;
+  $("#csCommit").onclick=async()=>{
+    const items=candidates.map((c,i)=>{
+      const sel=document.querySelector('.esAction[data-i="'+i+'"]');
+      const action=sel?sel.value:"skip";
+      return { key:c.key, action, row:c.row };
+    });
+    try{
+      const r=await chatSyncAuthedPost("/api/expense-sync/commit",{items});
+      closeModal(); toast(r.applied+" expense(s) added to Vikrant");
+      await pullState(); drawExpenses(); redraw();
     }catch(e){ toast(e.message,true); }
   };
 }
