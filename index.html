@@ -458,6 +458,7 @@ this is a planning and control tool, not a design or a professional cost certifi
       <option>Rain — partial day</option><option>Extreme heat</option></select>
     <input type="number" id="dlCrew" placeholder="Crew on site" style="width:120px" min="0">
     <button id="dlAdd" class="primary">Add entry</button>
+    <button id="chatSyncBtn">🔄 Sync from Chat</button>
   </div>
   <textarea id="dlNotes" placeholder="What happened today — progress, issues, deliveries, visitors…"
     style="width:100%;min-height:60px;margin-top:6px"></textarea>
@@ -3330,6 +3331,144 @@ $("#dlAdd").onclick=()=>{
   $("#dlNotes").value=""; $("#dlCrew").value="";
   logChange("Daily log entry added for "+date); save(); drawDailyLog(); toast("Daily log entry added");
 };
+
+/* ---------- Chat sync: pull candidate expenses/tasks out of Google Chat for review ----------
+   Writes go straight to the shared backend (not through S+pushState) because each item is
+   applied server-side against the live database, then the browser just re-pulls to pick it up. */
+async function chatSyncAuthedGet(path){
+  const r=await fetch(API_BASE+path,{headers:adminHeaders()});
+  if(r.status===401){ toast("Admin key rejected — click 🔒 to re-enter it",true); throw new Error("unauthorized"); }
+  if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||("HTTP "+r.status)); }
+  return r.json();
+}
+async function chatSyncAuthedPost(path,body){
+  const r=await fetch(API_BASE+path,{method:"POST",
+    headers:Object.assign({"Content-Type":"application/json"},adminHeaders()),body:JSON.stringify(body)});
+  if(r.status===401){ toast("Admin key rejected — click 🔒 to re-enter it",true); throw new Error("unauthorized"); }
+  if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||("HTTP "+r.status)); }
+  return r.json();
+}
+$("#chatSyncBtn").onclick=async()=>{
+  if(!backendConfigured()){ toast("No backend configured yet.",true); return; }
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
+  try{
+    const status=await chatSyncAuthedGet("/api/chat-sync/status");
+    if(!status.connected){
+      openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Connect Google Chat</div>'
+        +'<div style="font-size:12.5px;color:#42506b;margin:10px 0 18px;line-height:1.55">'
+        +"One-time step: sign in with the Google account that is a member of the project's Chat space. "
+        +'This opens in a new tab.</div>'
+        +'<div style="display:flex;justify-content:flex-end;gap:8px">'
+        +'<button id="csCancel">Cancel</button>'
+        +'<a id="csConnect" class="primary" target="_blank" style="text-decoration:none;padding:8px 14px;display:inline-block" '
+        +'href="'+API_BASE+'/api/chat-sync/oauth2/start?key='+encodeURIComponent(localStorage.getItem(ADMIN_LSK)||"")+'">Connect</a>'
+        +'</div>');
+      $("#csCancel").onclick=closeModal;
+      $("#csConnect").onclick=()=>setTimeout(closeModal,300);
+      return;
+    }
+    if(!status.spaceId){
+      const data=await chatSyncAuthedGet("/api/chat-sync/spaces");
+      if(!data.spaces||!data.spaces.length){ toast("Connected, but no Chat spaces visible to that account.",true); return; }
+      openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Pick the Chat space</div>'
+        +'<div class="small" style="margin-bottom:12px">Which space should Vikrant read for expenses and tasks?</div>'
+        +'<select id="csSpace" style="width:100%">'
+        +data.spaces.map(s=>'<option value="'+attr(s.name)+'">'+esc(s.displayName)+'</option>').join("")
+        +'</select>'
+        +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">'
+        +'<button id="csCancel">Cancel</button><button id="csSaveSpace" class="primary">Save</button></div>');
+      $("#csCancel").onclick=closeModal;
+      $("#csSaveSpace").onclick=async()=>{
+        const sel=$("#csSpace"); const name=sel.value; const label=sel.options[sel.selectedIndex].text;
+        try{ await chatSyncAuthedPost("/api/chat-sync/space",{spaceId:name,spaceDisplayName:label});
+          closeModal(); toast("Space saved — click Sync from Chat again."); }
+        catch(e){ toast(e.message,true); }
+      };
+      return;
+    }
+    toast("Checking chat for new items…");
+    const data=await chatSyncAuthedGet("/api/chat-sync/preview");
+    openChatSyncReview(data.candidates||[], data.spaceDisplayName);
+  }catch(e){ if(e.message!=="unauthorized") toast(e.message,true); }
+};
+function openChatSyncReview(candidates, spaceDisplayName){
+  if(!candidates.length){
+    openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Sync from Chat</div>'
+      +'<div class="small" style="margin:10px 0 18px">No new messages in &quot;'+esc(spaceDisplayName||"")+'&quot; since the last sync.</div>'
+      +'<div style="display:flex;justify-content:flex-end"><button id="csClose" class="primary">Close</button></div>');
+    $("#csClose").onclick=closeModal;
+    return;
+  }
+  const rows=candidates.map((c,i)=>{
+    const d=c.createTime?dstr(new Date(c.createTime)):"";
+    const dupNote=c.likelyDuplicate
+      ? '<div style="color:#B80001;font-size:11px;margin-top:4px">⚠ Looks already recorded'
+        +(c.likelyDuplicate.type==="boq"?(' in BOQ ("'+esc(c.likelyDuplicate.desc||"")+'")'):(' in daily log ('+esc(c.likelyDuplicate.date||"")+')'))+'</div>'
+      : '';
+    const defaultAction=c.likelyDuplicate?"skip":"dailyLog";
+    return '<div style="border:1px solid #dfe3e8;border-radius:8px;padding:10px;margin-bottom:10px">'
+      +'<div style="font-size:12.5px;color:#0C013D">'+esc(c.text)+'</div>'
+      +'<div class="small" style="color:#6b7684;margin-top:3px">'+esc(d)+(c.sender?' · '+esc(c.sender):'')
+      +(c.extractedAmount!=null?' · ₹'+c.extractedAmount.toLocaleString("en-IN"):'')+'</div>'
+      +dupNote
+      +'<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+      +'<select class="csAction" data-i="'+i+'">'
+      +'<option value="skip"'+(defaultAction==="skip"?" selected":"")+'>Skip</option>'
+      +'<option value="dailyLog"'+(defaultAction==="dailyLog"?" selected":"")+'>Add to Daily Log</option>'
+      +'<option value="boq">Add as BOQ line</option>'
+      +'</select>'
+      +'<span class="csFields" data-i="'+i+'" style="display:flex;gap:6px;flex-wrap:wrap"></span>'
+      +'</div></div>';
+  }).join("");
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Sync from Chat</div>'
+    +'<div class="small" style="margin:6px 0 14px">&quot;'+esc(spaceDisplayName||"")+'&quot; · review each item, then Commit.</div>'
+    +'<div style="max-height:50vh;overflow:auto">'+rows+'</div>'
+    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">'
+    +'<button id="csCancel">Cancel</button><button id="csCommit" class="primary">Commit selected</button></div>');
+  $("#csCancel").onclick=closeModal;
+  document.querySelectorAll(".csAction").forEach(sel=>{
+    const i=+sel.dataset.i;
+    const renderFields=()=>{
+      const box=document.querySelector('.csFields[data-i="'+i+'"]');
+      const c=candidates[i];
+      if(sel.value==="dailyLog"){
+        const d=c.createTime?dstr(new Date(c.createTime)):dstr(new Date());
+        box.innerHTML='<input type="date" class="csDate" value="'+d+'" style="width:140px">';
+      } else if(sel.value==="boq"){
+        box.innerHTML='<input class="csArea" placeholder="Area" value="OTHER" style="width:90px">'
+          +'<select class="csTrade">'+["Other","Civil","Electrical","Utilities","Interiors","HVAC","Fire","Security","Equipment"]
+            .map(t=>'<option'+(t==="Other"?" selected":"")+'>'+t+'</option>').join("")+'</select>'
+          +'<select class="csPhase"><option value="1" selected>P1</option><option value="2">P2</option></select>'
+          +'<input class="csOwner" placeholder="Owner" style="width:70px">'
+          +'<input class="csAmount" type="number" placeholder="Amount" value="'+(c.extractedAmount||0)+'" style="width:90px">';
+      } else { box.innerHTML=""; }
+    };
+    sel.onchange=renderFields; renderFields();
+  });
+  $("#csCommit").onclick=async()=>{
+    const items=candidates.map((c,i)=>{
+      const sel=document.querySelector('.csAction[data-i="'+i+'"]');
+      const action=sel?sel.value:"skip";
+      const item={messageId:c.messageId,createTime:c.createTime,action};
+      if(action==="dailyLog"){
+        const box=document.querySelector('.csFields[data-i="'+i+'"]');
+        item.dailyLog={date:box.querySelector(".csDate").value, notes:c.text};
+      } else if(action==="boq"){
+        const box=document.querySelector('.csFields[data-i="'+i+'"]');
+        item.boq={area:box.querySelector(".csArea").value||"OTHER", trade:box.querySelector(".csTrade").value,
+          phase:box.querySelector(".csPhase").value, owner:box.querySelector(".csOwner").value,
+          amount:box.querySelector(".csAmount").value, desc:c.text};
+      }
+      return item;
+    });
+    try{
+      const r=await chatSyncAuthedPost("/api/chat-sync/commit",{items});
+      closeModal(); toast(r.applied+" item(s) added to Vikrant");
+      await pullState(); drawDailyLog(); redraw();
+    }catch(e){ toast(e.message,true); }
+  };
+}
+
 $("#mapUpload").onclick=()=>$("#mapIn").click();
 $("#mapIn").onchange=e=>{ const f=e.target.files[0]; if(f) uploadSiteMap(f); e.target.value=""; };
 $("#pUpload").onclick=()=>$("#photoIn").click();
