@@ -3673,8 +3673,8 @@ function openExpenseSyncReview(candidates, sheetTab){
       +dupNote
       +'<div style="margin-top:8px">'
       +'<select class="esAction" data-i="'+i+'">'
-      +'<option value="add"'+(c.likelyDuplicate?"":" selected")+'>Add to Expenses</option>'
-      +'<option value="skip"'+(c.likelyDuplicate?" selected":"")+'>Skip</option>'
+      +'<option value="add" selected>Add to Expenses</option>'
+      +'<option value="skip">Skip</option>'
       +'</select></div></div>';
   }).join("");
   openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Sync from Sheet</div>'
