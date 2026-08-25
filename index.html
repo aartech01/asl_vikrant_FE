@@ -46,7 +46,7 @@ tr.tot td { background:#E0E0EA; font-weight:700 }
        border-radius:7px 7px 0 0; font-size:13px; color:#42506b; font-weight:500 }
 .tab:hover:not(.on) { background:#fff; border-color:#B80001; color:#B80001 }
 .tab.on { background:#0C013D; border-color:#0C013D; color:#fff; font-weight:700;
-          box-shadow:0 2px 10px rgba(12,1,61,.28); margin-bottom:-2px }
+          box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 2px 10px rgba(12,1,61,.28); margin-bottom:-2px }
 .page { display:none; padding-top:14px } .page.on { display:block }
 .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:12px 0 4px }
 .kpi { border:1px solid #dfe3e8; border-radius:8px; padding:10px 12px; background:#F6F6F6 }
@@ -71,7 +71,7 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 .barrow { display:flex; align-items:center; gap:7px; margin-bottom:4px; font-size:11px }
 .barrow .nm { width:120px; color:#57606a; flex:none }
 .barrow .tr { flex:1; background:#E4E4EA; border-radius:3px; height:13px; overflow:hidden }
-.barrow .fl { height:100%; background:#0C013D }
+.barrow .fl { height:100%; background:linear-gradient(90deg,#0C013D,#241454) }
 .barrow .vl { width:88px; text-align:right; flex:none; font-variant-numeric:tabular-nums }
 .gantt { overflow-x:auto; border:1px solid #dfe3e8; border-radius:8px }
 .gantt table { font-size:11px; min-width:900px }
@@ -80,7 +80,8 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 .gbar { position:relative; height:13px; border-radius:3px; background:rgba(12,1,61,.1); margin:4px 0;
   overflow:hidden; border-left:3px solid #0C013D }
 .gbar.p2 { border-left-color:#2602C2 }
-.gbar-fill { position:absolute; inset:0; border-radius:0 3px 3px 0 }
+.gbar-fill { position:absolute; inset:0; border-radius:0 3px 3px 0;
+  background-image:linear-gradient(180deg,rgba(255,255,255,.28),transparent 60%) }
 .gbar.ontrack .gbar-fill, .gbar.done .gbar-fill { background:#4E7A33 }
 .gbar.delayed .gbar-fill { background:#F6C547 }
 .gbar.critical .gbar-fill { background:#B80001 }
@@ -123,7 +124,7 @@ body.dark-mode .no-invert{ filter:invert(1) hue-rotate(180deg) }
 /* ---------- KPI hero (north-star metric) ---------- */
 .kpi-hero{ grid-column:1/-1; display:flex; align-items:center; gap:20px; border:1px solid #0C013D;
   border-radius:10px; padding:16px 22px; background:linear-gradient(135deg,#0C013D,#241454);
-  box-shadow:0 4px 18px rgba(12,1,61,.28); animation:kpiIn .35s ease }
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 4px 18px rgba(12,1,61,.28); animation:kpiIn .35s ease }
 .ring-wrap{ position:relative; width:92px; height:92px; flex:none }
 .ring{ width:92px; height:92px; transform:rotate(-90deg) }
 .ring-bg{ fill:none; stroke:rgba(255,255,255,.18); stroke-width:10 }
@@ -154,25 +155,48 @@ body.dark-mode .no-invert{ filter:invert(1) hue-rotate(180deg) }
   width:100%; border:1px solid #dfe3e8; border-radius:7px; overflow:hidden; background:#fff }
 .pcard.tagged{ border-color:#0C013D }
 
+/* ---------- visual design system: focus, selection, scrollbar, surface depth ----------
+   Small, global, additive touches — none of them change layout, so nothing downstream
+   (BOQ table, gantt, photos grid, mobile nav) needs to change to pick them up. */
+::selection{ background:#0C013D; color:#fff }
+::-webkit-scrollbar{ width:10px; height:10px }
+::-webkit-scrollbar-track{ background:#F2F2F2 }
+::-webkit-scrollbar-thumb{ background:#0C013D; border-radius:6px; border:2px solid #F2F2F2 }
+::-webkit-scrollbar-thumb:hover{ background:#B80001 }
+*{ scrollbar-color:#0C013D #F2F2F2; scrollbar-width:thin }
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.tab:focus-visible{
+  outline:2px solid #B80001; outline-offset:2px; border-radius:4px }
+body{ background:radial-gradient(1200px 800px at 50% -10%,#F7F7FC 0%,#fff 55%) }
+tbody tr{ transition:background .12s ease }
+tbody tr:hover td{ background:#FAFAFD }
+tr.grp:hover td{ background:#EDEDF3 } tr.tot:hover td{ background:#E0E0EA }
+.pcard{ transition:box-shadow .2s ease,transform .2s cubic-bezier(.34,1.56,.64,1) }
+.pcard:hover{ box-shadow:0 8px 20px rgba(12,1,61,.14); transform:translateY(-2px) }
+.pill{ font-weight:600; box-shadow:inset 0 0 0 1px rgba(0,0,0,.03) }
+h1{ text-shadow:0 1px 0 rgba(255,255,255,.5) }
+
 /* ---------- animation ---------- */
 :root{ --ease-spring:cubic-bezier(.34,1.56,.64,1); --ease-smooth:cubic-bezier(.16,1,.3,1) }
 button{ transition:background .15s ease,transform .12s var(--ease-spring),box-shadow .15s ease }
 button:hover:not(:disabled){ transform:translateY(-1px) }
 button:active:not(:disabled){ transform:translateY(0) scale(.96) }
-button.primary{ position:relative; overflow:hidden; box-shadow:0 2px 10px rgba(12,1,61,.22) }
-button.primary:hover:not(:disabled){ box-shadow:0 5px 16px rgba(12,1,61,.38) }
+button.primary{ position:relative; overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 2px 10px rgba(12,1,61,.22) }
+button.primary:hover:not(:disabled){ box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 5px 16px rgba(12,1,61,.38) }
 button.primary::after{ content:""; position:absolute; top:0; left:-60%; width:35%; height:100%;
   background:linear-gradient(120deg,transparent,rgba(255,255,255,.4),transparent);
   transform:skewX(-20deg); transition:left .65s ease; pointer-events:none }
 button.primary:hover::after{ left:130% }
-.kpi{ transition:transform .2s var(--ease-spring),box-shadow .2s ease; animation:kpiIn .5s var(--ease-spring) both }
+.kpi{ transition:transform .2s var(--ease-spring),box-shadow .2s ease; animation:kpiIn .5s var(--ease-spring) both;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 1px 2px rgba(12,1,61,.05) }
 .kpi:nth-child(2){animation-delay:.02s} .kpi:nth-child(3){animation-delay:.06s}
 .kpi:nth-child(4){animation-delay:.10s} .kpi:nth-child(5){animation-delay:.14s}
 .kpi:nth-child(6){animation-delay:.18s} .kpi:nth-child(7){animation-delay:.22s}
 .kpi:nth-child(8){animation-delay:.26s}
-.kpi:hover{ transform:translateY(-4px) scale(1.015); box-shadow:0 12px 28px rgba(12,1,61,.16) }
+.kpi:hover{ transform:translateY(-4px) scale(1.015);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 12px 28px rgba(12,1,61,.16) }
 .kpi-hero{ background-size:220% 220%; animation:kpiIn .45s var(--ease-spring),heroGlow 9s ease infinite }
-.kpi-hero:hover{ box-shadow:0 10px 34px rgba(12,1,61,.4) }
+.kpi-hero:hover{ box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 34px rgba(12,1,61,.4) }
 .ring-wrap::after{ content:""; position:absolute; inset:-7px; border-radius:50%;
   box-shadow:0 0 22px 3px rgba(246,197,71,.4); animation:ringGlow 2.6s ease infinite; pointer-events:none }
 .tab{ transition:background .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .15s var(--ease-spring) }
@@ -537,10 +561,11 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div id="backupStatus" class="small" style="margin-top:6px"></div>
 </div>
 
-<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(12,1,61,.45);z-index:200;
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(12,1,61,.45);
+     backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:200;
      align-items:center;justify-content:center;padding:16px">
   <div id="modalBox" style="background:#fff;border-radius:10px;padding:18px;max-width:600px;width:100%;
-       max-height:88vh;overflow:auto;box-shadow:0 12px 44px rgba(0,0,0,.32)"></div>
+       max-height:88vh;overflow:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 20px 50px rgba(12,1,61,.35)"></div>
 </div>
 
 <script>
