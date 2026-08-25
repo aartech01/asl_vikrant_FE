@@ -507,7 +507,10 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div class="tools">
     <button id="expSyncBtn">🔄 Sync from Sheet</button>
     <button id="expAddBtn" class="primary">+ Add expense</button>
+    <button id="googleReconnectBtn">🔗 Reconnect Google</button>
   </div>
+  <p class="small">If sync says "insufficient permission," click Reconnect Google above — it re-approves
+  access using your saved admin key, no need to build any link by hand.</p>
   <div id="expSummary" style="margin:10px 0 14px"></div>
   <div id="expList"></div>
 </div>
@@ -3416,6 +3419,14 @@ async function chatSyncAuthedPost(path,body){
   if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||("HTTP "+r.status)); }
   return r.json();
 }
+if($("#googleReconnectBtn")) $("#googleReconnectBtn").onclick=()=>{
+  if(!backendConfigured()){ toast("No backend configured yet.",true); return; }
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
+  const key=localStorage.getItem(ADMIN_LSK)||"";
+  if(!key){ toast("No admin key saved in this browser — unlock editing first.",true); return; }
+  window.open(API_BASE+"/api/chat-sync/oauth2/start?key="+encodeURIComponent(key),"_blank");
+  toast("Opening Google sign-in in a new tab — approve access, then try Sync again.");
+};
 $("#chatSyncBtn").onclick=async()=>{
   if(!backendConfigured()){ toast("No backend configured yet.",true); return; }
   if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
