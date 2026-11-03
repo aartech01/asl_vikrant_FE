@@ -552,7 +552,13 @@ this is a planning and control tool, not a design or a professional cost certifi
   </div>
   <div id="expReport"></div>
   <h3 style="margin-top:18px">All entries, date-wise</h3>
-  <div class="exfilters"><label>Order <select id="expFSort"><option value="asc">Oldest first</option><option value="desc">Newest first</option></select></label></div>
+  <div class="exfilters">
+    <div style="position:relative;flex:1 1 280px;max-width:520px">
+      <input id="expTQ" type="search" placeholder="🔍 Search entries — party, description, voucher no, amount, date…" style="width:100%;padding-right:28px">
+    </div>
+    <span id="expTCount" class="small"></span>
+    <label>Order <select id="expFSort"><option value="asc">Oldest first</option><option value="desc">Newest first</option></select></label>
+  </div>
   <div id="expList"></div>
   <div id="expTip"></div>
 </div>
@@ -3870,7 +3876,11 @@ function expFiltered(){
     if(EXPF.flagged&&!expFlags(e).length) return false;
     if(EXPF.month&&w.slice(0,7)!==EXPF.month) return false;
     if(EXPF.cls&&expClass(e.classification)!==EXPF.cls) return false;
-    if(q&&[e.partyName,e.ledger,e.desc,e.voucherNo,e.invoiceNo,e.classification].join(" ").toLowerCase().indexOf(q)<0) return false;
+    if(q){ const hay=[e.partyName,e.ledger,e.desc,e.voucherNo,e.invoiceNo,expClass(e.classification),
+        expFmtDate(expISO(e.date)),expFmtDate(expISO(e.invoiceDate)),expISO(e.date),
+        expNum(e.amount),expNum(e.gst),expTot(e),inr(expNum(e.amount)),inr(expTot(e))].join(" ").toLowerCase();
+      const hayNum=hay.replace(/,/g,"");
+      if(!q.split(/\s+/).every(w=>hay.indexOf(w)>=0||hayNum.indexOf(w.replace(/[,₹]/g,""))>=0)) return false; }
     return true; });
 }
 function drawExpFilters(){
@@ -4135,8 +4145,17 @@ function expBudgetPanel(){
 }
 
 /* ---------- date-wise table, grouped by month with subtotals ---------- */
+function expHL(text){
+  const t=esc(text); const q=EXPF.q.trim(); if(!q) return t;
+  const words=q.split(/\s+/).filter(w=>w.length>0).map(w=>esc(w).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+  if(!words.length) return t;
+  return t.replace(new RegExp("("+words.join("|")+")","gi"),'<mark style="background:#ffe58a;padding:0 1px;border-radius:2px">$1</mark>');
+}
 function drawExpTable(){
   const list=$("#expList"); if(!list) return;
+  const cnt=$("#expTCount");
+  if(cnt){ const n=expFiltered().length, all=S.expenses.length;
+    cnt.innerHTML=EXPF.q.trim()?('<b>'+n+'</b> of '+all+' entries match'+(n?'':' — try fewer words')):(n<all?'<b>'+n+'</b> of '+all+' entries shown':all+' entries'); }
   const rows=expFiltered().sort((a,b)=>{ const c=expWhen(a).localeCompare(expWhen(b))||String(a.voucherNo||"").localeCompare(String(b.voucherNo||""));
     return EXPF.sort==="asc"?c:-c; });
   if(!rows.length){ list.innerHTML='<div class="small">'+(S.expenses.length?"No entries match these filters.":"No expenses recorded yet — sync from the sheet or add one manually.")+'</div>'; return; }
@@ -4155,9 +4174,9 @@ function drawExpTable(){
     const bad=Math.abs(a+g-t)>1;
     const d1=by?e.date:e.invoiceDate, d2=by?e.invoiceDate:e.date;
     h+='<tr><td style="white-space:nowrap">'+expFmtDate(expISO(d1)||expISO(e.date))+'</td><td class="small" style="white-space:nowrap">'+expFmtDate(expISO(d2))+'</td>'
-      +'<td style="white-space:nowrap">'+esc(e.voucherNo||"—")+'</td>'
+      +'<td style="white-space:nowrap">'+(e.voucherNo?expHL(e.voucherNo):"—")+'</td>'
       +'<td><i style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:'+expColor(e.classification).replace(/var\(--s(\d)\)/,(x,n)=>["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#6250d6","#e34948"][n-1])+'"></i>'+esc(expClass(e.classification))+'</td>'
-      +'<td>'+esc(e.ledger||"")+'</td><td>'+esc(e.partyName||"")+'</td><td>'+esc(e.desc||"")+'</td>'
+      +'<td>'+expHL(e.ledger||"")+'</td><td>'+expHL(e.partyName||"")+'</td><td>'+expHL(e.desc||"")+'</td>'
       +'<td class="n">'+inr(a)+'</td><td class="n">'+inr(g)+'</td>'
       +'<td class="n"'+(bad?' title="Net + GST = '+inr(a+g)+' — does not equal this total. Click Edit to fix." style="color:#B80001;font-weight:600"':"")+'>'+inr(t)+(bad?" ⚠":"")+'</td>'
       +'<td class="small">'+(e.source==="sheet"?(e.sheetOrig?'sheet <b style="color:#B80001">· edited</b>':"sheet"):"manual")+'</td>'
@@ -4166,7 +4185,7 @@ function drawExpTable(){
   });
   flush();
   h+='<tr class="tot"><td colspan="7">TOTAL · '+rows.length+' entries</td><td class="n">'+inr(grand.a)+'</td><td class="n">'+inr(grand.g)+'</td><td class="n">'+inr(grand.t)+'</td><td colspan="2"></td></tr></table></div>'
-    +'<div class="small" style="margin-top:6px">Sheet rows are edited in the sheet, then synced — that keeps the two from drifting apart.</div>';
+    +'<div class="small" style="margin-top:6px">Click ✏️ Edit to fix an entry. Fixes to sheet rows stay on this page — ask accounts to correct the sheet too.</div>';
   list.innerHTML=h;
   if($("#expFlagOff")) $("#expFlagOff").onclick=()=>{ EXPF.flagged=false; drawExpenses(); };
   document.querySelectorAll("[data-expe]").forEach(x=>{ x.onclick=()=>openAddExpense(x.dataset.expe); });
@@ -4270,7 +4289,12 @@ $("#expFDateBy").onchange=e=>{ EXPF.dateBy=e.target.value; drawExpenses(); };
 $("#expFSort").onchange=e=>{ EXPF.sort=e.target.value; drawExpTable(); };
 $("#expFBig").onchange=e=>{ EXPF.hideBig=e.target.checked; drawExpReport(); };
 let expQTimer=null;
-$("#expFQ").oninput=e=>{ clearTimeout(expQTimer); expQTimer=setTimeout(()=>{ EXPF.q=e.target.value; drawExpReport(); drawExpTable(); },200); };
+function expSetQuery(v,from){
+  if(from!=="top") $("#expFQ").value=v; if(from!=="table") $("#expTQ").value=v;
+  clearTimeout(expQTimer); expQTimer=setTimeout(()=>{ EXPF.q=v; drawExpReport(); drawExpTable(); },200); }
+$("#expFQ").oninput=e=>expSetQuery(e.target.value,"top");
+$("#expTQ").oninput=e=>expSetQuery(e.target.value,"table");
+$("#expTQ").onkeydown=e=>{ if(e.key==="Escape"){ e.target.value=""; expSetQuery("","table"); } };
 $("#expCsvBtn").onclick=()=>{
   const rows=expFiltered().sort((a,b)=>expWhen(a).localeCompare(expWhen(b)));
   const out=[["Voucher Date","Voucher No.","Classification","Ledger","Party Name","Invoice No.","Invoice Date","Description","Amount (Net)","GST","Total Amount","Source"]]
