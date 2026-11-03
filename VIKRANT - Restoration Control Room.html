@@ -46,7 +46,7 @@ tr.tot td { background:#E0E0EA; font-weight:700 }
        border-radius:7px 7px 0 0; font-size:13px; color:#42506b; font-weight:500 }
 .tab:hover:not(.on) { background:#fff; border-color:#B80001; color:#B80001 }
 .tab.on { background:#0C013D; border-color:#0C013D; color:#fff; font-weight:700;
-          box-shadow:0 2px 10px rgba(12,1,61,.28); margin-bottom:-2px }
+          box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 2px 10px rgba(12,1,61,.28); margin-bottom:-2px }
 .page { display:none; padding-top:14px } .page.on { display:block }
 .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:12px 0 4px }
 .kpi { border:1px solid #dfe3e8; border-radius:8px; padding:10px 12px; background:#F6F6F6 }
@@ -71,7 +71,7 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 .barrow { display:flex; align-items:center; gap:7px; margin-bottom:4px; font-size:11px }
 .barrow .nm { width:120px; color:#57606a; flex:none }
 .barrow .tr { flex:1; background:#E4E4EA; border-radius:3px; height:13px; overflow:hidden }
-.barrow .fl { height:100%; background:#0C013D }
+.barrow .fl { height:100%; background:linear-gradient(90deg,#0C013D,#241454) }
 .barrow .vl { width:88px; text-align:right; flex:none; font-variant-numeric:tabular-nums }
 .gantt { overflow-x:auto; border:1px solid #dfe3e8; border-radius:8px }
 .gantt table { font-size:11px; min-width:900px }
@@ -80,7 +80,8 @@ svg .zn.sel .fill { stroke:#0C013D; stroke-width:2.4 }
 .gbar { position:relative; height:13px; border-radius:3px; background:rgba(12,1,61,.1); margin:4px 0;
   overflow:hidden; border-left:3px solid #0C013D }
 .gbar.p2 { border-left-color:#2602C2 }
-.gbar-fill { position:absolute; inset:0; border-radius:0 3px 3px 0 }
+.gbar-fill { position:absolute; inset:0; border-radius:0 3px 3px 0;
+  background-image:linear-gradient(180deg,rgba(255,255,255,.28),transparent 60%) }
 .gbar.ontrack .gbar-fill, .gbar.done .gbar-fill { background:#4E7A33 }
 .gbar.delayed .gbar-fill { background:#F6C547 }
 .gbar.critical .gbar-fill { background:#B80001 }
@@ -123,7 +124,7 @@ body.dark-mode .no-invert{ filter:invert(1) hue-rotate(180deg) }
 /* ---------- KPI hero (north-star metric) ---------- */
 .kpi-hero{ grid-column:1/-1; display:flex; align-items:center; gap:20px; border:1px solid #0C013D;
   border-radius:10px; padding:16px 22px; background:linear-gradient(135deg,#0C013D,#241454);
-  box-shadow:0 4px 18px rgba(12,1,61,.28); animation:kpiIn .35s ease }
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 4px 18px rgba(12,1,61,.28); animation:kpiIn .35s ease }
 .ring-wrap{ position:relative; width:92px; height:92px; flex:none }
 .ring{ width:92px; height:92px; transform:rotate(-90deg) }
 .ring-bg{ fill:none; stroke:rgba(255,255,255,.18); stroke-width:10 }
@@ -154,31 +155,81 @@ body.dark-mode .no-invert{ filter:invert(1) hue-rotate(180deg) }
   width:100%; border:1px solid #dfe3e8; border-radius:7px; overflow:hidden; background:#fff }
 .pcard.tagged{ border-color:#0C013D }
 
+/* ---------- visual design system: focus, selection, scrollbar, surface depth ----------
+   Small, global, additive touches — none of them change layout, so nothing downstream
+   (BOQ table, gantt, photos grid, mobile nav) needs to change to pick them up. */
+::selection{ background:#0C013D; color:#fff }
+::-webkit-scrollbar{ width:10px; height:10px }
+::-webkit-scrollbar-track{ background:#F2F2F2 }
+::-webkit-scrollbar-thumb{ background:#0C013D; border-radius:6px; border:2px solid #F2F2F2 }
+::-webkit-scrollbar-thumb:hover{ background:#B80001 }
+*{ scrollbar-color:#0C013D #F2F2F2; scrollbar-width:thin }
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.tab:focus-visible{
+  outline:2px solid #B80001; outline-offset:2px; border-radius:4px }
+body{ background:radial-gradient(1200px 800px at 50% -10%,#F7F7FC 0%,#fff 55%) }
+tbody tr{ transition:background .12s ease }
+tbody tr:hover td{ background:#FAFAFD }
+tr.grp:hover td{ background:#EDEDF3 } tr.tot:hover td{ background:#E0E0EA }
+.pcard{ transition:box-shadow .2s ease,transform .2s cubic-bezier(.34,1.56,.64,1) }
+.pcard:hover{ box-shadow:0 8px 20px rgba(12,1,61,.14); transform:translateY(-2px) }
+.pill{ font-weight:600; box-shadow:inset 0 0 0 1px rgba(0,0,0,.03) }
+h1{ text-shadow:0 1px 0 rgba(255,255,255,.5) }
+
 /* ---------- animation ---------- */
-button{ transition:background .15s ease,transform .1s ease,box-shadow .15s ease }
+:root{ --ease-spring:cubic-bezier(.34,1.56,.64,1); --ease-smooth:cubic-bezier(.16,1,.3,1) }
+button{ transition:background .15s ease,transform .12s var(--ease-spring),box-shadow .15s ease }
 button:hover:not(:disabled){ transform:translateY(-1px) }
-button:active:not(:disabled){ transform:translateY(0) }
-.kpi{ transition:transform .15s ease,box-shadow .15s ease; animation:kpiIn .35s ease }
-.kpi:hover{ transform:translateY(-2px); box-shadow:0 4px 14px rgba(12,1,61,.12) }
-.tab{ transition:background .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease }
-.page.on{ animation:pageIn .32s cubic-bezier(.16,1,.3,1) }
-.barrow .fl{ transition:width .6s ease } .gbar-fill{ transition:width .5s ease }
+button:active:not(:disabled){ transform:translateY(0) scale(.96) }
+button.primary{ position:relative; overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 2px 10px rgba(12,1,61,.22) }
+button.primary:hover:not(:disabled){ box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 5px 16px rgba(12,1,61,.38) }
+button.primary::after{ content:""; position:absolute; top:0; left:-60%; width:35%; height:100%;
+  background:linear-gradient(120deg,transparent,rgba(255,255,255,.4),transparent);
+  transform:skewX(-20deg); transition:left .65s ease; pointer-events:none }
+button.primary:hover::after{ left:130% }
+.kpi{ transition:transform .2s var(--ease-spring),box-shadow .2s ease; animation:kpiIn .5s var(--ease-spring) both;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 1px 2px rgba(12,1,61,.05) }
+.kpi:nth-child(2){animation-delay:.02s} .kpi:nth-child(3){animation-delay:.06s}
+.kpi:nth-child(4){animation-delay:.10s} .kpi:nth-child(5){animation-delay:.14s}
+.kpi:nth-child(6){animation-delay:.18s} .kpi:nth-child(7){animation-delay:.22s}
+.kpi:nth-child(8){animation-delay:.26s}
+.kpi:hover{ transform:translateY(-4px) scale(1.015);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 12px 28px rgba(12,1,61,.16) }
+.kpi-hero{ background-size:220% 220%; animation:kpiIn .45s var(--ease-spring),heroGlow 9s ease infinite }
+.kpi-hero:hover{ box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 34px rgba(12,1,61,.4) }
+.ring-wrap::after{ content:""; position:absolute; inset:-7px; border-radius:50%;
+  box-shadow:0 0 22px 3px rgba(246,197,71,.4); animation:ringGlow 2.6s ease infinite; pointer-events:none }
+.tab{ transition:background .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .15s var(--ease-spring) }
+.tab:hover:not(.on){ transform:translateY(-1px) }
+.page.on{ animation:pageIn .4s var(--ease-smooth) }
+.barrow .fl{ transition:width .7s var(--ease-smooth) } .gbar-fill{ transition:width .6s var(--ease-smooth) }
 #syncBar{ display:flex; align-items:center; flex-wrap:wrap }
 .sync-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:none }
 .sync-dot.live{ animation:pulse 2s infinite }
 .toast{ position:fixed; right:16px; bottom:16px; background:#0C013D; color:#fff; padding:9px 16px;
   border-radius:7px; font-size:12.5px; box-shadow:0 8px 24px rgba(0,0,0,.22); z-index:400;
-  animation:slideIn .3s ease }
+  animation:slideIn .4s var(--ease-spring) }
 .toast.bad{ background:#B80001 }
 .toast.out{ animation:slideOut .3s ease forwards }
-#modalBox{ animation:popIn .18s ease }
-@keyframes kpiIn{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
-@keyframes pageIn{ from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+#modal{ animation:fadeIn .2s ease }
+#modalBox{ animation:popIn .3s var(--ease-spring) }
+@keyframes kpiIn{ from{opacity:0;transform:translateY(10px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes pageIn{ from{opacity:0;transform:translateY(8px) scale(.99)} to{opacity:1;transform:translateY(0) scale(1)} }
 @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(78,122,51,.5)} 70%{box-shadow:0 0 0 8px rgba(78,122,51,0)}
   100%{box-shadow:0 0 0 0 rgba(78,122,51,0)} }
+@keyframes ringGlow{ 0%,100%{opacity:.55;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }
+@keyframes heroGlow{ 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
 @keyframes slideIn{ from{transform:translateX(120%);opacity:0} to{transform:translateX(0);opacity:1} }
 @keyframes slideOut{ to{transform:translateX(120%);opacity:0} }
-@keyframes popIn{ from{transform:scale(.96);opacity:0} to{transform:scale(1);opacity:1} }
+@keyframes popIn{ from{transform:scale(.9) translateY(6px);opacity:0} to{transform:scale(1) translateY(0);opacity:1} }
+@keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+
+/* respects the OS-level "reduce motion" accessibility setting — everyone else gets the
+   effects above, this group gets the same end states with none of the movement */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important;
+    transition-duration:.001ms !important; scroll-behavior:auto !important }
+}
 </style>
 </head>
 <body>
@@ -447,6 +498,65 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div id="quoteCompare"></div>
 </div>
 
+<!-- ============ EXPENSES ============ -->
+<div class="page" id="p_exp">
+  <style>
+  .exv{ --exv-surface:#fcfcfb; --exv-ink:#0b0b0b; --exv-ink2:#52514e; --exv-muted:#8a8984; --exv-grid:#e6e5e0; --exv-line:#dfe3e8;
+        --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+        background:var(--exv-surface); color:var(--exv-ink); border:1px solid var(--exv-line); border-radius:10px; padding:14px 16px; margin:12px 0 }
+  body.dark-mode .exv{ --exv-surface:#1a1a19; --exv-ink:#f0efec; --exv-ink2:#c3c2b7; --exv-muted:#8f8e86; --exv-grid:#33332f; --exv-line:#3a3a36;
+        --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767 }
+  .exv h3{ margin:0 0 2px; font-size:15px; color:var(--exv-ink) } .exv .exsub{ font-size:11.5px; color:var(--exv-ink2); margin-bottom:10px }
+  .exv svg text{ fill:var(--exv-ink2); font-size:11px; font-family:'Barlow','Segoe UI',Arial,sans-serif }
+  .exv svg .val{ fill:var(--exv-ink); font-weight:600 }
+  .exgrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr)); gap:0 14px }
+  .exkpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px }
+  .exkpi{ border:1px solid var(--exv-line); border-radius:8px; padding:10px 12px }
+  .exkpi .l{ font-size:9.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--exv-ink2); font-weight:600 }
+  .exkpi .v{ font-family:"Antonio","Barlow Condensed","Arial Narrow",sans-serif; font-size:23px; color:var(--exv-ink); margin-top:2px }
+  .exkpi .s{ font-size:11px; color:var(--exv-ink2); margin-top:2px }
+  .exleg{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11.5px; color:var(--exv-ink2); margin:4px 0 8px }
+  .exleg i{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px }
+  .exins li{ margin:5px 0; font-size:12.5px; line-height:1.5; color:var(--exv-ink) }
+  .exflag{ display:inline-block; font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; margin-right:6px; vertical-align:1px }
+  .exflag.w{ background:#fff1d6; color:#7a4b00 } .exflag.i{ background:#e4eefb; color:#1d4f91 }
+  #expTip{ position:fixed; z-index:9999; pointer-events:none; background:#0b0b0b; color:#fff; font-size:12px; line-height:1.45;
+           padding:7px 10px; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,.25); display:none; max-width:280px }
+  .exsync{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:9px 12px; border-radius:8px; font-size:12.5px; margin:8px 0 }
+  .exsync.ok{ background:#eaf5e4; color:#2f5a1c } .exsync.diff{ background:#fff1d6; color:#6b4300 } .exsync.err{ background:#fde8e8; color:#8a1010 }
+  .exsync.wait{ background:#eef0f3; color:#42506b }
+  .exmonth td{ background:#0C013D; color:#fff; font-weight:600 } .exsubtot td{ background:#F6F6F6; font-weight:600 }
+  .exfilters{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0 4px }
+  .exfilters label{ font-size:12px; color:#42506b }
+  @media print{ body.print-exp .page:not(#p_exp){ display:none!important } body.print-exp .exsync button,body.print-exp .exfilters{ display:none!important } }
+  </style>
+  <h2>Expenses</h2>
+  <p class="small">Linked to the accounts team's <a id="expSheetLink" target="_blank" rel="noopener">ASL Unit-3 A-147 spreadsheet</a>
+  ("Expenses Sheet" tab). The sheet is the master copy: sync brings every row across — new, corrected and removed —
+  with proper dates. Expenses you add here by hand are kept separately and never overwritten.</p>
+  <div class="tools">
+    <button id="expSyncBtn" class="primary">🔄 Sync from Sheet</button>
+    <button id="expAddBtn">+ Add expense</button>
+    <button id="expFlagBtn">⚠ Flagged entries</button>
+    <button id="expCsvBtn">⬇ Download CSV</button>
+    <button id="expPrintBtn">🖨 Print report</button>
+  </div>
+  <div id="expSyncBar"></div>
+  <div class="exfilters">
+    <label>Month <select id="expFMonth"></select></label>
+    <label>Classification <select id="expFClass"></select></label>
+    <label>Date by <select id="expFDateBy"><option value="date">Voucher date</option><option value="invoiceDate">Invoice (spend) date</option></select></label>
+    <input id="expFQ" placeholder="Search party, ledger, description, voucher…" style="flex:1 1 200px;min-width:0;max-width:420px">
+    <label title="The plot purchase and registry advance are one-off and dwarf everything else in the charts">
+      <input type="checkbox" id="expFBig" checked> Hide one-off items ≥ ₹10 lakh in charts</label>
+  </div>
+  <div id="expReport"></div>
+  <h3 style="margin-top:18px">All entries, date-wise</h3>
+  <div class="exfilters"><label>Order <select id="expFSort"><option value="asc">Oldest first</option><option value="desc">Newest first</option></select></label></div>
+  <div id="expList"></div>
+  <div id="expTip"></div>
+</div>
+
 <!-- ============ DAILY LOG ============ -->
 <div class="page" id="p_daylog">
   <h2>Daily site log</h2>
@@ -458,6 +568,7 @@ this is a planning and control tool, not a design or a professional cost certifi
       <option>Rain — partial day</option><option>Extreme heat</option></select>
     <input type="number" id="dlCrew" placeholder="Crew on site" style="width:120px" min="0">
     <button id="dlAdd" class="primary">Add entry</button>
+    <button id="chatSyncBtn">🔄 Sync from Chat</button>
   </div>
   <textarea id="dlNotes" placeholder="What happened today — progress, issues, deliveries, visitors…"
     style="width:100%;min-height:60px;margin-top:6px"></textarea>
@@ -509,10 +620,11 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div id="backupStatus" class="small" style="margin-top:6px"></div>
 </div>
 
-<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(12,1,61,.45);z-index:200;
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(12,1,61,.45);
+     backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:200;
      align-items:center;justify-content:center;padding:16px">
   <div id="modalBox" style="background:#fff;border-radius:10px;padding:18px;max-width:600px;width:100%;
-       max-height:88vh;overflow:auto;box-shadow:0 12px 44px rgba(0,0,0,.32)"></div>
+       max-height:88vh;overflow:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 20px 50px rgba(12,1,61,.35)"></div>
 </div>
 
 <script>
@@ -662,7 +774,7 @@ document.addEventListener("keydown",e=>{
   document.activeElement.blur();
   lockToast();
 },true);
-const TODAY=new Date(2026,7,7);
+const TODAY=new Date(); TODAY.setHours(0,0,0,0);
 const OPS=new Date(2026,8,17);      // 17 Sept 2026
 const LAUNCH=new Date(2028,3,1);    // 1 Apr 2028
 
@@ -888,6 +1000,7 @@ if(!Array.isArray(S.tasks)) S.tasks=[];
 if(!Array.isArray(S.photos)) S.photos=[];
 if(S.siteMap===undefined) S.siteMap=null;
 if(!Array.isArray(S.dailyLogs)) S.dailyLogs=[];
+if(!Array.isArray(S.expenses)) S.expenses=[];
 if(!Array.isArray(S.extraAreas)) S.extraAreas=[];
 if(!Array.isArray(S.userZones)) S.userZones=[];
 if(!Array.isArray(S.log)) S.log=[];
@@ -927,7 +1040,8 @@ function anyInputFocused(){
   return !!(a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.tagName==="SELECT"));
 }
 function modalOpen(){ const m=$("#modal"); return !!(m&&m.style.display==="flex"); }
-function setSyncState(s,msg){ syncState=s; drawSyncBar(msg); }
+let syncMsg="";
+function setSyncState(s,msg){ syncState=s; syncMsg=msg||""; drawSyncBar(msg); }
 function drawSyncBar(msg){
   const el=$("#syncBar"); if(!el) return;
   const dot={live:"#4E7A33",syncing:"#F6C547",offline:"#B80001"}[syncState]||"#8b949e";
@@ -977,6 +1091,7 @@ async function pullState(){
     if(!Array.isArray(S.tasks)) S.tasks=[];
     if(!Array.isArray(S.photos)) S.photos=[];
     if(!Array.isArray(S.dailyLogs)) S.dailyLogs=[];
+    if(!Array.isArray(S.expenses)) S.expenses=[];
     if(!Array.isArray(S.vendors)) S.vendors=[];
     if(!Array.isArray(S.quotes)) S.quotes=[];
     USERZ=S.userZones=S.userZones||[];
@@ -995,7 +1110,7 @@ const inr=n=>"₹"+Math.round(n||0).toLocaleString("en-IN");
 const lakh=n=>{n=n||0; return n>=1e7?("₹"+(n/1e7).toFixed(2)+" Cr"):("₹"+(n/1e5).toFixed(2)+" L");};
 const rateOf=b=>b.rate!=null?b.rate:(S.rates[b.rateKey]||0);
 const amt=b=>(b.qty||0)*rateOf(b);
-const dstr=d=>d.toISOString().slice(0,10);
+const dstr=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const dadd=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
 const dparse=s=>{const p=String(s).split("-");return new Date(+p[0],+p[1]-1,+p[2]);};
 const days=(a,b)=>Math.round((b-a)/86400000);
@@ -3208,14 +3323,15 @@ async function tryReconnectFileOnBoot(){
 }
 
 /* ---------- tabs and boot ---------- */
-const TABS=[["plan","🗺️ Site plan"],["boq","💰 BOQ &amp; cost"],["task","🧱 Work items"],["photo","📷 Photos"],
+const TABS=[["plan","🗺️ Site plan"],["boq","💰 BOQ &amp; cost"],["exp","🧾 Expenses"],["task","🧱 Work items"],["photo","📷 Photos"],
             ["vendor","📑 Vendor quotes"],
             ["daylog","📝 Daily log"],["sched","📅 Schedule"],["appr","✅ Approvals"],["cash","💵 Cash flow"],["risk","⚠️ Risks"],
             ["brief","📄 Brief &amp; export"]];
 function showTab(id){ S.tab=id; save();
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===id));
   document.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.id==="p_"+id));
-  positionTabIndicator(); }
+  positionTabIndicator(); 
+  if(id==="exp"){ drawExpenses(); expCheckSheet(); } }
 function positionTabIndicator(){
   const on=document.querySelector(".tab.on"), ind=document.getElementById("tabIndicator");
   if(!on||!ind) return;
@@ -3227,7 +3343,7 @@ function drawTabs(){ $("#tabs").innerHTML=TABS.map(t=>'<div class="tab" data-t="
 window.addEventListener("resize",()=>positionTabIndicator());
 
 function redraw(){ drawChangeBar(); drawKPIs(); drawSiteMap(); drawPlan(); drawOpenLand(); drawZone(); drawAreaTable(); drawBOQ(); drawRates();
-  drawTasks(); drawPhotos(); drawCompare(); drawVendors(); drawDailyLog(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
+  drawTasks(); drawPhotos(); drawCompare(); drawVendors(); drawExpenses(); drawDailyLog(); drawGantt(); drawActs(); drawAppr(); drawCash(); drawRisks(); drawBrief(); }
 
 $("#grpBy").onchange=drawBOQ;
 $("#boqFind").oninput=drawBOQ;
@@ -3330,6 +3446,842 @@ $("#dlAdd").onclick=()=>{
   $("#dlNotes").value=""; $("#dlCrew").value="";
   logChange("Daily log entry added for "+date); save(); drawDailyLog(); toast("Daily log entry added");
 };
+
+/* ---------- Chat sync: pull candidate expenses/tasks out of Google Chat for review ----------
+   Writes go straight to the shared backend (not through S+pushState) because each item is
+   applied server-side against the live database, then the browser just re-pulls to pick it up. */
+async function chatSyncAuthedGet(path){
+  const r=await fetch(API_BASE+path,{headers:adminHeaders()});
+  if(r.status===401){ toast("Admin key rejected — click 🔒 to re-enter it",true); throw new Error("unauthorized"); }
+  if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||("HTTP "+r.status)); }
+  return r.json();
+}
+async function chatSyncAuthedPost(path,body){
+  const r=await fetch(API_BASE+path,{method:"POST",
+    headers:Object.assign({"Content-Type":"application/json"},adminHeaders()),body:JSON.stringify(body)});
+  if(r.status===401){ toast("Admin key rejected — click 🔒 to re-enter it",true); throw new Error("unauthorized"); }
+  if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||("HTTP "+r.status)); }
+  return r.json();
+}
+if($("#googleReconnectBtn")) $("#googleReconnectBtn").onclick=()=>{
+  if(!backendConfigured()){ toast("No backend configured yet.",true); return; }
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
+  const key=localStorage.getItem(ADMIN_LSK)||"";
+  if(!key){ toast("No admin key saved in this browser — unlock editing first.",true); return; }
+  window.open(API_BASE+"/api/chat-sync/oauth2/start?key="+encodeURIComponent(key),"_blank");
+  toast("Opening Google sign-in in a new tab — approve access, then try Sync again.");
+};
+$("#chatSyncBtn").onclick=async()=>{
+  if(!backendConfigured()){ toast("No backend configured yet.",true); return; }
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
+  try{
+    const status=await chatSyncAuthedGet("/api/chat-sync/status");
+    if(!status.connected){
+      openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Connect Google Chat</div>'
+        +'<div style="font-size:12.5px;color:#42506b;margin:10px 0 18px;line-height:1.55">'
+        +"One-time step: sign in with the Google account that is a member of the project's Chat space. "
+        +'This opens in a new tab.</div>'
+        +'<div style="display:flex;justify-content:flex-end;gap:8px">'
+        +'<button id="csCancel">Cancel</button>'
+        +'<a id="csConnect" class="primary" target="_blank" style="text-decoration:none;padding:8px 14px;display:inline-block" '
+        +'href="'+API_BASE+'/api/chat-sync/oauth2/start?key='+encodeURIComponent(localStorage.getItem(ADMIN_LSK)||"")+'">Connect</a>'
+        +'</div>');
+      $("#csCancel").onclick=closeModal;
+      $("#csConnect").onclick=()=>setTimeout(closeModal,300);
+      return;
+    }
+    if(!status.spaceId){
+      const data=await chatSyncAuthedGet("/api/chat-sync/spaces");
+      if(!data.spaces||!data.spaces.length){ toast("Connected, but no Chat spaces visible to that account.",true); return; }
+      openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Pick the Chat space</div>'
+        +'<div class="small" style="margin-bottom:12px">Which space should Vikrant read for expenses and tasks?</div>'
+        +'<select id="csSpace" style="width:100%">'
+        +data.spaces.map(s=>'<option value="'+attr(s.name)+'">'+esc(s.displayName)+'</option>').join("")
+        +'</select>'
+        +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">'
+        +'<button id="csCancel">Cancel</button><button id="csSaveSpace" class="primary">Save</button></div>');
+      $("#csCancel").onclick=closeModal;
+      $("#csSaveSpace").onclick=async()=>{
+        const sel=$("#csSpace"); const name=sel.value; const label=sel.options[sel.selectedIndex].text;
+        try{ await chatSyncAuthedPost("/api/chat-sync/space",{spaceId:name,spaceDisplayName:label});
+          closeModal(); toast("Space saved — click Sync from Chat again."); }
+        catch(e){ toast(e.message,true); }
+      };
+      return;
+    }
+    toast("Checking chat for new items…");
+    const data=await chatSyncAuthedGet("/api/chat-sync/preview");
+    openChatSyncReview(data.candidates||[], data.spaceDisplayName);
+  }catch(e){ if(e.message!=="unauthorized") toast(e.message,true); }
+};
+function openChatSyncReview(candidates, spaceDisplayName){
+  if(!candidates.length){
+    openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Sync from Chat</div>'
+      +'<div class="small" style="margin:10px 0 18px">No new messages in &quot;'+esc(spaceDisplayName||"")+'&quot; since the last sync.</div>'
+      +'<div style="display:flex;justify-content:flex-end"><button id="csClose" class="primary">Close</button></div>');
+    $("#csClose").onclick=closeModal;
+    return;
+  }
+  const rows=candidates.map((c,i)=>{
+    const d=c.createTime?dstr(new Date(c.createTime)):"";
+    const dupNote=c.likelyDuplicate
+      ? '<div style="color:#B80001;font-size:11px;margin-top:4px">⚠ Looks already recorded'
+        +(c.likelyDuplicate.type==="boq"?(' in BOQ ("'+esc(c.likelyDuplicate.desc||"")+'")'):(' in daily log ('+esc(c.likelyDuplicate.date||"")+')'))+'</div>'
+      : '';
+    const defaultAction=c.likelyDuplicate?"skip":"dailyLog";
+    return '<div style="border:1px solid #dfe3e8;border-radius:8px;padding:10px;margin-bottom:10px">'
+      +'<div style="font-size:12.5px;color:#0C013D">'+esc(c.text)+'</div>'
+      +'<div class="small" style="color:#6b7684;margin-top:3px">'+esc(d)+(c.sender?' · '+esc(c.sender):'')
+      +(c.extractedAmount!=null?' · ₹'+c.extractedAmount.toLocaleString("en-IN"):'')+'</div>'
+      +dupNote
+      +'<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+      +'<select class="csAction" data-i="'+i+'">'
+      +'<option value="skip"'+(defaultAction==="skip"?" selected":"")+'>Skip</option>'
+      +'<option value="dailyLog"'+(defaultAction==="dailyLog"?" selected":"")+'>Add to Daily Log</option>'
+      +'<option value="boq">Add as BOQ line</option>'
+      +'</select>'
+      +'<span class="csFields" data-i="'+i+'" style="display:flex;gap:6px;flex-wrap:wrap"></span>'
+      +'</div></div>';
+  }).join("");
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Sync from Chat</div>'
+    +'<div class="small" style="margin:6px 0 14px">&quot;'+esc(spaceDisplayName||"")+'&quot; · review each item, then Commit.</div>'
+    +'<div style="max-height:50vh;overflow:auto">'+rows+'</div>'
+    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">'
+    +'<button id="csCancel">Cancel</button><button id="csCommit" class="primary">Commit selected</button></div>');
+  $("#csCancel").onclick=closeModal;
+  document.querySelectorAll(".csAction").forEach(sel=>{
+    const i=+sel.dataset.i;
+    const renderFields=()=>{
+      const box=document.querySelector('.csFields[data-i="'+i+'"]');
+      const c=candidates[i];
+      if(sel.value==="dailyLog"){
+        const d=c.createTime?dstr(new Date(c.createTime)):dstr(new Date());
+        box.innerHTML='<input type="date" class="csDate" value="'+d+'" style="width:140px">';
+      } else if(sel.value==="boq"){
+        box.innerHTML='<input class="csArea" placeholder="Area" value="OTHER" style="width:90px">'
+          +'<select class="csTrade">'+["Other","Civil","Electrical","Utilities","Interiors","HVAC","Fire","Security","Equipment"]
+            .map(t=>'<option'+(t==="Other"?" selected":"")+'>'+t+'</option>').join("")+'</select>'
+          +'<select class="csPhase"><option value="1" selected>P1</option><option value="2">P2</option></select>'
+          +'<input class="csOwner" placeholder="Owner" style="width:70px">'
+          +'<input class="csAmount" type="number" placeholder="Amount" value="'+(c.extractedAmount||0)+'" style="width:90px">';
+      } else { box.innerHTML=""; }
+    };
+    sel.onchange=renderFields; renderFields();
+  });
+  $("#csCommit").onclick=async()=>{
+    const items=candidates.map((c,i)=>{
+      const sel=document.querySelector('.csAction[data-i="'+i+'"]');
+      const action=sel?sel.value:"skip";
+      const item={messageId:c.messageId,createTime:c.createTime,action};
+      if(action==="dailyLog"){
+        const box=document.querySelector('.csFields[data-i="'+i+'"]');
+        item.dailyLog={date:box.querySelector(".csDate").value, notes:c.text};
+      } else if(action==="boq"){
+        const box=document.querySelector('.csFields[data-i="'+i+'"]');
+        item.boq={area:box.querySelector(".csArea").value||"OTHER", trade:box.querySelector(".csTrade").value,
+          phase:box.querySelector(".csPhase").value, owner:box.querySelector(".csOwner").value,
+          amount:box.querySelector(".csAmount").value, desc:c.text};
+      }
+      return item;
+    });
+    try{
+      const r=await chatSyncAuthedPost("/api/chat-sync/commit",{items});
+      closeModal(); toast(r.applied+" item(s) added to Vikrant");
+      await pullState(); drawDailyLog(); redraw();
+    }catch(e){ toast(e.message,true); }
+  };
+}
+
+/* ---------- Expenses: mirrored from the accounts team's Google Sheet, plus manual entries ----------
+   The sheet is read directly as CSV (it is shared "anyone with the link can view"), so no Google
+   sign-in is needed. Rows are matched by voucher no + invoice no + ledger + net amount, which lets a
+   sync tell new rows from corrected ones and from rows the accounts team deleted. Dates are stored
+   as YYYY-MM-DD so sorting and month grouping are reliable. */
+const EXP_SHEET={id:"19Cm-dQ9ObyE7ICfe6TPWBPbIQ0cjPdbg",gid:"367066182",tab:"Expenses Sheet"};
+const EXP_SHEET_URL="https://docs.google.com/spreadsheets/d/"+EXP_SHEET.id+"/edit#gid="+EXP_SHEET.gid;
+/* fixed colour order per classification (validated colour-blind-safe set) — colour follows the entity, never its rank */
+const EXP_CLASSES=["Capital Expenses - Building","Other Expenses","Advances paid to Vendors","Office Equipments",
+  "Capital Expenses - Land","Plant & Machinery","Furniture & Fixtures","Manpower Expenses"];
+const EXP_BUDGET_GID="309698187";   // "Budget vs Actuals" tab
+const EXP_BIG=1e6;   // one-off items at or above ₹10 lakh can be hidden from charts
+const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+let EXPF={month:"",cls:"",q:"",dateBy:"date",hideBig:true,sort:"asc",flagged:false};
+/* a row needs attention when its maths doesn't add up or a key field is blank */
+function expFlags(e){ const f=[];
+  if(Math.abs(expNum(e.amount)+expNum(e.gst)-expTot(e))>1) f.push("Net + GST ≠ total");
+  if(!String(e.voucherNo||"").trim()) f.push("No voucher number");
+  if(!String(e.partyName||"").trim()) f.push("No party name");
+  return f; }
+let EXP_LAST=null, EXP_CHECKING=false, EXP_CHECKED_AT=0;
+
+function expClass(c){
+  c=String(c||"").replace(/\s+/g," ").trim(); if(!c) return "Other Expenses";
+  const k=c.toLowerCase().replace(/[^a-z]/g,"");
+  return EXP_CLASSES.find(x=>x.toLowerCase().replace(/[^a-z]/g,"")===k)||c;
+}
+function expColor(c){ const i=EXP_CLASSES.indexOf(expClass(c)); return "var(--s"+(i>=0?i+1:8)+")"; }
+const expNum=v=>{ if(typeof v==="number") return v; const n=parseFloat(String(v==null?"":v).replace(/[₹,\s]/g,"")); return isNaN(n)?0:n; };
+function expISO(s){
+  s=String(s==null?"":s).trim(); if(!s) return "";
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");
+  m=s.match(/^(\d{1,2})[-\s\/.]([A-Za-z]{3,})[-\s\/.,]*(\d{2,4})$/);
+  if(m){ const mi=MONS.findIndex(x=>x.toLowerCase()===m[2].slice(0,3).toLowerCase());
+    if(mi>=0){ let y=+m[3]; if(y<100) y+=2000; return y+"-"+String(mi+1).padStart(2,"0")+"-"+m[1].padStart(2,"0"); } }
+  m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);   // Indian dd/mm/yyyy
+  if(m){ let y=+m[3]; if(y<100) y+=2000; return y+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"); }
+  if(/^\d{5}$/.test(s)) return new Date(Date.UTC(1899,11,30)+(+s)*864e5).toISOString().slice(0,10);
+  return "";
+}
+const expFmtDate=iso=>{ if(!iso) return "—"; const p=iso.split("-"); return (+p[2])+" "+MONS[+p[1]-1]+" "+p[0]; };
+const expMonthLabel=ym=>MONS[+ym.slice(5,7)-1]+" "+ym.slice(0,4);
+const expTot=e=>expNum(e.total)||expNum(e.amount);
+const expWhen=e=>expISO(e[EXPF.dateBy])||expISO(e.date);
+
+/* existing entries saved before this change carry "14-Aug-2026" style dates — normalise once */
+S.expenses.forEach(e=>{ e.date=expISO(e.date)||e.date; e.invoiceDate=expISO(e.invoiceDate)||e.invoiceDate||"";
+  e.classification=expClass(e.classification); });
+
+function parseCSV(t){
+  const rows=[]; let row=[],f="",q=false;
+  for(let i=0;i<t.length;i++){ const c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){ f+='"'; i++; } else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===","){ row.push(f); f=""; }
+    else if(c==="\n"){ row.push(f); rows.push(row); row=[]; f=""; }
+    else if(c!=="\r") f+=c; }
+  if(f!==""||row.length){ row.push(f); rows.push(row); }
+  return rows;
+}
+async function fetchSheetExpenses(){
+  /* the plain export endpoint returns every row as typed; the gviz endpoint drops rows whose
+     cell types don't match the column's guessed type, which is how entries went missing before */
+  const url="https://docs.google.com/spreadsheets/d/"+EXP_SHEET.id+"/export?format=csv&gid="+EXP_SHEET.gid;
+  const r=await fetch(url,{cache:"no-store"});
+  if(!r.ok) throw new Error("the sheet returned HTTP "+r.status);
+  const text=await r.text();
+  if(/^\s*</.test(text)) throw new Error("the sheet is not shared as 'anyone with the link can view'");
+  const grid=parseCSV(text);
+  const hi=grid.findIndex(row=>row.some(c=>/voucher\s*date/i.test(c)));
+  if(hi<0) throw new Error('could not find the "Voucher Date" header row');
+  const H=grid[hi].map(h=>h.trim().toLowerCase()), col=re=>H.findIndex(h=>re.test(h));
+  const C={date:col(/^voucher\s*date/),voucherNo:col(/^voucher\s*no/),classification:col(/^classification/),
+    ledger:col(/ledger/),partyName:col(/party/),invoiceNo:col(/^invoice\s*no/),invoiceDate:col(/^invoice\s*date/),
+    desc:col(/desc/),amount:col(/amount\s*\(net\)|^net|^amount/),gst:col(/^gst/),total:col(/total/)};
+  const rows=[],skipped=[]; let sheetTotal=null;
+  grid.slice(hi+1).forEach((row,i)=>{
+    const g=k=>C[k]>=0?String(row[C[k]]==null?"":row[C[k]]).trim():"";
+    if(row.every(c=>!String(c).trim())) return;
+    const date=expISO(g("date"));
+    if(!date&&row.some(c=>/^total$/i.test(String(c).trim()))){ sheetTotal=expNum(g("total")); return; }
+    if(!date){ skipped.push({line:hi+i+2,text:row.slice(0,8).filter(Boolean).join(" · ")}); return; }
+    const amount=expNum(g("amount")), gst=expNum(g("gst"));
+    rows.push({date,voucherNo:g("voucherNo"),classification:expClass(g("classification")),ledger:g("ledger"),
+      partyName:g("partyName"),invoiceNo:g("invoiceNo"),invoiceDate:expISO(g("invoiceDate")),
+      desc:g("desc").replace(/\s+/g," ").trim(),amount,gst,total:g("total")?expNum(g("total")):amount+gst,
+      sheetRow:hi+i+2,source:"sheet"});
+  });
+  let budget=null,budgetError=null;
+  try{ budget=await fetchSheetBudget(); }catch(e){ budgetError=e.message; }
+  return {rows,skipped,sheetTotal,budget,budgetError,fetchedAt:new Date().toISOString()};
+}
+/* budgets are kept by accounts in the "Budget vs Actuals" tab; "-" or blank means not set yet */
+async function fetchSheetBudget(){
+  const r=await fetch("https://docs.google.com/spreadsheets/d/"+EXP_SHEET.id+"/export?format=csv&gid="+EXP_BUDGET_GID,{cache:"no-store"});
+  if(!r.ok) throw new Error("budget tab returned HTTP "+r.status);
+  const grid=parseCSV(await r.text());
+  const hi=grid.findIndex(row=>row.some(c=>/budget/i.test(c)));
+  if(hi<0) throw new Error('could not find the "Budgeted Cost" column');
+  const H=grid[hi].map(h=>h.trim().toLowerCase()), col=re=>H.findIndex(h=>re.test(h));
+  const cD=col(/desc|specification|classification/), cB=col(/budget/), cA=col(/actual/);
+  const out=[];
+  grid.slice(hi+1).forEach(row=>{
+    const name=String(row[cD]||"").trim(); if(!name||/^total$/i.test(name)) return;
+    const braw=String(row[cB]||"").trim();
+    out.push({cls:expClass(name),budget:/[0-9]/.test(braw)?expNum(braw):null,
+      sheetActual:cA>=0&&/[0-9]/.test(row[cA]||"")?expNum(row[cA]):null});
+  });
+  return out;
+}
+const expBudgetRows=()=>(EXP_LAST&&EXP_LAST.sheet&&EXP_LAST.sheet.budget)||(S.expenseBudget&&S.expenseBudget.rows)||[];
+
+const expNorm=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const expKey=e=>[expNorm(e.voucherNo),expNorm(e.invoiceNo),expNorm(e.ledger),Math.round(expNum(e.amount)*100)].join("|");
+function expKeyed(list){ const seen={};
+  return list.map(e=>{ let k=expKey(e.sheetOrig||e); seen[k]=(seen[k]||0)+1; if(seen[k]>1) k+="#"+seen[k]; return [k,e]; }); }
+const EXP_FIELDS=[["voucherNo","Voucher no"],["date","Voucher date"],["classification","Classification"],["ledger","Ledger"],["partyName","Party"],
+  ["invoiceNo","Invoice no"],["invoiceDate","Invoice date"],["desc","Description"],["amount","Net"],["gst","GST"],["total","Total"]];
+function expFieldDiff(a,b){
+  return EXP_FIELDS.filter(([f])=>{
+    if(f==="amount"||f==="gst"||f==="total") return Math.abs(expNum(a[f])-expNum(b[f]))>0.005;
+    if(f==="date"||f==="invoiceDate") return (expISO(a[f])||"")!==(expISO(b[f])||"");
+    return String(a[f]||"").replace(/\s+/g," ").trim()!==String(b[f]||"").replace(/\s+/g," ").trim(); });
+}
+function expComputeDiff(sheet){
+  const A=new Map(expKeyed(S.expenses.filter(e=>e.source==="sheet")));
+  const added=[],changed=[],matched=new Set();
+  expKeyed(sheet.rows).forEach(([k,r])=>{ const old=A.get(k);
+    if(!old){ added.push(r); return; } matched.add(k);
+    const f=expFieldDiff(old.sheetOrig||old,r); if(f.length) changed.push({old:old.sheetOrig||old,row:r,fields:f}); });
+  const removed=[...A].filter(([k])=>!matched.has(k)).map(([,e])=>e);
+  const manualDup=S.expenses.filter(e=>e.source!=="sheet").filter(m=>sheet.rows.some(r=>
+    Math.abs(expTot(m)-r.total)<1&&((m.voucherNo&&expNorm(m.voucherNo)===expNorm(r.voucherNo))||expISO(m.date)===r.date)));
+  const oldB={}; ((S.expenseBudget&&S.expenseBudget.rows)||[]).forEach(b=>{ oldB[b.cls]=b.budget; });
+  const budgetChanges=(sheet.budget||[]).filter(b=>(oldB[b.cls]==null?null:oldB[b.cls])!==b.budget)
+    .map(b=>({cls:b.cls,old:oldB[b.cls]==null?null:oldB[b.cls],now:b.budget}));
+  return {added,changed,removed,manualDup,budgetChanges,
+    inSync:!added.length&&!changed.length&&!removed.length&&!budgetChanges.length};
+}
+function expApplySync(sheet,dropManualIds){
+  const diff=expComputeDiff(sheet);
+  const A=new Map(expKeyed(S.expenses.filter(e=>e.source==="sheet")));
+  const stamp=Date.now();
+  const next=expKeyed(sheet.rows).map(([k,r],i)=>{ const old=A.get(k);
+    if(old&&old.sheetOrig&&!expFieldDiff(old.sheetOrig,r).length) return Object.assign({},old,{sheetRow:r.sheetRow,sourceKey:k});
+    return Object.assign({},r,{id:old?old.id:"exps"+stamp+"_"+i,sourceKey:k}); });
+  S.expenses=S.expenses.filter(e=>e.source!=="sheet"&&dropManualIds.indexOf(e.id)<0).concat(next);
+  S.expenseSync={at:sheet.fetchedAt,rows:sheet.rows.length,sheetTotal:sheet.sheetTotal};
+  if(sheet.budget) S.expenseBudget={at:sheet.fetchedAt,rows:sheet.budget};
+  logChange("Expenses synced from sheet: "+diff.added.length+" new, "+diff.changed.length+" corrected, "
+    +diff.removed.length+" removed"+(diff.budgetChanges.length?", "+diff.budgetChanges.length+" budget figure(s) updated":"")+(dropManualIds.length?", "+dropManualIds.length+" manual duplicate(s) dropped":""));
+  save();
+  EXP_LAST={sheet,diff:expComputeDiff(sheet)};
+  drawExpenses();
+  /* save to the shared server now and confirm it landed — a silent failure here leaves the
+     sync on this screen only, and the next reload brings the old entries back */
+  clearTimeout(syncTimer);
+  toast("Saving to the server…");
+  pushState().then(()=>{
+    if(syncState==="live"){ toast("Saved ✓ — everyone now sees "+sheet.rows.length+" sheet entries, "+inr(sheet.rows.reduce((s,r)=>s+r.total,0))); return; }
+    openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#B80001;text-transform:uppercase">Not saved to the server</div>'
+      +'<div style="font-size:12.5px;color:#42506b;margin:10px 0 18px;line-height:1.55">The sync worked on this screen, but the shared server did not accept it'
+      +(syncMsg?' (<b>'+esc(syncMsg)+'</b>)':'')+'. Other people still see the old entries, and a reload here will bring them back.<br><br>'
+      +'Click 🔒 at the top, re-enter the admin key, then press <b>Sync from Sheet</b> again.</div>'
+      +'<div style="display:flex;justify-content:flex-end;gap:8px"><button id="nsRetry">Try saving again</button><button id="nsOk" class="primary">OK</button></div>');
+    $("#nsOk").onclick=closeModal;
+    $("#nsRetry").onclick=()=>{ closeModal(); expApplySync(sheet,[]); };
+  });
+}
+async function expCheckSheet(force){
+  if(EXP_CHECKING) return EXP_LAST;
+  if(!force&&EXP_LAST&&Date.now()-EXP_CHECKED_AT<60000) return EXP_LAST;
+  EXP_CHECKING=true; if(!EXP_LAST) drawExpSyncBar();
+  try{ const sheet=await fetchSheetExpenses(); EXP_LAST={sheet,diff:expComputeDiff(sheet)}; }
+  catch(e){ EXP_LAST={error:e.message}; }
+  EXP_CHECKING=false; EXP_CHECKED_AT=Date.now();
+  drawExpSyncBar(); drawExpReport();
+  return EXP_LAST;
+}
+function drawExpSyncBar(){
+  const el=$("#expSyncBar"); if(!el) return;
+  const t=d=>d?new Date(d).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):"";
+  if(!EXP_LAST){ el.innerHTML='<div class="exsync wait">Checking the sheet…</div>'; return; }
+  if(EXP_LAST.error){
+    el.innerHTML='<div class="exsync err">⚠ Couldn\'t read the sheet: '+esc(EXP_LAST.error)+'. Showing the last synced copy.'
+      +' <button class="sm" id="expRetry">Try again</button> <button class="sm" id="expViaGoogle">Sync via Google sign-in</button></div>';
+    $("#expRetry").onclick=()=>expCheckSheet(true);
+    $("#expViaGoogle").onclick=expSyncViaBackend;
+    return;
+  }
+  const {sheet,diff}=EXP_LAST, sTot=sheet.rows.reduce((s,r)=>s+r.total,0);
+  if(diff.inSync){
+    el.innerHTML='<div class="exsync ok">✓ Matches the sheet — '+sheet.rows.length+' entries, '+inr(sTot)
+      +' · checked '+t(sheet.fetchedAt)+' <button class="sm" id="expRecheck">Check again</button></div>';
+    $("#expRecheck").onclick=()=>expCheckSheet(true);
+    return;
+  }
+  const bits=[]; if(diff.added.length) bits.push("<b>"+diff.added.length+"</b> new");
+  if(diff.changed.length) bits.push("<b>"+diff.changed.length+"</b> corrected");
+  if(diff.removed.length) bits.push("<b>"+diff.removed.length+"</b> removed");
+  const nE=diff.added.length+diff.changed.length+diff.removed.length;
+  const parts=[]; if(nE) parts.push(bits.join(", ")+" entr"+(nE===1?"y":"ies"));
+  if(diff.budgetChanges.length) parts.push("<b>"+diff.budgetChanges.length+"</b> budget figure"+(diff.budgetChanges.length>1?"s":"")+" changed");
+  el.innerHTML='<div class="exsync diff">⚠ The sheet differs from this page: '+parts.join("; ")
+    +'. Sheet total '+inr(sTot)+' · checked '+t(sheet.fetchedAt)
+    +' <button class="sm primary" id="expReview">Review &amp; sync</button></div>';
+  $("#expReview").onclick=()=>openExpSyncReview(EXP_LAST.sheet);
+}
+$("#expSyncBtn").onclick=async()=>{
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to sync.",true); return; }
+  toast("Reading the sheet…");
+  const r=await expCheckSheet(true);
+  if(r.error){ toast("Couldn't read the sheet: "+r.error,true); return; }
+  if(r.diff.inSync&&!r.diff.manualDup.length){ toast("Already in sync — "+r.sheet.rows.length+" entries match the sheet"); return; }
+  openExpSyncReview(r.sheet);
+};
+function openExpSyncReview(sheet){
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to sync.",true); return; }
+  const d=expComputeDiff(sheet);
+  const line=r=>'<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #eef0f3"><b>'+expFmtDate(r.date)+'</b> · '
+    +esc(r.partyName||"—")+' · '+esc(r.desc||r.ledger||"")+' <span style="float:right;font-weight:600">'+inr(expTot(r))+'</span></div>';
+  const sec=(title,items,html)=>items.length?'<div style="margin:12px 0 4px;font-weight:700;color:#0C013D">'+title+' ('+items.length+')</div>'+html:"";
+  const chg=d.changed.map(c=>'<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #eef0f3"><b>'+expFmtDate(c.row.date)+'</b> · '
+    +esc(c.row.partyName||"")+' · '+esc(c.row.desc||"")+c.fields.map(([f,lab])=>{
+      const fmt=v=>(f==="amount"||f==="gst"||f==="total")?inr(v):(f==="date"||f==="invoiceDate")?expFmtDate(expISO(v)):esc(v||"—");
+      return '<div class="small" style="margin-left:10px">'+lab+': <s>'+fmt(c.old[f])+'</s> → <b>'+fmt(c.row[f])+'</b></div>'; }).join("")+'</div>').join("");
+  const dup=d.manualDup.map(m=>'<label style="display:block;font-size:12px;padding:5px 0"><input type="checkbox" class="exDup" value="'+esc(m.id)
+    +'" checked> Remove manual entry <b>'+expFmtDate(expISO(m.date))+'</b> · '+esc(m.desc||m.ledger||"")+' · '+inr(expTot(m))+' (now in the sheet)</label>').join("");
+  const skip=sheet.skipped.length?'<div class="small" style="margin-top:10px;color:#8a1010">⚠ '+sheet.skipped.length
+    +' sheet row(s) skipped because the voucher date is missing or unreadable: '+sheet.skipped.map(s=>"row "+s.line).join(", ")+'</div>':"";
+  const sTot=sheet.rows.reduce((s,r)=>s+r.total,0);
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Sync from Sheet</div>'
+    +'<div class="small" style="margin:6px 0 4px">"'+esc(EXP_SHEET.tab)+'" has <b>'+sheet.rows.length+'</b> entries totalling <b>'+inr(sTot)
+    +'</b>. After this sync the page will match it exactly. Manual entries are kept.</div>'
+    +'<div style="max-height:52vh;overflow:auto;padding-right:4px">'
+    +sec("New in the sheet",d.added,d.added.map(line).join(""))
+    +sec("Corrected in the sheet",d.changed,chg)
+    +sec("Removed from the sheet — will be removed here",d.removed,d.removed.map(line).join(""))
+    +sec("Manual entries that are now also in the sheet",d.manualDup,dup)
+    +sec("Budget figures (Budget vs Actuals tab)",d.budgetChanges,d.budgetChanges.map(b=>'<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #eef0f3"><b>'
+      +esc(b.cls)+'</b>: <s>'+(b.old==null?"not set":inr(b.old))+'</s> → <b>'+(b.now==null?"not set":inr(b.now))+'</b></div>').join(""))
+    +(d.inSync&&!d.manualDup.length?'<div class="small" style="margin:12px 0">Everything already matches.</div>':"")
+    +skip+'</div>'
+    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">'
+    +'<button id="exCancel">Cancel</button><button id="exApply" class="primary">Apply sync</button></div>');
+  $("#exCancel").onclick=closeModal;
+  $("#exApply").onclick=()=>{ const drop=[...document.querySelectorAll(".exDup:checked")].map(x=>x.value);
+    closeModal(); expApplySync(sheet,drop); };
+}
+/* fallback when the sheet can't be read directly (e.g. its sharing was tightened): the backend's
+   Google-sign-in sync, which only ever adds rows */
+async function expSyncViaBackend(){
+  if(!backendConfigured()){ toast("No backend configured yet.",true); return; }
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
+  try{
+    const status=await chatSyncAuthedGet("/api/expense-sync/status");
+    if(!status.connected){
+      window.open(API_BASE+"/api/chat-sync/oauth2/start?key="+encodeURIComponent(localStorage.getItem(ADMIN_LSK)||""),"_blank");
+      toast("Sign in with Google in the new tab, then click this again.");
+      return;
+    }
+    const data=await chatSyncAuthedGet("/api/expense-sync/preview");
+    const items=(data.candidates||[]).map(c=>({key:c.key,action:"add",row:c.row}));
+    if(!items.length){ toast("No new rows found via Google sign-in."); return; }
+    const r=await chatSyncAuthedPost("/api/expense-sync/commit",{items});
+    toast(r.applied+" expense(s) added"); await pullState(); drawExpenses();
+  }catch(e){ if(e.message!=="unauthorized") toast(e.message,true); }
+}
+
+/* ---------- filtering ---------- */
+function expFiltered(){
+  const q=EXPF.q.trim().toLowerCase();
+  return S.expenses.filter(e=>{
+    const w=expWhen(e);
+    if(EXPF.flagged&&!expFlags(e).length) return false;
+    if(EXPF.month&&w.slice(0,7)!==EXPF.month) return false;
+    if(EXPF.cls&&expClass(e.classification)!==EXPF.cls) return false;
+    if(q&&[e.partyName,e.ledger,e.desc,e.voucherNo,e.invoiceNo,e.classification].join(" ").toLowerCase().indexOf(q)<0) return false;
+    return true; });
+}
+function drawExpFilters(){
+  const months=[...new Set(S.expenses.map(e=>expWhen(e).slice(0,7)).filter(Boolean))].sort();
+  const classes=[...new Set(S.expenses.map(e=>expClass(e.classification)))].sort((a,b)=>{
+    const ia=EXP_CLASSES.indexOf(a),ib=EXP_CLASSES.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib); });
+  if(EXPF.month&&months.indexOf(EXPF.month)<0) EXPF.month="";
+  $("#expFMonth").innerHTML='<option value="">All months</option>'+months.map(m=>'<option value="'+m+'"'+(m===EXPF.month?" selected":"")+'>'+expMonthLabel(m)+'</option>').join("");
+  $("#expFClass").innerHTML='<option value="">All</option>'+classes.map(c=>'<option'+(c===EXPF.cls?" selected":"")+'>'+esc(c)+'</option>').join("");
+  $("#expFDateBy").value=EXPF.dateBy; $("#expFSort").value=EXPF.sort; $("#expFBig").checked=EXPF.hideBig;
+}
+
+/* ---------- charts (inline SVG) ---------- */
+function exTipBind(root){
+  const tip=$("#expTip"); if(!tip||!root) return;
+  root.querySelectorAll("[data-tip]").forEach(n=>{
+    n.addEventListener("mousemove",ev=>{ tip.innerHTML=n.getAttribute("data-tip"); tip.style.display="block";
+      const x=Math.min(ev.clientX+14,window.innerWidth-tip.offsetWidth-8);
+      tip.style.left=x+"px"; tip.style.top=(ev.clientY+14)+"px"; });
+    n.addEventListener("mouseleave",()=>{ tip.style.display="none"; });
+  });
+}
+const exAttr=s=>esc(s).replace(/"/g,"&quot;");
+const exShort=n=>n>=1e7?(n/1e7).toFixed(2)+" Cr":n>=1e5?(n/1e5).toFixed(1)+" L":n>=1e3?(n/1e3).toFixed(0)+"k":String(Math.round(n));
+function exNiceMax(v){ if(v<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const f=v/p; return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p; }
+function exRoundTop(x,y,w,h,r){ r=Math.min(r,w/2,h); return "M"+x+","+(y+h)+"V"+(y+r)+"Q"+x+","+y+" "+(x+r)+","+y+"H"+(x+w-r)+"Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+"V"+(y+h)+"Z"; }
+function exRoundRight(x,y,w,h,r){ r=Math.min(r,h/2,w); return "M"+x+","+y+"H"+(x+w-r)+"Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+"V"+(y+h-r)+"Q"+(x+w)+","+(y+h)+" "+(x+w-r)+","+(y+h)+"H"+x+"Z"; }
+function exWidth(el){ return Math.max(300,(el&&el.clientWidth)||680); }
+
+function chartMonthly(el,rows){
+  const months=[...new Set(rows.map(e=>expWhen(e).slice(0,7)).filter(Boolean))].sort();
+  if(!months.length){ el.innerHTML='<div class="small">No entries.</div>'; return; }
+  const classes=EXP_CLASSES.filter(c=>rows.some(e=>expClass(e.classification)===c))
+    .concat([...new Set(rows.map(e=>expClass(e.classification)))].filter(c=>EXP_CLASSES.indexOf(c)<0));
+  const M={}; months.forEach(m=>{ M[m]={}; classes.forEach(c=>M[m][c]=0); });
+  rows.forEach(e=>{ const m=expWhen(e).slice(0,7); if(M[m]) M[m][expClass(e.classification)]+=expTot(e); });
+  const tot=m=>classes.reduce((s,c)=>s+M[m][c],0);
+  const W=exWidth(el), H=230, L=52, R=10, T=22, B=26, pw=W-L-R, ph=H-T-B;
+  const mx=exNiceMax(Math.max(...months.map(tot)));
+  const slot=pw/months.length, bw=Math.min(56,slot*0.55);
+  let s='<svg width="'+W+'" height="'+H+'" role="img" aria-label="Monthly spend by classification">';
+  for(let i=0;i<=4;i++){ const v=mx*i/4, y=T+ph-ph*i/4;
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="var(--exv-grid)" stroke-width="1"/>'
+      +'<text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end">₹'+exShort(v)+'</text>'; }
+  months.forEach((m,i)=>{
+    const x=L+slot*i+(slot-bw)/2; let y=T+ph;
+    const segs=classes.filter(c=>M[m][c]>0);
+    segs.forEach((c,j)=>{ const h=ph*M[m][c]/mx; const top=j===segs.length-1;
+      const gap=j>0?2:0, hh=Math.max(0,h-gap); y-=h;
+      const tipTxt='<b>'+exAttr(expMonthLabel(m))+'</b><br>'+exAttr(c)+': '+inr(M[m][c])+'<br>Month total: '+inr(tot(m));
+      s+=top?'<path d="'+exRoundTop(x,y,bw,hh,4)+'" fill="'+expColor(c)+'" data-tip="'+tipTxt+'"/>'
+            :'<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+hh+'" fill="'+expColor(c)+'" data-tip="'+tipTxt+'"/>';
+    });
+    s+='<text class="val" x="'+(x+bw/2)+'" y="'+(T+ph-ph*tot(m)/mx-6)+'" text-anchor="middle">₹'+exShort(tot(m))+'</text>'
+      +'<text x="'+(x+bw/2)+'" y="'+(H-8)+'" text-anchor="middle">'+expMonthLabel(m)+'</text>';
+  });
+  s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+(T+ph)+'" y2="'+(T+ph)+'" stroke="var(--exv-muted)" stroke-width="1"/></svg>';
+  el.innerHTML=(classes.length>1?'<div class="exleg">'+classes.map(c=>'<span><i style="background:'+expColor(c)+'"></i>'+esc(c)+'</span>').join("")+'</div>':"")+s;
+  exTipBind(el);
+}
+function chartHBars(el,items,opt){
+  opt=opt||{};
+  if(!items.length){ el.innerHTML='<div class="small">No entries.</div>'; return; }
+  const W=exWidth(el), labW=Math.min(190,W*0.4), valW=92, rowH=26, H=items.length*rowH+4;
+  const pw=W-labW-valW-8, mx=Math.max(...items.map(i=>i.v))||1, sum=items.reduce((s,i)=>s+i.v,0)||1;
+  let s='<svg width="'+W+'" height="'+H+'" role="img" aria-label="'+exAttr(opt.label||"Breakdown")+'">';
+  items.forEach((it,i)=>{ const y=i*rowH+4, w=Math.max(2,pw*it.v/mx);
+    const maxC=Math.floor((labW-10)/6.3), lab=it.k.length>maxC?it.k.slice(0,maxC-1)+"…":it.k;
+    const tipTxt='<b>'+exAttr(it.k)+'</b><br>'+inr(it.v)+' · '+(it.v/sum*100).toFixed(1)+'% of shown'+(it.n?'<br>'+it.n+' entr'+(it.n===1?"y":"ies"):"");
+    s+='<text x="'+(labW-8)+'" y="'+(y+14)+'" text-anchor="end">'+esc(lab)+'</text>'
+      +'<path d="'+exRoundRight(labW,y+3,w,rowH-10,4)+'" fill="'+(it.c||"var(--s1)")+'"/>'
+      +'<text class="val" x="'+(labW+w+6)+'" y="'+(y+14)+'">₹'+exShort(it.v)+' <tspan style="font-weight:400;fill:var(--exv-muted)">'+(it.v/sum*100).toFixed(0)+'%</tspan></text>'
+      +'<rect x="0" y="'+y+'" width="'+W+'" height="'+rowH+'" fill="transparent" data-tip="'+tipTxt+'"/>';
+  });
+  el.innerHTML=s+'</svg>'; exTipBind(el);
+}
+function chartCumulative(el,rows){
+  const days={}; rows.forEach(e=>{ const d=expWhen(e); if(d) days[d]=(days[d]||0)+expTot(e); });
+  const keys=Object.keys(days).sort();
+  if(keys.length<2){ el.innerHTML='<div class="small">Needs entries on at least two dates.</div>'; return; }
+  const t0=Date.parse(keys[0]), t1=Date.parse(keys[keys.length-1]), span=Math.max(1,t1-t0);
+  let cum=0; const pts=keys.map(k=>{ cum+=days[k]; return {k,v:cum,d:days[k]}; });
+  const W=exWidth(el), H=210, L=52, R=14, T=14, B=26, pw=W-L-R, ph=H-T-B, mx=exNiceMax(cum);
+  const X=k=>L+pw*(Date.parse(k)-t0)/span, Y=v=>T+ph-ph*v/mx;
+  let s='<svg width="'+W+'" height="'+H+'" role="img" aria-label="Cumulative spend">';
+  for(let i=0;i<=4;i++){ const y=T+ph-ph*i/4;
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="var(--exv-grid)"/><text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end">₹'+exShort(mx*i/4)+'</text>'; }
+  /* month ticks */
+  const d0=new Date(t0); let mt=new Date(d0.getFullYear(),d0.getMonth()+1,1);
+  while(mt.getTime()<=t1){ const k=dstr(mt), x=X(k);
+    s+='<line x1="'+x+'" x2="'+x+'" y1="'+T+'" y2="'+(T+ph)+'" stroke="var(--exv-grid)" stroke-dasharray="3 3"/>'
+      +'<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle">1 '+MONS[mt.getMonth()]+'</text>';
+    mt=new Date(mt.getFullYear(),mt.getMonth()+1,1); }
+  let path="M"+X(pts[0].k)+","+Y(0)+" L"+X(pts[0].k)+","+Y(pts[0].v);
+  for(let i=1;i<pts.length;i++) path+=" H"+X(pts[i].k)+" V"+Y(pts[i].v);   // step line: spend lands on a date
+  s+='<path d="'+path+' V'+Y(0)+' Z" fill="var(--s1)" opacity=".10"/>'
+    +'<path d="'+path+'" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"/>'
+    +'<line x1="'+L+'" x2="'+(W-R)+'" y1="'+(T+ph)+'" y2="'+(T+ph)+'" stroke="var(--exv-muted)"/>'
+    +'<text class="val" x="'+(X(pts[pts.length-1].k)-4)+'" y="'+(Y(cum)-6)+'" text-anchor="end">₹'+exShort(cum)+'</text>'
+    +'<line id="exCross" x1="0" x2="0" y1="'+T+'" y2="'+(T+ph)+'" stroke="var(--exv-muted)" visibility="hidden"/>'
+    +'<circle id="exDot" r="4.5" fill="var(--s1)" stroke="var(--exv-surface)" stroke-width="2" visibility="hidden"/>'
+    +'<rect id="exHit" x="'+L+'" y="'+T+'" width="'+pw+'" height="'+ph+'" fill="transparent"/></svg>';
+  el.innerHTML=s;
+  const hit=el.querySelector("#exHit"), cr=el.querySelector("#exCross"), dot=el.querySelector("#exDot"), tip=$("#expTip"), svg=el.querySelector("svg");
+  hit.addEventListener("mousemove",ev=>{
+    const bx=svg.getBoundingClientRect(), mxp=ev.clientX-bx.left;
+    let best=pts[0]; pts.forEach(p=>{ if(Math.abs(X(p.k)-mxp)<Math.abs(X(best.k)-mxp)) best=p; });
+    const x=X(best.k);
+    cr.setAttribute("x1",x); cr.setAttribute("x2",x); cr.setAttribute("visibility","visible");
+    dot.setAttribute("cx",x); dot.setAttribute("cy",Y(best.v)); dot.setAttribute("visibility","visible");
+    tip.innerHTML='<b>'+expFmtDate(best.k)+'</b><br>Spent that day: '+inr(best.d)+'<br>Running total: '+inr(best.v);
+    tip.style.display="block"; tip.style.left=Math.min(ev.clientX+14,window.innerWidth-tip.offsetWidth-8)+"px"; tip.style.top=(ev.clientY+14)+"px";
+  });
+  hit.addEventListener("mouseleave",()=>{ cr.setAttribute("visibility","hidden"); dot.setAttribute("visibility","hidden"); tip.style.display="none"; });
+}
+
+/* ---------- analysis report ---------- */
+function expInsights(all,rows){
+  const out=[], sum=a=>a.reduce((s,e)=>s+expTot(e),0);
+  if(!rows.length) return out;
+  const tot=sum(rows), big=rows.filter(e=>expTot(e)>=EXP_BIG), run=rows.filter(e=>expTot(e)<EXP_BIG);
+  if(big.length) out.push(big.length+" one-off item"+(big.length>1?"s":"")+" ("+big.map(e=>esc(e.desc||e.ledger)+" "+lakh(expTot(e))).join("; ")
+    +") make up <b>"+(sum(big)/tot*100).toFixed(1)+"%</b> of spend. Everything else adds up to <b>"+inr(sum(run))+"</b> across "+run.length+" entries.");
+  const mon={}; run.forEach(e=>{ const m=expWhen(e).slice(0,7); if(m) mon[m]=(mon[m]||0)+expTot(e); });
+  const mk=Object.keys(mon).sort();
+  if(mk.length){ const top=mk.reduce((a,b)=>mon[b]>mon[a]?b:a);
+    out.push("Running spend (excluding one-offs) peaked in <b>"+expMonthLabel(top)+"</b> at "+inr(mon[top])+"; average <b>"+inr(sum(run)/mk.length)+"</b> a month over "+mk.length+" month"+(mk.length>1?"s":"")+".");
+    if(mk.length>=2){ const a=mon[mk[mk.length-2]], b=mon[mk[mk.length-1]];
+      out.push(expMonthLabel(mk[mk.length-1])+" is "+(b>=a?"up":"down")+" <b>"+Math.abs((b-a)/(a||1)*100).toFixed(0)+"%</b> on "+expMonthLabel(mk[mk.length-2])+" ("+inr(a)+" → "+inr(b)+")."
+        +(mk[mk.length-1]===dstr(new Date()).slice(0,7)?" This month is still in progress.":"")); } }
+  const led={}; run.forEach(e=>{ const k=e.ledger||"—"; led[k]=(led[k]||0)+expTot(e); });
+  const tl=Object.entries(led).sort((a,b)=>b[1]-a[1]);
+  if(tl.length) out.push("Biggest running-cost ledger: <b>"+esc(tl[0][0])+"</b> ("+inr(tl[0][1])+", "+(tl[0][1]/(sum(run)||1)*100).toFixed(0)+"% of running spend)"
+    +(tl[1]?", then "+esc(tl[1][0])+" ("+inr(tl[1][1])+")":"")+".");
+  const party={}; rows.forEach(e=>{ const k=e.partyName||"—"; party[k]=(party[k]||0)+expTot(e); });
+  const imp=rows.filter(e=>/\bIMP\b/i.test(e.partyName||""));
+  if(imp.length) out.push("<b>"+imp.length+"</b> petty-cash entries (parties ending in IMP) total "+inr(sum(imp))+" — average "+inr(sum(imp)/imp.length)+" each.");
+  const gst=rows.reduce((s,e)=>s+expNum(e.gst),0), withGst=rows.filter(e=>expNum(e.gst)>0);
+  if(gst>0) out.push("GST paid: <b>"+inr(gst)+"</b> on "+withGst.length+" bills — usually claimable as input credit; check with accounts.");
+  const adv=rows.filter(e=>/advance/i.test(e.classification||""));
+  if(adv.length) out.push("Vendor advances outstanding: <b>"+inr(sum(adv))+"</b> to "+[...new Set(adv.map(e=>e.partyName))].map(esc).join(", ")+". Recover these against their bills.");
+  expBudgetData().filter(b=>b.budget>0).forEach(b=>{ const p=b.actual/b.budget*100;
+    if(p>100) out.unshift('⚠ <b>'+esc(b.cls)+'</b> is <b>over budget</b> by '+inr(b.actual-b.budget)+' ('+p.toFixed(p<101?1:0)+'% of '+inr(b.budget)+').');
+    else if(p>=80) out.unshift('<b>'+esc(b.cls)+'</b> has used <b>'+p.toFixed(0)+'%</b> of its budget — '+inr(b.budget-b.actual)+' left.'); });
+  const lag=rows.filter(e=>e.invoiceDate&&e.date&&(Date.parse(e.date)-Date.parse(expISO(e.invoiceDate)))/864e5>=5);
+  if(lag.length) out.push("<b>"+lag.length+"</b> entr"+(lag.length>1?"ies were":"y was")+" booked 5+ days after the spend date (invoice date). Switch <i>Date by</i> to <i>Invoice (spend) date</i> to see when money actually went out.");
+  return out;
+}
+function expDataChecks(all){
+  const out=[];
+  const mism=all.filter(e=>Math.abs(expNum(e.amount)+expNum(e.gst)-expTot(e))>1);
+  mism.forEach(e=>out.push(['w',"Net + GST ≠ total on <b>"+esc(e.voucherNo||"(no voucher)")+"</b> "+esc(e.partyName||"")+": "+inr(expNum(e.amount))+" + "+inr(expNum(e.gst))+" = "
+    +inr(expNum(e.amount)+expNum(e.gst))+", but total says "+inr(expTot(e))+"."]));
+  const noV=all.filter(e=>!String(e.voucherNo||"").trim()); if(noV.length) out.push(['w',noV.length+" entr"+(noV.length>1?"ies have":"y has")+" no voucher number: "+noV.map(e=>esc(e.partyName||e.desc)+" ("+expFmtDate(expISO(e.date))+")").join(", ")+"."]);
+  const noP=all.filter(e=>!String(e.partyName||"").trim()); if(noP.length) out.push(['w',noP.length+" entr"+(noP.length>1?"ies have":"y has")+" no party name: "+noP.map(e=>esc(e.desc)+" ("+expFmtDate(expISO(e.date))+")").join(", ")+"."]);
+  const noI=all.filter(e=>!e.invoiceDate); if(noI.length) out.push(['i',noI.length+" entr"+(noI.length>1?"ies have":"y has")+" no invoice date."]);
+  const vc={}; all.forEach(e=>{ const v=String(e.voucherNo||"").trim(); if(v) (vc[v]=vc[v]||[]).push(e); });
+  const multi=Object.entries(vc).filter(([,a])=>a.length>1);
+  if(multi.length) out.push(['i',multi.length+" voucher numbers cover more than one line (split across ledgers or bills) — normal, but worth a glance: "+multi.map(([v,a])=>esc(v)+" ×"+a.length).join(", ")+"."]);
+  const ed=all.filter(e=>e.sheetOrig);
+  if(ed.length) out.push(['i',ed.length+" entr"+(ed.length>1?"ies were":"y was")+" corrected on this page but not in the sheet: "
+    +ed.map(e=>esc(e.voucherNo||e.partyName||e.desc)).join(", ")+". Ask accounts to make the same fix in the sheet."]);
+  const st=(EXP_LAST&&EXP_LAST.sheet)?EXP_LAST.sheet.sheetTotal:(S.expenseSync&&S.expenseSync.sheetTotal);
+  const sheetRowsTot=(EXP_LAST&&EXP_LAST.sheet)?EXP_LAST.sheet.rows.reduce((s,r)=>s+r.total,0):all.filter(e=>e.source==="sheet").reduce((s,e)=>s+expTot(e),0);
+  if(st!=null&&Math.abs(st-sheetRowsTot)>1) out.push(['w',"The <b>Total</b> row at the bottom of the sheet shows "+inr(st)+", but the rows add up to <b>"+inr(sheetRowsTot)
+    +"</b>. Its SUM formula doesn't cover all rows — ask accounts to fix the range."]);
+  expBudgetData().filter(b=>b.sheetActual!=null&&Math.abs(b.sheetActual-b.actual)>1).forEach(b=>out.push(['w',
+    'The "Budget vs Actuals" tab shows <b>'+esc(b.cls)+'</b> actual as '+inr(b.sheetActual)+', but the expense rows add up to <b>'+inr(b.actual)+'</b> (net).']));
+  if(EXP_LAST&&EXP_LAST.sheet&&EXP_LAST.sheet.budgetError) out.push(['i',"Couldn't read the Budget vs Actuals tab: "+esc(EXP_LAST.sheet.budgetError)+"."]);
+  if(EXP_LAST&&EXP_LAST.sheet&&EXP_LAST.sheet.skipped.length) out.push(['w',EXP_LAST.sheet.skipped.length+" sheet row(s) have no readable voucher date and can't be imported: row "+EXP_LAST.sheet.skipped.map(s=>s.line).join(", ")+"."]);
+  return out;
+}
+function drawExpReport(){
+  const el=$("#expReport"); if(!el) return;
+  const all=S.expenses, rows=expFiltered();
+  if(!all.length){ el.innerHTML='<div class="small" style="margin:12px 0">No expenses yet — click <b>Sync from Sheet</b>.</div>'; return; }
+  const sum=a=>a.reduce((s,e)=>s+expTot(e),0);
+  const net=rows.reduce((s,e)=>s+expNum(e.amount),0), gst=rows.reduce((s,e)=>s+expNum(e.gst),0), tot=sum(rows);
+  const run=rows.filter(e=>expTot(e)<EXP_BIG);
+  const mset=new Set(run.map(e=>expWhen(e).slice(0,7)).filter(Boolean));
+  const chartRows=EXPF.hideBig?run:rows, hidden=rows.length-chartRows.length;
+  const dates=rows.map(expWhen).filter(Boolean).sort();
+  const scope=(EXPF.month?expMonthLabel(EXPF.month):"All months")+(EXPF.cls?" · "+EXPF.cls:"")+(EXPF.q?' · "'+EXPF.q+'"':"");
+  let h='<div class="exv no-invert">'
+    +'<h3>Expense analysis — '+esc(scope)+'</h3><div class="exsub">'+rows.length+' entries'
+    +(dates.length?' · '+expFmtDate(dates[0])+' to '+expFmtDate(dates[dates.length-1]):"")
+    +' · by '+(EXPF.dateBy==="date"?"voucher date":"invoice (spend) date")+'</div>'
+    +'<div class="exkpis">'
+    +'<div class="exkpi"><div class="l">Total spent</div><div class="v">'+lakh(tot)+'</div><div class="s">'+inr(tot)+' incl. GST</div></div>'
+    +'<div class="exkpi"><div class="l">Net of GST</div><div class="v">'+lakh(net)+'</div><div class="s">'+inr(net)+' · = "Budget vs Actuals"</div></div>'
+    +'<div class="exkpi"><div class="l">GST paid</div><div class="v">'+inr(gst)+'</div><div class="s">'+(tot?(gst/tot*100).toFixed(1):0)+'% of spend</div></div>'
+    +'<div class="exkpi"><div class="l">Running spend</div><div class="v">'+inr(sum(run))+'</div><div class="s">excl. one-offs ≥ ₹10 L · '+(mset.size?inr(sum(run)/mset.size)+"/month":"")+'</div></div>'
+    +'<div class="exkpi"><div class="l">Entries</div><div class="v">'+rows.length+'</div><div class="s">'+rows.filter(e=>e.source==="sheet").length+' from sheet · '+rows.filter(e=>e.source!=="sheet").length+' manual</div></div>'
+    +'</div></div>';
+  h+=expBudgetPanel();
+  h+='<div class="exgrid">'
+    +'<div class="exv no-invert"><h3>Monthly spend</h3><div class="exsub">Stacked by classification'+(hidden?' · '+hidden+' one-off item(s) ≥ ₹10 L hidden':"")+'</div><div id="exChMonth"></div></div>'
+    +'<div class="exv no-invert"><h3>Running total</h3><div class="exsub">Cumulative spend by date'+(hidden?' · one-offs hidden':"")+'</div><div id="exChCum"></div></div>'
+    +'<div class="exv no-invert"><h3>By classification</h3><div class="exsub">Share of spend shown'+(hidden?' · one-offs hidden':"")+'</div><div id="exChClass"></div></div>'
+    +'<div class="exv no-invert"><h3>Top ledgers</h3><div class="exsub">Where the money goes, by TCSiON ledger'+(hidden?' · one-offs hidden':"")+'</div><div id="exChLedger"></div></div>'
+    +'</div>';
+  const party={}; chartRows.forEach(e=>{ const k=e.partyName||"(no party)"; party[k]=party[k]||{v:0,n:0}; party[k].v+=expTot(e); party[k].n++; });
+  const tp=Object.entries(party).sort((a,b)=>b[1].v-a[1].v).slice(0,8);
+  const ins=expInsights(all,rows), chk=expDataChecks(all);
+  h+='<div class="exgrid">'
+    +'<div class="exv no-invert"><h3>Key findings</h3><ul class="exins" style="padding-left:18px;margin:6px 0">'+(ins.length?ins.map(x=>'<li>'+x+'</li>').join(""):'<li>No entries in this view.</li>')+'</ul></div>'
+    +'<div class="exv no-invert"><h3>Top parties</h3><table style="width:100%;font-size:12px;color:var(--exv-ink)"><tr><th style="text-align:left">Party</th><th class="n">Entries</th><th class="n">Spent</th></tr>'
+    +tp.map(([k,o])=>'<tr><td>'+esc(k)+'</td><td class="n">'+o.n+'</td><td class="n">'+inr(o.v)+'</td></tr>').join("")+'</table></div>'
+    +'</div>'
+    +'<div class="exv no-invert"><h3>Data checks</h3><div class="exsub">Problems found in the sheet data — fix them in the sheet, then sync</div>'
+    +(chk.length?'<ul class="exins" style="padding-left:4px;list-style:none;margin:6px 0">'+chk.map(([t,x])=>'<li><span class="exflag '+t+'">'+(t==="w"?"CHECK":"NOTE")+'</span>'+x+'</li>').join("")+'</ul>'
+      :'<div class="small">✓ No problems found.</div>')+'</div>';
+  el.innerHTML=h;
+  exTipBind($("#expBudgetBox"));
+  chartMonthly($("#exChMonth"),chartRows);
+  chartCumulative($("#exChCum"),chartRows);
+  const cls={}; chartRows.forEach(e=>{ const k=expClass(e.classification); cls[k]=cls[k]||{v:0,n:0}; cls[k].v+=expTot(e); cls[k].n++; });
+  chartHBars($("#exChClass"),Object.entries(cls).sort((a,b)=>b[1].v-a[1].v).map(([k,o])=>({k,v:o.v,n:o.n,c:expColor(k)})),{label:"Spend by classification"});
+  const led={}; chartRows.forEach(e=>{ const k=e.ledger||"(no ledger)"; led[k]=led[k]||{v:0,n:0}; led[k].v+=expTot(e); led[k].n++; });
+  chartHBars($("#exChLedger"),Object.entries(led).sort((a,b)=>b[1].v-a[1].v).slice(0,8).map(([k,o])=>({k,v:o.v,n:o.n})),{label:"Top ledgers"});
+}
+
+/* ---------- budget vs actual, per classification (whole project, net of GST like the sheet) ---------- */
+function expBudgetData(){
+  const B=expBudgetRows(), act={};
+  S.expenses.forEach(e=>{ const k=expClass(e.classification); act[k]=(act[k]||0)+expNum(e.amount); });
+  const order=B.map(b=>b.cls); Object.keys(act).forEach(k=>{ if(order.indexOf(k)<0) order.push(k); });
+  return order.map(k=>{ const b=B.find(x=>x.cls===k);
+    return {cls:k,budget:b?b.budget:null,sheetActual:b?b.sheetActual:null,actual:act[k]||0}; });
+}
+function expBudgetPanel(){
+  const rows=expBudgetData(); if(!rows.length) return "";
+  const set=rows.filter(r=>r.budget!=null&&r.budget>0);
+  const tb=set.reduce((s,r)=>s+r.budget,0), ta=rows.reduce((s,r)=>s+r.actual,0), taSet=set.reduce((s,r)=>s+r.actual,0);
+  const bar=r=>{
+    if(r.budget==null||r.budget<=0) return '<span style="color:var(--exv-muted)">No budget set</span>';
+    const pct=r.actual/r.budget*100, over=pct>100;
+    return '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:90px;height:10px;border-radius:4px;background:var(--exv-grid);overflow:hidden">'
+      +'<div style="height:100%;width:'+Math.min(100,pct).toFixed(1)+'%;background:'+expColor(r.cls)+';border-radius:0 4px 4px 0"></div></div>'
+      +'<span style="min-width:74px;font-weight:600;color:var(--exv-ink)">'+(over?"⚠ ":"")+pct.toFixed(over&&pct<101?1:0)+'%'+(over?" over":"")+'</span></div>';
+  };
+  let h='<div class="exv no-invert" id="expBudgetBox"><h3>Budget vs actual</h3><div class="exsub">Whole project, all months, net of GST — same basis as the sheet\'s "Budget vs Actuals" tab'
+    +(set.length?'':' · <b>no budgets entered yet</b>: accounts can fill the "Budgeted Cost" column in that tab, then sync')+'</div>';
+  if(set.length) h+='<div class="exkpis" style="margin-bottom:10px">'
+    +'<div class="exkpi"><div class="l">Total budget</div><div class="v">'+lakh(tb)+'</div><div class="s">'+inr(tb)+' across '+set.length+' classification'+(set.length>1?"s":"")+'</div></div>'
+    +'<div class="exkpi"><div class="l">Spent against it</div><div class="v">'+lakh(taSet)+'</div><div class="s">'+(taSet/tb*100).toFixed(1)+'% of budget used</div></div>'
+    +'<div class="exkpi"><div class="l">'+(tb-taSet>=0?"Remaining":"Over budget")+'</div><div class="v">'+lakh(Math.abs(tb-taSet))+'</div><div class="s">'+inr(Math.abs(tb-taSet))+'</div></div>'
+    +'</div>';
+  h+='<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px;color:var(--exv-ink)"><tr><th style="text-align:left">Classification</th><th class="n">Budget</th>'
+    +'<th class="n">Actual (net)</th><th class="n">Remaining</th><th style="text-align:left;width:32%">Used</th></tr>'
+    +rows.map(r=>{ const has=r.budget!=null&&r.budget>0, rem=has?r.budget-r.actual:null;
+      return '<tr data-tip="<b>'+exAttr(r.cls)+'</b><br>Budget: '+(has?inr(r.budget):"not set")+'<br>Spent (net): '+inr(r.actual)
+        +(has?'<br>'+(rem>=0?"Remaining: ":"Over by: ")+inr(Math.abs(rem)):"")+'">'
+        +'<td><i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:'+expColor(r.cls)+'"></i>'+esc(r.cls)+'</td>'
+        +'<td class="n">'+(has?inr(r.budget):'<span style="color:var(--exv-muted)">—</span>')+'</td>'
+        +'<td class="n">'+inr(r.actual)+'</td>'
+        +'<td class="n"'+(has&&rem<0?' style="font-weight:700"':'')+'>'+(has?(rem<0?"−":"")+inr(Math.abs(rem)):'<span style="color:var(--exv-muted)">—</span>')+'</td>'
+        +'<td>'+bar(r)+'</td></tr>'; }).join("")
+    +'<tr style="font-weight:700"><td>Total</td><td class="n">'+(set.length?inr(tb):"—")+'</td><td class="n">'+inr(ta)+'</td>'
+    +'<td class="n">'+(set.length?(tb-taSet<0?"−":"")+inr(Math.abs(tb-taSet)):"—")+'</td><td></td></tr></table></div></div>';
+  return h;
+}
+
+/* ---------- date-wise table, grouped by month with subtotals ---------- */
+function drawExpTable(){
+  const list=$("#expList"); if(!list) return;
+  const rows=expFiltered().sort((a,b)=>{ const c=expWhen(a).localeCompare(expWhen(b))||String(a.voucherNo||"").localeCompare(String(b.voucherNo||""));
+    return EXPF.sort==="asc"?c:-c; });
+  if(!rows.length){ list.innerHTML='<div class="small">'+(S.expenses.length?"No entries match these filters.":"No expenses recorded yet — sync from the sheet or add one manually.")+'</div>'; return; }
+  const by=EXPF.dateBy==="date";
+  let h='<div style="overflow-x:auto"><table><tr><th>'+(by?"Voucher date":"Invoice date")+'</th><th>'+(by?"Invoice date":"Voucher date")+'</th><th>Voucher No</th>'
+    +'<th>Classification</th><th>Ledger</th><th>Party</th><th>Description</th><th class="n">Net</th><th class="n">GST</th><th class="n">Total</th><th>Src</th><th></th></tr>';
+  let cur=null, sub={n:0,a:0,g:0,t:0}, grand={a:0,g:0,t:0};
+  if(EXPF.flagged) h='<div class="exsync diff" style="margin:0 0 8px">Showing only flagged entries ('+rows.length+'). Click <b>✏️ Edit</b> on a row to fix it, or <button class="sm" id="expFlagOff">show all entries</button></div>'+h;
+  const flush=()=>{ if(cur) h+='<tr class="exsubtot"><td colspan="7">'+expMonthLabel(cur)+' subtotal · '+sub.n+' entr'+(sub.n===1?"y":"ies")+'</td><td class="n">'+inr(sub.a)
+    +'</td><td class="n">'+inr(sub.g)+'</td><td class="n">'+inr(sub.t)+'</td><td colspan="2"></td></tr>'; };
+  rows.forEach(e=>{
+    const m=expWhen(e).slice(0,7)||"—";
+    if(m!==cur){ flush(); cur=m; sub={n:0,a:0,g:0,t:0}; h+='<tr class="exmonth"><td colspan="12">'+(m==="—"?"No date":expMonthLabel(m))+'</td></tr>'; }
+    const a=expNum(e.amount), g=expNum(e.gst), t=expTot(e);
+    sub.n++; sub.a+=a; sub.g+=g; sub.t+=t; grand.a+=a; grand.g+=g; grand.t+=t;
+    const bad=Math.abs(a+g-t)>1;
+    const d1=by?e.date:e.invoiceDate, d2=by?e.invoiceDate:e.date;
+    h+='<tr><td style="white-space:nowrap">'+expFmtDate(expISO(d1)||expISO(e.date))+'</td><td class="small" style="white-space:nowrap">'+expFmtDate(expISO(d2))+'</td>'
+      +'<td style="white-space:nowrap">'+esc(e.voucherNo||"—")+'</td>'
+      +'<td><i style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:'+expColor(e.classification).replace(/var\(--s(\d)\)/,(x,n)=>["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#6250d6","#e34948"][n-1])+'"></i>'+esc(expClass(e.classification))+'</td>'
+      +'<td>'+esc(e.ledger||"")+'</td><td>'+esc(e.partyName||"")+'</td><td>'+esc(e.desc||"")+'</td>'
+      +'<td class="n">'+inr(a)+'</td><td class="n">'+inr(g)+'</td>'
+      +'<td class="n"'+(bad?' title="Net + GST = '+inr(a+g)+' — does not equal this total. Click Edit to fix." style="color:#B80001;font-weight:600"':"")+'>'+inr(t)+(bad?" ⚠":"")+'</td>'
+      +'<td class="small">'+(e.source==="sheet"?(e.sheetOrig?'sheet <b style="color:#B80001">· edited</b>':"sheet"):"manual")+'</td>'
+      +'<td style="white-space:nowrap"><button class="sm" data-expe="'+esc(e.id)+'" title="Edit this entry">✏️ Edit</button>'
+      +(e.source==="sheet"?'':' <button class="sm warn" data-expx="'+esc(e.id)+'" title="Delete manual entry">×</button>')+'</td></tr>';
+  });
+  flush();
+  h+='<tr class="tot"><td colspan="7">TOTAL · '+rows.length+' entries</td><td class="n">'+inr(grand.a)+'</td><td class="n">'+inr(grand.g)+'</td><td class="n">'+inr(grand.t)+'</td><td colspan="2"></td></tr></table></div>'
+    +'<div class="small" style="margin-top:6px">Sheet rows are edited in the sheet, then synced — that keeps the two from drifting apart.</div>';
+  list.innerHTML=h;
+  if($("#expFlagOff")) $("#expFlagOff").onclick=()=>{ EXPF.flagged=false; drawExpenses(); };
+  document.querySelectorAll("[data-expe]").forEach(x=>{ x.onclick=()=>openAddExpense(x.dataset.expe); });
+  document.querySelectorAll("[data-expx]").forEach(x=>{x.onclick=()=>{
+    if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
+    const e=S.expenses.find(y=>y.id===x.dataset.expx); if(!e) return;
+    confirmModal({title:"Delete expense",body:"Delete the manual entry <b>"+esc(e.desc||e.ledger||"")+"</b> ("+inr(expTot(e))+")?",confirmLabel:"Delete",
+      onConfirm:()=>{ S.expenses=S.expenses.filter(y=>y.id!==e.id);
+        logChange("Expense deleted: "+(e.desc||e.ledger||"")+" ₹"+expTot(e)); save(); drawExpenses(); }});
+  };});
+}
+function drawExpenses(){
+  if(!$("#expList")) return;
+  S.expenses.forEach(e=>{ if(e.date&&!/^\d{4}-/.test(e.date)) e.date=expISO(e.date)||e.date;
+    if(e.invoiceDate&&!/^\d{4}-/.test(e.invoiceDate)) e.invoiceDate=expISO(e.invoiceDate)||e.invoiceDate; });
+  $("#expSheetLink").href=EXP_SHEET_URL;
+  const nf=S.expenses.filter(e=>expFlags(e).length).length;
+  $("#expFlagBtn").innerHTML=EXPF.flagged?"Show all entries":"⚠ Flagged entries ("+nf+")";
+  $("#expFlagBtn").className=EXPF.flagged?"primary":(nf?"warn":"");
+  drawExpFilters(); drawExpSyncBar(); drawExpReport(); drawExpTable();
+}
+function openAddExpense(editId){
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
+  const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,""))||0;
+  const today=dstr(new Date());
+  const E=editId?S.expenses.find(x=>x.id===editId):null;
+  if(editId&&!E) return;
+  const v=(f,d)=>E?esc(E[f]==null?"":E[f]):(d||"");
+  const flags=E?expFlags(E):[];
+  const isSheet=E&&E.source==="sheet";
+  const sheetLink=isSheet?"https://docs.google.com/spreadsheets/d/"+EXP_SHEET.id+"/edit#gid="+EXP_SHEET.gid+(E.sheetRow?"&range=A"+E.sheetRow:""):"";
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">'+(E?"Edit expense":"Add expense")+'</div>'
+    +(flags.length?'<div style="background:#fde8e8;color:#8a1010;border-radius:6px;padding:7px 10px;font-size:12px;margin:8px 0">⚠ '+flags.join(" · ")+'</div>':"")
+    +(isSheet?'<div class="small" style="margin:6px 0 10px;line-height:1.5">This entry comes from the accounts sheet'+(E.sheetRow?' (row '+E.sheetRow+')':'')
+      +'. A fix saved here is kept on this page across syncs, but the sheet still has the old values — so also '
+      +'<a href="'+sheetLink+'" target="_blank" rel="noopener"><b>open this row in the sheet</b></a> and correct it there, or ask accounts to.'
+      +(E.sheetOrig?' <br><b>Already edited here.</b> <a href="#" id="eRevert">Undo my edits (use sheet values)</a>':'')+'</div>'
+     :(E?'':'<div class="small" style="margin:4px 0 10px">For costs not yet in the accounts sheet. Once accounts add it there, the next sync offers to remove this duplicate.</div>'))
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Voucher date",'<input type="date" id="eDate" style="width:100%" value="'+(E?esc(expISO(E.date)):today)+'">')
+    +fRow("Invoice (spend) date",'<input type="date" id="eInvDate" style="width:100%" value="'+(E?esc(expISO(E.invoiceDate)):today)+'">')
+    +fRow("Voucher No.",'<input id="eVoucher" style="width:100%" value="'+v("voucherNo")+'">')
+    +fRow("Classification",'<select id="eClass" style="width:100%">'+opts(E&&EXP_CLASSES.indexOf(expClass(E.classification))<0?EXP_CLASSES.concat([expClass(E.classification)]):EXP_CLASSES,E?expClass(E.classification):"Other Expenses")+'</select>')
+    +'</div>'
+    +fRow("Ledger (as per TCSiON)",'<input id="eLedger" style="width:100%" placeholder="e.g. Factory Expenses" value="'+v("ledger")+'">')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
+    +fRow("Party name",'<input id="eParty" style="width:100%" value="'+v("partyName")+'">')
+    +fRow("Invoice No.",'<input id="eInvNo" style="width:100%" value="'+v("invoiceNo")+'">')
+    +'</div>'
+    +fRow("Description",'<textarea id="eDesc" style="width:100%;min-height:50px">'+v("desc")+'</textarea>')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">'
+    +fRow("Amount (Net) ₹",'<input type="number" step="0.01" id="eAmount" style="width:100%" value="'+(E?expNum(E.amount):"")+'">')
+    +fRow("GST ₹",'<input type="number" step="0.01" id="eGst" style="width:100%" value="'+(E?expNum(E.gst):0)+'">')
+    +fRow("Total ₹",'<input type="number" step="0.01" id="eTotal" style="width:100%" placeholder="net + GST" value="'+(E?expTot(E):"")+'">')
+    +'</div>'
+    +'<div id="eMath" class="small" style="margin:-2px 0 8px"></div>'
+    +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">'
+    +'<button id="eCancel">Cancel</button><button id="eSave" class="primary">'+(E?"Save changes":"Add expense")+'</button></div>');
+  const mathCheck=()=>{ const a=num($("#eAmount").value), g=num($("#eGst").value), t=$("#eTotal").value;
+    const el=$("#eMath"); if(t===""||Math.abs(a+g-num(t))<=1){ el.innerHTML=t===""?"":'<span style="color:#4E7A33">✓ Net + GST matches the total</span>'; return; }
+    el.innerHTML='<span style="color:#B80001">Net + GST = <b>'+inr(a+g)+'</b>, total is '+inr(num(t))+'.</span> '
+      +'<button class="sm" id="eUseSum">Set total to '+inr(a+g)+'</button> <button class="sm" id="eFixGst">Set GST to '+inr(num(t)-a)+'</button>';
+    $("#eUseSum").onclick=()=>{ $("#eTotal").value=Math.round((a+g)*100)/100; mathCheck(); };
+    $("#eFixGst").onclick=()=>{ $("#eGst").value=Math.round((num(t)-a)*100)/100; mathCheck(); }; };
+  ["eAmount","eGst","eTotal"].forEach(id=>$("#"+id).oninput=mathCheck); mathCheck();
+  $("#eCancel").onclick=closeModal;
+  if($("#eRevert")) $("#eRevert").onclick=ev=>{ ev.preventDefault();
+    Object.assign(E,E.sheetOrig); delete E.sheetOrig;
+    logChange("Expense edit undone (back to sheet values): "+(E.desc||E.ledger||""));
+    closeModal(); save(); drawExpenses(); toast("Back to the sheet's values"); };
+  $("#eSave").onclick=()=>{
+    const amount=num($("#eAmount").value), gst=num($("#eGst").value);
+    if(!amount){ toast("Enter the net amount.",true); return; }
+    const totalRaw=$("#eTotal").value, total=totalRaw!==""?num(totalRaw):amount+gst;
+    const rec={date:$("#eDate").value||today, voucherNo:$("#eVoucher").value.trim(), classification:$("#eClass").value,
+      ledger:$("#eLedger").value.trim(), partyName:$("#eParty").value.trim(), invoiceNo:$("#eInvNo").value.trim(),
+      invoiceDate:$("#eInvDate").value, desc:$("#eDesc").value.trim(), amount, gst, total};
+    if(E){
+      const changed=EXP_FIELDS.filter(([f])=>{ const x=E[f], y=rec[f];
+        return (f==="amount"||f==="gst"||f==="total")?Math.abs(expNum(x)-expNum(y))>0.005
+          :(f==="date"||f==="invoiceDate")?(expISO(x)||"")!==(expISO(y)||""):String(x||"").trim()!==String(y||"").trim(); });
+      if(!changed.length){ closeModal(); return; }
+      if(isSheet&&!E.sheetOrig){ const o={}; EXP_FIELDS.forEach(([f])=>{ o[f]=E[f]; }); E.sheetOrig=o; }
+      Object.assign(E,rec);
+      if(isSheet&&E.sheetOrig&&!expFieldDiff(E.sheetOrig,E).length) delete E.sheetOrig;   // edited back to the sheet's values
+      logChange("Expense edited: "+(rec.desc||rec.ledger)+" — "+changed.map(c=>c[1]).join(", "));
+      closeModal(); save(); drawExpenses(); toast("Changes saved");
+      return;
+    }
+    S.expenses.push(Object.assign({id:"exp"+Date.now(), source:"manual"},rec));
+    logChange("Expense added: "+(rec.desc||rec.ledger)+" ₹"+total);
+    closeModal(); save(); drawExpenses(); toast("Expense added");
+  };
+}
+$("#expAddBtn").onclick=()=>openAddExpense();
+$("#expFlagBtn").onclick=()=>{ EXPF.flagged=!EXPF.flagged; drawExpenses(); if(EXPF.flagged) $("#expList").scrollIntoView({behavior:"smooth",block:"start"}); };
+
+$("#expFMonth").onchange=e=>{ EXPF.month=e.target.value; drawExpenses(); };
+$("#expFClass").onchange=e=>{ EXPF.cls=e.target.value; drawExpenses(); };
+$("#expFDateBy").onchange=e=>{ EXPF.dateBy=e.target.value; drawExpenses(); };
+$("#expFSort").onchange=e=>{ EXPF.sort=e.target.value; drawExpTable(); };
+$("#expFBig").onchange=e=>{ EXPF.hideBig=e.target.checked; drawExpReport(); };
+let expQTimer=null;
+$("#expFQ").oninput=e=>{ clearTimeout(expQTimer); expQTimer=setTimeout(()=>{ EXPF.q=e.target.value; drawExpReport(); drawExpTable(); },200); };
+$("#expCsvBtn").onclick=()=>{
+  const rows=expFiltered().sort((a,b)=>expWhen(a).localeCompare(expWhen(b)));
+  const out=[["Voucher Date","Voucher No.","Classification","Ledger","Party Name","Invoice No.","Invoice Date","Description","Amount (Net)","GST","Total Amount","Source"]]
+    .concat(rows.map(e=>[expISO(e.date),e.voucherNo,expClass(e.classification),e.ledger,e.partyName,e.invoiceNo,expISO(e.invoiceDate),e.desc,expNum(e.amount),expNum(e.gst),expTot(e),e.source||"manual"]));
+  downloadText("ASL Vikrant expenses — "+dstr(new Date())+".csv",out.map(r=>r.map(csvEsc).join(",")).join("\n"),"text/csv");
+};
+$("#expPrintBtn").onclick=()=>{ document.body.classList.add("print-exp"); window.print(); };
+window.addEventListener("afterprint",()=>document.body.classList.remove("print-exp"));
+let expResizeT=null;
+window.addEventListener("resize",()=>{ clearTimeout(expResizeT); expResizeT=setTimeout(()=>{ if(S.tab==="exp") drawExpReport(); },250); });
+
 $("#mapUpload").onclick=()=>$("#mapIn").click();
 $("#mapIn").onchange=e=>{ const f=e.target.files[0]; if(f) uploadSiteMap(f); e.target.value=""; };
 $("#pUpload").onclick=()=>$("#photoIn").click();
@@ -3351,6 +4303,7 @@ lockEditableInputs();
 startEditLockObserver();
 storageLine();
 tryReconnectFileOnBoot();
+expCheckSheet();   // compare against the accounts sheet in the background so the Expenses tab shows sync status
 if(!backendConfigured()){
   setSyncState("offline","set API_BASE near the top of the script to your deployed backend");
 } else {

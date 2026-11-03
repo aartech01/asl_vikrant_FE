@@ -537,6 +537,7 @@ this is a planning and control tool, not a design or a professional cost certifi
   <div class="tools">
     <button id="expSyncBtn" class="primary">🔄 Sync from Sheet</button>
     <button id="expAddBtn">+ Add expense</button>
+    <button id="expFlagBtn">⚠ Flagged entries</button>
     <button id="expCsvBtn">⬇ Download CSV</button>
     <button id="expPrintBtn">🖨 Print report</button>
   </div>
@@ -3604,7 +3605,13 @@ const EXP_CLASSES=["Capital Expenses - Building","Other Expenses","Advances paid
 const EXP_BUDGET_GID="309698187";   // "Budget vs Actuals" tab
 const EXP_BIG=1e6;   // one-off items at or above ₹10 lakh can be hidden from charts
 const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-let EXPF={month:"",cls:"",q:"",dateBy:"date",hideBig:true,sort:"asc"};
+let EXPF={month:"",cls:"",q:"",dateBy:"date",hideBig:true,sort:"asc",flagged:false};
+/* a row needs attention when its maths doesn't add up or a key field is blank */
+function expFlags(e){ const f=[];
+  if(Math.abs(expNum(e.amount)+expNum(e.gst)-expTot(e))>1) f.push("Net + GST ≠ total");
+  if(!String(e.voucherNo||"").trim()) f.push("No voucher number");
+  if(!String(e.partyName||"").trim()) f.push("No party name");
+  return f; }
 let EXP_LAST=null, EXP_CHECKING=false, EXP_CHECKED_AT=0;
 
 function expClass(c){
@@ -3701,8 +3708,8 @@ const expBudgetRows=()=>(EXP_LAST&&EXP_LAST.sheet&&EXP_LAST.sheet.budget)||(S.ex
 const expNorm=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
 const expKey=e=>[expNorm(e.voucherNo),expNorm(e.invoiceNo),expNorm(e.ledger),Math.round(expNum(e.amount)*100)].join("|");
 function expKeyed(list){ const seen={};
-  return list.map(e=>{ let k=expKey(e); seen[k]=(seen[k]||0)+1; if(seen[k]>1) k+="#"+seen[k]; return [k,e]; }); }
-const EXP_FIELDS=[["date","Voucher date"],["classification","Classification"],["ledger","Ledger"],["partyName","Party"],
+  return list.map(e=>{ let k=expKey(e.sheetOrig||e); seen[k]=(seen[k]||0)+1; if(seen[k]>1) k+="#"+seen[k]; return [k,e]; }); }
+const EXP_FIELDS=[["voucherNo","Voucher no"],["date","Voucher date"],["classification","Classification"],["ledger","Ledger"],["partyName","Party"],
   ["invoiceNo","Invoice no"],["invoiceDate","Invoice date"],["desc","Description"],["amount","Net"],["gst","GST"],["total","Total"]];
 function expFieldDiff(a,b){
   return EXP_FIELDS.filter(([f])=>{
@@ -3715,7 +3722,7 @@ function expComputeDiff(sheet){
   const added=[],changed=[],matched=new Set();
   expKeyed(sheet.rows).forEach(([k,r])=>{ const old=A.get(k);
     if(!old){ added.push(r); return; } matched.add(k);
-    const f=expFieldDiff(old,r); if(f.length) changed.push({old,row:r,fields:f}); });
+    const f=expFieldDiff(old.sheetOrig||old,r); if(f.length) changed.push({old:old.sheetOrig||old,row:r,fields:f}); });
   const removed=[...A].filter(([k])=>!matched.has(k)).map(([,e])=>e);
   const manualDup=S.expenses.filter(e=>e.source!=="sheet").filter(m=>sheet.rows.some(r=>
     Math.abs(expTot(m)-r.total)<1&&((m.voucherNo&&expNorm(m.voucherNo)===expNorm(r.voucherNo))||expISO(m.date)===r.date)));
@@ -3730,6 +3737,7 @@ function expApplySync(sheet,dropManualIds){
   const A=new Map(expKeyed(S.expenses.filter(e=>e.source==="sheet")));
   const stamp=Date.now();
   const next=expKeyed(sheet.rows).map(([k,r],i)=>{ const old=A.get(k);
+    if(old&&old.sheetOrig&&!expFieldDiff(old.sheetOrig,r).length) return Object.assign({},old,{sheetRow:r.sheetRow,sourceKey:k});
     return Object.assign({},r,{id:old?old.id:"exps"+stamp+"_"+i,sourceKey:k}); });
   S.expenses=S.expenses.filter(e=>e.source!=="sheet"&&dropManualIds.indexOf(e.id)<0).concat(next);
   S.expenseSync={at:sheet.fetchedAt,rows:sheet.rows.length,sheetTotal:sheet.sheetTotal};
@@ -3859,6 +3867,7 @@ function expFiltered(){
   const q=EXPF.q.trim().toLowerCase();
   return S.expenses.filter(e=>{
     const w=expWhen(e);
+    if(EXPF.flagged&&!expFlags(e).length) return false;
     if(EXPF.month&&w.slice(0,7)!==EXPF.month) return false;
     if(EXPF.cls&&expClass(e.classification)!==EXPF.cls) return false;
     if(q&&[e.partyName,e.ledger,e.desc,e.voucherNo,e.invoiceNo,e.classification].join(" ").toLowerCase().indexOf(q)<0) return false;
@@ -4021,6 +4030,9 @@ function expDataChecks(all){
   const vc={}; all.forEach(e=>{ const v=String(e.voucherNo||"").trim(); if(v) (vc[v]=vc[v]||[]).push(e); });
   const multi=Object.entries(vc).filter(([,a])=>a.length>1);
   if(multi.length) out.push(['i',multi.length+" voucher numbers cover more than one line (split across ledgers or bills) — normal, but worth a glance: "+multi.map(([v,a])=>esc(v)+" ×"+a.length).join(", ")+"."]);
+  const ed=all.filter(e=>e.sheetOrig);
+  if(ed.length) out.push(['i',ed.length+" entr"+(ed.length>1?"ies were":"y was")+" corrected on this page but not in the sheet: "
+    +ed.map(e=>esc(e.voucherNo||e.partyName||e.desc)).join(", ")+". Ask accounts to make the same fix in the sheet."]);
   const st=(EXP_LAST&&EXP_LAST.sheet)?EXP_LAST.sheet.sheetTotal:(S.expenseSync&&S.expenseSync.sheetTotal);
   const sheetRowsTot=(EXP_LAST&&EXP_LAST.sheet)?EXP_LAST.sheet.rows.reduce((s,r)=>s+r.total,0):all.filter(e=>e.source==="sheet").reduce((s,e)=>s+expTot(e),0);
   if(st!=null&&Math.abs(st-sheetRowsTot)>1) out.push(['w',"The <b>Total</b> row at the bottom of the sheet shows "+inr(st)+", but the rows add up to <b>"+inr(sheetRowsTot)
@@ -4132,6 +4144,7 @@ function drawExpTable(){
   let h='<div style="overflow-x:auto"><table><tr><th>'+(by?"Voucher date":"Invoice date")+'</th><th>'+(by?"Invoice date":"Voucher date")+'</th><th>Voucher No</th>'
     +'<th>Classification</th><th>Ledger</th><th>Party</th><th>Description</th><th class="n">Net</th><th class="n">GST</th><th class="n">Total</th><th>Src</th><th></th></tr>';
   let cur=null, sub={n:0,a:0,g:0,t:0}, grand={a:0,g:0,t:0};
+  if(EXPF.flagged) h='<div class="exsync diff" style="margin:0 0 8px">Showing only flagged entries ('+rows.length+'). Click <b>✏️ Edit</b> on a row to fix it, or <button class="sm" id="expFlagOff">show all entries</button></div>'+h;
   const flush=()=>{ if(cur) h+='<tr class="exsubtot"><td colspan="7">'+expMonthLabel(cur)+' subtotal · '+sub.n+' entr'+(sub.n===1?"y":"ies")+'</td><td class="n">'+inr(sub.a)
     +'</td><td class="n">'+inr(sub.g)+'</td><td class="n">'+inr(sub.t)+'</td><td colspan="2"></td></tr>'; };
   rows.forEach(e=>{
@@ -4146,14 +4159,17 @@ function drawExpTable(){
       +'<td><i style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:'+expColor(e.classification).replace(/var\(--s(\d)\)/,(x,n)=>["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#6250d6","#e34948"][n-1])+'"></i>'+esc(expClass(e.classification))+'</td>'
       +'<td>'+esc(e.ledger||"")+'</td><td>'+esc(e.partyName||"")+'</td><td>'+esc(e.desc||"")+'</td>'
       +'<td class="n">'+inr(a)+'</td><td class="n">'+inr(g)+'</td>'
-      +'<td class="n"'+(bad?' title="Net + GST does not equal this total" style="color:#B80001;font-weight:600"':"")+'>'+inr(t)+(bad?" ⚠":"")+'</td>'
-      +'<td class="small">'+(e.source==="sheet"?"sheet":"manual")+'</td>'
-      +'<td>'+(e.source==="sheet"?'':'<button class="sm warn" data-expx="'+esc(e.id)+'" title="Delete manual entry">×</button>')+'</td></tr>';
+      +'<td class="n"'+(bad?' title="Net + GST = '+inr(a+g)+' — does not equal this total. Click Edit to fix." style="color:#B80001;font-weight:600"':"")+'>'+inr(t)+(bad?" ⚠":"")+'</td>'
+      +'<td class="small">'+(e.source==="sheet"?(e.sheetOrig?'sheet <b style="color:#B80001">· edited</b>':"sheet"):"manual")+'</td>'
+      +'<td style="white-space:nowrap"><button class="sm" data-expe="'+esc(e.id)+'" title="Edit this entry">✏️ Edit</button>'
+      +(e.source==="sheet"?'':' <button class="sm warn" data-expx="'+esc(e.id)+'" title="Delete manual entry">×</button>')+'</td></tr>';
   });
   flush();
   h+='<tr class="tot"><td colspan="7">TOTAL · '+rows.length+' entries</td><td class="n">'+inr(grand.a)+'</td><td class="n">'+inr(grand.g)+'</td><td class="n">'+inr(grand.t)+'</td><td colspan="2"></td></tr></table></div>'
     +'<div class="small" style="margin-top:6px">Sheet rows are edited in the sheet, then synced — that keeps the two from drifting apart.</div>';
   list.innerHTML=h;
+  if($("#expFlagOff")) $("#expFlagOff").onclick=()=>{ EXPF.flagged=false; drawExpenses(); };
+  document.querySelectorAll("[data-expe]").forEach(x=>{ x.onclick=()=>openAddExpense(x.dataset.expe); });
   document.querySelectorAll("[data-expx]").forEach(x=>{x.onclick=()=>{
     if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
     const e=S.expenses.find(y=>y.id===x.dataset.expx); if(!e) return;
@@ -4167,47 +4183,87 @@ function drawExpenses(){
   S.expenses.forEach(e=>{ if(e.date&&!/^\d{4}-/.test(e.date)) e.date=expISO(e.date)||e.date;
     if(e.invoiceDate&&!/^\d{4}-/.test(e.invoiceDate)) e.invoiceDate=expISO(e.invoiceDate)||e.invoiceDate; });
   $("#expSheetLink").href=EXP_SHEET_URL;
+  const nf=S.expenses.filter(e=>expFlags(e).length).length;
+  $("#expFlagBtn").innerHTML=EXPF.flagged?"Show all entries":"⚠ Flagged entries ("+nf+")";
+  $("#expFlagBtn").className=EXPF.flagged?"primary":(nf?"warn":"");
   drawExpFilters(); drawExpSyncBar(); drawExpReport(); drawExpTable();
 }
-function openAddExpense(){
+function openAddExpense(editId){
   if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
   const num=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,""))||0;
   const today=dstr(new Date());
-  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Add expense</div>'
-    +'<div class="small" style="margin:4px 0 10px">For costs not yet in the accounts sheet. Once accounts add it there, the next sync offers to remove this duplicate.</div>'
+  const E=editId?S.expenses.find(x=>x.id===editId):null;
+  if(editId&&!E) return;
+  const v=(f,d)=>E?esc(E[f]==null?"":E[f]):(d||"");
+  const flags=E?expFlags(E):[];
+  const isSheet=E&&E.source==="sheet";
+  const sheetLink=isSheet?"https://docs.google.com/spreadsheets/d/"+EXP_SHEET.id+"/edit#gid="+EXP_SHEET.gid+(E.sheetRow?"&range=A"+E.sheetRow:""):"";
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">'+(E?"Edit expense":"Add expense")+'</div>'
+    +(flags.length?'<div style="background:#fde8e8;color:#8a1010;border-radius:6px;padding:7px 10px;font-size:12px;margin:8px 0">⚠ '+flags.join(" · ")+'</div>':"")
+    +(isSheet?'<div class="small" style="margin:6px 0 10px;line-height:1.5">This entry comes from the accounts sheet'+(E.sheetRow?' (row '+E.sheetRow+')':'')
+      +'. A fix saved here is kept on this page across syncs, but the sheet still has the old values — so also '
+      +'<a href="'+sheetLink+'" target="_blank" rel="noopener"><b>open this row in the sheet</b></a> and correct it there, or ask accounts to.'
+      +(E.sheetOrig?' <br><b>Already edited here.</b> <a href="#" id="eRevert">Undo my edits (use sheet values)</a>':'')+'</div>'
+     :(E?'':'<div class="small" style="margin:4px 0 10px">For costs not yet in the accounts sheet. Once accounts add it there, the next sync offers to remove this duplicate.</div>'))
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
-    +fRow("Voucher date",'<input type="date" id="eDate" style="width:100%" value="'+today+'">')
-    +fRow("Invoice (spend) date",'<input type="date" id="eInvDate" style="width:100%" value="'+today+'">')
-    +fRow("Voucher No.",'<input id="eVoucher" style="width:100%">')
-    +fRow("Classification",'<select id="eClass" style="width:100%">'+opts(EXP_CLASSES,"Other Expenses")+'</select>')
+    +fRow("Voucher date",'<input type="date" id="eDate" style="width:100%" value="'+(E?esc(expISO(E.date)):today)+'">')
+    +fRow("Invoice (spend) date",'<input type="date" id="eInvDate" style="width:100%" value="'+(E?esc(expISO(E.invoiceDate)):today)+'">')
+    +fRow("Voucher No.",'<input id="eVoucher" style="width:100%" value="'+v("voucherNo")+'">')
+    +fRow("Classification",'<select id="eClass" style="width:100%">'+opts(E&&EXP_CLASSES.indexOf(expClass(E.classification))<0?EXP_CLASSES.concat([expClass(E.classification)]):EXP_CLASSES,E?expClass(E.classification):"Other Expenses")+'</select>')
     +'</div>'
-    +fRow("Ledger (as per TCSiON)",'<input id="eLedger" style="width:100%" placeholder="e.g. Factory Expenses">')
+    +fRow("Ledger (as per TCSiON)",'<input id="eLedger" style="width:100%" placeholder="e.g. Factory Expenses" value="'+v("ledger")+'">')
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'
-    +fRow("Party name",'<input id="eParty" style="width:100%">')
-    +fRow("Invoice No.",'<input id="eInvNo" style="width:100%">')
+    +fRow("Party name",'<input id="eParty" style="width:100%" value="'+v("partyName")+'">')
+    +fRow("Invoice No.",'<input id="eInvNo" style="width:100%" value="'+v("invoiceNo")+'">')
     +'</div>'
-    +fRow("Description",'<textarea id="eDesc" style="width:100%;min-height:50px"></textarea>')
+    +fRow("Description",'<textarea id="eDesc" style="width:100%;min-height:50px">'+v("desc")+'</textarea>')
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">'
-    +fRow("Amount (Net) ₹",'<input type="number" id="eAmount" style="width:100%">')
-    +fRow("GST ₹",'<input type="number" id="eGst" style="width:100%" value="0">')
-    +fRow("Total ₹",'<input type="number" id="eTotal" style="width:100%" placeholder="net + GST">')
+    +fRow("Amount (Net) ₹",'<input type="number" step="0.01" id="eAmount" style="width:100%" value="'+(E?expNum(E.amount):"")+'">')
+    +fRow("GST ₹",'<input type="number" step="0.01" id="eGst" style="width:100%" value="'+(E?expNum(E.gst):0)+'">')
+    +fRow("Total ₹",'<input type="number" step="0.01" id="eTotal" style="width:100%" placeholder="net + GST" value="'+(E?expTot(E):"")+'">')
     +'</div>'
+    +'<div id="eMath" class="small" style="margin:-2px 0 8px"></div>'
     +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">'
-    +'<button id="eCancel">Cancel</button><button id="eSave" class="primary">Add expense</button></div>');
+    +'<button id="eCancel">Cancel</button><button id="eSave" class="primary">'+(E?"Save changes":"Add expense")+'</button></div>');
+  const mathCheck=()=>{ const a=num($("#eAmount").value), g=num($("#eGst").value), t=$("#eTotal").value;
+    const el=$("#eMath"); if(t===""||Math.abs(a+g-num(t))<=1){ el.innerHTML=t===""?"":'<span style="color:#4E7A33">✓ Net + GST matches the total</span>'; return; }
+    el.innerHTML='<span style="color:#B80001">Net + GST = <b>'+inr(a+g)+'</b>, total is '+inr(num(t))+'.</span> '
+      +'<button class="sm" id="eUseSum">Set total to '+inr(a+g)+'</button> <button class="sm" id="eFixGst">Set GST to '+inr(num(t)-a)+'</button>';
+    $("#eUseSum").onclick=()=>{ $("#eTotal").value=Math.round((a+g)*100)/100; mathCheck(); };
+    $("#eFixGst").onclick=()=>{ $("#eGst").value=Math.round((num(t)-a)*100)/100; mathCheck(); }; };
+  ["eAmount","eGst","eTotal"].forEach(id=>$("#"+id).oninput=mathCheck); mathCheck();
   $("#eCancel").onclick=closeModal;
+  if($("#eRevert")) $("#eRevert").onclick=ev=>{ ev.preventDefault();
+    Object.assign(E,E.sheetOrig); delete E.sheetOrig;
+    logChange("Expense edit undone (back to sheet values): "+(E.desc||E.ledger||""));
+    closeModal(); save(); drawExpenses(); toast("Back to the sheet's values"); };
   $("#eSave").onclick=()=>{
     const amount=num($("#eAmount").value), gst=num($("#eGst").value);
     if(!amount){ toast("Enter the net amount.",true); return; }
     const totalRaw=$("#eTotal").value, total=totalRaw!==""?num(totalRaw):amount+gst;
-    const desc=$("#eDesc").value.trim(), ledger=$("#eLedger").value.trim();
-    S.expenses.push({id:"exp"+Date.now(), date:$("#eDate").value||today, voucherNo:$("#eVoucher").value.trim(),
-      classification:$("#eClass").value, ledger, partyName:$("#eParty").value.trim(),
-      invoiceNo:$("#eInvNo").value.trim(), invoiceDate:$("#eInvDate").value, desc, amount, gst, total, source:"manual"});
-    logChange("Expense added: "+(desc||ledger)+" ₹"+total);
+    const rec={date:$("#eDate").value||today, voucherNo:$("#eVoucher").value.trim(), classification:$("#eClass").value,
+      ledger:$("#eLedger").value.trim(), partyName:$("#eParty").value.trim(), invoiceNo:$("#eInvNo").value.trim(),
+      invoiceDate:$("#eInvDate").value, desc:$("#eDesc").value.trim(), amount, gst, total};
+    if(E){
+      const changed=EXP_FIELDS.filter(([f])=>{ const x=E[f], y=rec[f];
+        return (f==="amount"||f==="gst"||f==="total")?Math.abs(expNum(x)-expNum(y))>0.005
+          :(f==="date"||f==="invoiceDate")?(expISO(x)||"")!==(expISO(y)||""):String(x||"").trim()!==String(y||"").trim(); });
+      if(!changed.length){ closeModal(); return; }
+      if(isSheet&&!E.sheetOrig){ const o={}; EXP_FIELDS.forEach(([f])=>{ o[f]=E[f]; }); E.sheetOrig=o; }
+      Object.assign(E,rec);
+      if(isSheet&&E.sheetOrig&&!expFieldDiff(E.sheetOrig,E).length) delete E.sheetOrig;   // edited back to the sheet's values
+      logChange("Expense edited: "+(rec.desc||rec.ledger)+" — "+changed.map(c=>c[1]).join(", "));
+      closeModal(); save(); drawExpenses(); toast("Changes saved");
+      return;
+    }
+    S.expenses.push(Object.assign({id:"exp"+Date.now(), source:"manual"},rec));
+    logChange("Expense added: "+(rec.desc||rec.ledger)+" ₹"+total);
     closeModal(); save(); drawExpenses(); toast("Expense added");
   };
 }
-$("#expAddBtn").onclick=openAddExpense;
+$("#expAddBtn").onclick=()=>openAddExpense();
+$("#expFlagBtn").onclick=()=>{ EXPF.flagged=!EXPF.flagged; drawExpenses(); if(EXPF.flagged) $("#expList").scrollIntoView({behavior:"smooth",block:"start"}); };
+
 $("#expFMonth").onchange=e=>{ EXPF.month=e.target.value; drawExpenses(); };
 $("#expFClass").onchange=e=>{ EXPF.cls=e.target.value; drawExpenses(); };
 $("#expFDateBy").onchange=e=>{ EXPF.dateBy=e.target.value; drawExpenses(); };
