@@ -1039,7 +1039,8 @@ function anyInputFocused(){
   return !!(a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.tagName==="SELECT"));
 }
 function modalOpen(){ const m=$("#modal"); return !!(m&&m.style.display==="flex"); }
-function setSyncState(s,msg){ syncState=s; drawSyncBar(msg); }
+let syncMsg="";
+function setSyncState(s,msg){ syncState=s; syncMsg=msg||""; drawSyncBar(msg); }
 function drawSyncBar(msg){
   const el=$("#syncBar"); if(!el) return;
   const dot={live:"#4E7A33",syncing:"#F6C547",offline:"#B80001"}[syncState]||"#8b949e";
@@ -3600,6 +3601,7 @@ const EXP_SHEET_URL="https://docs.google.com/spreadsheets/d/"+EXP_SHEET.id+"/edi
 /* fixed colour order per classification (validated colour-blind-safe set) — colour follows the entity, never its rank */
 const EXP_CLASSES=["Capital Expenses - Building","Other Expenses","Advances paid to Vendors","Office Equipments",
   "Capital Expenses - Land","Plant & Machinery","Furniture & Fixtures","Manpower Expenses"];
+const EXP_BUDGET_GID="309698187";   // "Budget vs Actuals" tab
 const EXP_BIG=1e6;   // one-off items at or above ₹10 lakh can be hidden from charts
 const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 let EXPF={month:"",cls:"",q:"",dateBy:"date",hideBig:true,sort:"asc"};
@@ -3672,8 +3674,29 @@ async function fetchSheetExpenses(){
       desc:g("desc").replace(/\s+/g," ").trim(),amount,gst,total:g("total")?expNum(g("total")):amount+gst,
       sheetRow:hi+i+2,source:"sheet"});
   });
-  return {rows,skipped,sheetTotal,fetchedAt:new Date().toISOString()};
+  let budget=null,budgetError=null;
+  try{ budget=await fetchSheetBudget(); }catch(e){ budgetError=e.message; }
+  return {rows,skipped,sheetTotal,budget,budgetError,fetchedAt:new Date().toISOString()};
 }
+/* budgets are kept by accounts in the "Budget vs Actuals" tab; "-" or blank means not set yet */
+async function fetchSheetBudget(){
+  const r=await fetch("https://docs.google.com/spreadsheets/d/"+EXP_SHEET.id+"/export?format=csv&gid="+EXP_BUDGET_GID,{cache:"no-store"});
+  if(!r.ok) throw new Error("budget tab returned HTTP "+r.status);
+  const grid=parseCSV(await r.text());
+  const hi=grid.findIndex(row=>row.some(c=>/budget/i.test(c)));
+  if(hi<0) throw new Error('could not find the "Budgeted Cost" column');
+  const H=grid[hi].map(h=>h.trim().toLowerCase()), col=re=>H.findIndex(h=>re.test(h));
+  const cD=col(/desc|specification|classification/), cB=col(/budget/), cA=col(/actual/);
+  const out=[];
+  grid.slice(hi+1).forEach(row=>{
+    const name=String(row[cD]||"").trim(); if(!name||/^total$/i.test(name)) return;
+    const braw=String(row[cB]||"").trim();
+    out.push({cls:expClass(name),budget:/[0-9]/.test(braw)?expNum(braw):null,
+      sheetActual:cA>=0&&/[0-9]/.test(row[cA]||"")?expNum(row[cA]):null});
+  });
+  return out;
+}
+const expBudgetRows=()=>(EXP_LAST&&EXP_LAST.sheet&&EXP_LAST.sheet.budget)||(S.expenseBudget&&S.expenseBudget.rows)||[];
 
 const expNorm=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
 const expKey=e=>[expNorm(e.voucherNo),expNorm(e.invoiceNo),expNorm(e.ledger),Math.round(expNum(e.amount)*100)].join("|");
@@ -3696,7 +3719,11 @@ function expComputeDiff(sheet){
   const removed=[...A].filter(([k])=>!matched.has(k)).map(([,e])=>e);
   const manualDup=S.expenses.filter(e=>e.source!=="sheet").filter(m=>sheet.rows.some(r=>
     Math.abs(expTot(m)-r.total)<1&&((m.voucherNo&&expNorm(m.voucherNo)===expNorm(r.voucherNo))||expISO(m.date)===r.date)));
-  return {added,changed,removed,manualDup,inSync:!added.length&&!changed.length&&!removed.length};
+  const oldB={}; ((S.expenseBudget&&S.expenseBudget.rows)||[]).forEach(b=>{ oldB[b.cls]=b.budget; });
+  const budgetChanges=(sheet.budget||[]).filter(b=>(oldB[b.cls]==null?null:oldB[b.cls])!==b.budget)
+    .map(b=>({cls:b.cls,old:oldB[b.cls]==null?null:oldB[b.cls],now:b.budget}));
+  return {added,changed,removed,manualDup,budgetChanges,
+    inSync:!added.length&&!changed.length&&!removed.length&&!budgetChanges.length};
 }
 function expApplySync(sheet,dropManualIds){
   const diff=expComputeDiff(sheet);
@@ -3706,12 +3733,26 @@ function expApplySync(sheet,dropManualIds){
     return Object.assign({},r,{id:old?old.id:"exps"+stamp+"_"+i,sourceKey:k}); });
   S.expenses=S.expenses.filter(e=>e.source!=="sheet"&&dropManualIds.indexOf(e.id)<0).concat(next);
   S.expenseSync={at:sheet.fetchedAt,rows:sheet.rows.length,sheetTotal:sheet.sheetTotal};
+  if(sheet.budget) S.expenseBudget={at:sheet.fetchedAt,rows:sheet.budget};
   logChange("Expenses synced from sheet: "+diff.added.length+" new, "+diff.changed.length+" corrected, "
-    +diff.removed.length+" removed"+(dropManualIds.length?", "+dropManualIds.length+" manual duplicate(s) dropped":""));
+    +diff.removed.length+" removed"+(diff.budgetChanges.length?", "+diff.budgetChanges.length+" budget figure(s) updated":"")+(dropManualIds.length?", "+dropManualIds.length+" manual duplicate(s) dropped":""));
   save();
   EXP_LAST={sheet,diff:expComputeDiff(sheet)};
   drawExpenses();
-  toast("Synced — "+sheet.rows.length+" sheet entries, "+lakh(sheet.rows.reduce((s,r)=>s+r.total,0)));
+  /* save to the shared server now and confirm it landed — a silent failure here leaves the
+     sync on this screen only, and the next reload brings the old entries back */
+  clearTimeout(syncTimer);
+  toast("Saving to the server…");
+  pushState().then(()=>{
+    if(syncState==="live"){ toast("Saved ✓ — everyone now sees "+sheet.rows.length+" sheet entries, "+inr(sheet.rows.reduce((s,r)=>s+r.total,0))); return; }
+    openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#B80001;text-transform:uppercase">Not saved to the server</div>'
+      +'<div style="font-size:12.5px;color:#42506b;margin:10px 0 18px;line-height:1.55">The sync worked on this screen, but the shared server did not accept it'
+      +(syncMsg?' (<b>'+esc(syncMsg)+'</b>)':'')+'. Other people still see the old entries, and a reload here will bring them back.<br><br>'
+      +'Click 🔒 at the top, re-enter the admin key, then press <b>Sync from Sheet</b> again.</div>'
+      +'<div style="display:flex;justify-content:flex-end;gap:8px"><button id="nsRetry">Try saving again</button><button id="nsOk" class="primary">OK</button></div>');
+    $("#nsOk").onclick=closeModal;
+    $("#nsRetry").onclick=()=>{ closeModal(); expApplySync(sheet,[]); };
+  });
 }
 async function expCheckSheet(force){
   if(EXP_CHECKING) return EXP_LAST;
@@ -3744,7 +3785,10 @@ function drawExpSyncBar(){
   const bits=[]; if(diff.added.length) bits.push("<b>"+diff.added.length+"</b> new");
   if(diff.changed.length) bits.push("<b>"+diff.changed.length+"</b> corrected");
   if(diff.removed.length) bits.push("<b>"+diff.removed.length+"</b> removed");
-  el.innerHTML='<div class="exsync diff">⚠ The sheet differs from this page: '+bits.join(", ")+' entr'+(diff.added.length+diff.changed.length+diff.removed.length===1?"y":"ies")
+  const nE=diff.added.length+diff.changed.length+diff.removed.length;
+  const parts=[]; if(nE) parts.push(bits.join(", ")+" entr"+(nE===1?"y":"ies"));
+  if(diff.budgetChanges.length) parts.push("<b>"+diff.budgetChanges.length+"</b> budget figure"+(diff.budgetChanges.length>1?"s":"")+" changed");
+  el.innerHTML='<div class="exsync diff">⚠ The sheet differs from this page: '+parts.join("; ")
     +'. Sheet total '+inr(sTot)+' · checked '+t(sheet.fetchedAt)
     +' <button class="sm primary" id="expReview">Review &amp; sync</button></div>';
   $("#expReview").onclick=()=>openExpSyncReview(EXP_LAST.sheet);
@@ -3780,6 +3824,8 @@ function openExpSyncReview(sheet){
     +sec("Corrected in the sheet",d.changed,chg)
     +sec("Removed from the sheet — will be removed here",d.removed,d.removed.map(line).join(""))
     +sec("Manual entries that are now also in the sheet",d.manualDup,dup)
+    +sec("Budget figures (Budget vs Actuals tab)",d.budgetChanges,d.budgetChanges.map(b=>'<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #eef0f3"><b>'
+      +esc(b.cls)+'</b>: <s>'+(b.old==null?"not set":inr(b.old))+'</s> → <b>'+(b.now==null?"not set":inr(b.now))+'</b></div>').join(""))
     +(d.inSync&&!d.manualDup.length?'<div class="small" style="margin:12px 0">Everything already matches.</div>':"")
     +skip+'</div>'
     +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">'
@@ -3957,6 +4003,9 @@ function expInsights(all,rows){
   if(gst>0) out.push("GST paid: <b>"+inr(gst)+"</b> on "+withGst.length+" bills — usually claimable as input credit; check with accounts.");
   const adv=rows.filter(e=>/advance/i.test(e.classification||""));
   if(adv.length) out.push("Vendor advances outstanding: <b>"+inr(sum(adv))+"</b> to "+[...new Set(adv.map(e=>e.partyName))].map(esc).join(", ")+". Recover these against their bills.");
+  expBudgetData().filter(b=>b.budget>0).forEach(b=>{ const p=b.actual/b.budget*100;
+    if(p>100) out.unshift('⚠ <b>'+esc(b.cls)+'</b> is <b>over budget</b> by '+inr(b.actual-b.budget)+' ('+p.toFixed(p<101?1:0)+'% of '+inr(b.budget)+').');
+    else if(p>=80) out.unshift('<b>'+esc(b.cls)+'</b> has used <b>'+p.toFixed(0)+'%</b> of its budget — '+inr(b.budget-b.actual)+' left.'); });
   const lag=rows.filter(e=>e.invoiceDate&&e.date&&(Date.parse(e.date)-Date.parse(expISO(e.invoiceDate)))/864e5>=5);
   if(lag.length) out.push("<b>"+lag.length+"</b> entr"+(lag.length>1?"ies were":"y was")+" booked 5+ days after the spend date (invoice date). Switch <i>Date by</i> to <i>Invoice (spend) date</i> to see when money actually went out.");
   return out;
@@ -3976,6 +4025,9 @@ function expDataChecks(all){
   const sheetRowsTot=(EXP_LAST&&EXP_LAST.sheet)?EXP_LAST.sheet.rows.reduce((s,r)=>s+r.total,0):all.filter(e=>e.source==="sheet").reduce((s,e)=>s+expTot(e),0);
   if(st!=null&&Math.abs(st-sheetRowsTot)>1) out.push(['w',"The <b>Total</b> row at the bottom of the sheet shows "+inr(st)+", but the rows add up to <b>"+inr(sheetRowsTot)
     +"</b>. Its SUM formula doesn't cover all rows — ask accounts to fix the range."]);
+  expBudgetData().filter(b=>b.sheetActual!=null&&Math.abs(b.sheetActual-b.actual)>1).forEach(b=>out.push(['w',
+    'The "Budget vs Actuals" tab shows <b>'+esc(b.cls)+'</b> actual as '+inr(b.sheetActual)+', but the expense rows add up to <b>'+inr(b.actual)+'</b> (net).']));
+  if(EXP_LAST&&EXP_LAST.sheet&&EXP_LAST.sheet.budgetError) out.push(['i',"Couldn't read the Budget vs Actuals tab: "+esc(EXP_LAST.sheet.budgetError)+"."]);
   if(EXP_LAST&&EXP_LAST.sheet&&EXP_LAST.sheet.skipped.length) out.push(['w',EXP_LAST.sheet.skipped.length+" sheet row(s) have no readable voucher date and can't be imported: row "+EXP_LAST.sheet.skipped.map(s=>s.line).join(", ")+"."]);
   return out;
 }
@@ -4001,6 +4053,7 @@ function drawExpReport(){
     +'<div class="exkpi"><div class="l">Running spend</div><div class="v">'+inr(sum(run))+'</div><div class="s">excl. one-offs ≥ ₹10 L · '+(mset.size?inr(sum(run)/mset.size)+"/month":"")+'</div></div>'
     +'<div class="exkpi"><div class="l">Entries</div><div class="v">'+rows.length+'</div><div class="s">'+rows.filter(e=>e.source==="sheet").length+' from sheet · '+rows.filter(e=>e.source!=="sheet").length+' manual</div></div>'
     +'</div></div>';
+  h+=expBudgetPanel();
   h+='<div class="exgrid">'
     +'<div class="exv no-invert"><h3>Monthly spend</h3><div class="exsub">Stacked by classification'+(hidden?' · '+hidden+' one-off item(s) ≥ ₹10 L hidden':"")+'</div><div id="exChMonth"></div></div>'
     +'<div class="exv no-invert"><h3>Running total</h3><div class="exsub">Cumulative spend by date'+(hidden?' · one-offs hidden':"")+'</div><div id="exChCum"></div></div>'
@@ -4019,12 +4072,54 @@ function drawExpReport(){
     +(chk.length?'<ul class="exins" style="padding-left:4px;list-style:none;margin:6px 0">'+chk.map(([t,x])=>'<li><span class="exflag '+t+'">'+(t==="w"?"CHECK":"NOTE")+'</span>'+x+'</li>').join("")+'</ul>'
       :'<div class="small">✓ No problems found.</div>')+'</div>';
   el.innerHTML=h;
+  exTipBind($("#expBudgetBox"));
   chartMonthly($("#exChMonth"),chartRows);
   chartCumulative($("#exChCum"),chartRows);
   const cls={}; chartRows.forEach(e=>{ const k=expClass(e.classification); cls[k]=cls[k]||{v:0,n:0}; cls[k].v+=expTot(e); cls[k].n++; });
   chartHBars($("#exChClass"),Object.entries(cls).sort((a,b)=>b[1].v-a[1].v).map(([k,o])=>({k,v:o.v,n:o.n,c:expColor(k)})),{label:"Spend by classification"});
   const led={}; chartRows.forEach(e=>{ const k=e.ledger||"(no ledger)"; led[k]=led[k]||{v:0,n:0}; led[k].v+=expTot(e); led[k].n++; });
   chartHBars($("#exChLedger"),Object.entries(led).sort((a,b)=>b[1].v-a[1].v).slice(0,8).map(([k,o])=>({k,v:o.v,n:o.n})),{label:"Top ledgers"});
+}
+
+/* ---------- budget vs actual, per classification (whole project, net of GST like the sheet) ---------- */
+function expBudgetData(){
+  const B=expBudgetRows(), act={};
+  S.expenses.forEach(e=>{ const k=expClass(e.classification); act[k]=(act[k]||0)+expNum(e.amount); });
+  const order=B.map(b=>b.cls); Object.keys(act).forEach(k=>{ if(order.indexOf(k)<0) order.push(k); });
+  return order.map(k=>{ const b=B.find(x=>x.cls===k);
+    return {cls:k,budget:b?b.budget:null,sheetActual:b?b.sheetActual:null,actual:act[k]||0}; });
+}
+function expBudgetPanel(){
+  const rows=expBudgetData(); if(!rows.length) return "";
+  const set=rows.filter(r=>r.budget!=null&&r.budget>0);
+  const tb=set.reduce((s,r)=>s+r.budget,0), ta=rows.reduce((s,r)=>s+r.actual,0), taSet=set.reduce((s,r)=>s+r.actual,0);
+  const bar=r=>{
+    if(r.budget==null||r.budget<=0) return '<span style="color:var(--exv-muted)">No budget set</span>';
+    const pct=r.actual/r.budget*100, over=pct>100;
+    return '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:90px;height:10px;border-radius:4px;background:var(--exv-grid);overflow:hidden">'
+      +'<div style="height:100%;width:'+Math.min(100,pct).toFixed(1)+'%;background:'+expColor(r.cls)+';border-radius:0 4px 4px 0"></div></div>'
+      +'<span style="min-width:74px;font-weight:600;color:var(--exv-ink)">'+(over?"⚠ ":"")+pct.toFixed(over&&pct<101?1:0)+'%'+(over?" over":"")+'</span></div>';
+  };
+  let h='<div class="exv no-invert" id="expBudgetBox"><h3>Budget vs actual</h3><div class="exsub">Whole project, all months, net of GST — same basis as the sheet\'s "Budget vs Actuals" tab'
+    +(set.length?'':' · <b>no budgets entered yet</b>: accounts can fill the "Budgeted Cost" column in that tab, then sync')+'</div>';
+  if(set.length) h+='<div class="exkpis" style="margin-bottom:10px">'
+    +'<div class="exkpi"><div class="l">Total budget</div><div class="v">'+lakh(tb)+'</div><div class="s">'+inr(tb)+' across '+set.length+' classification'+(set.length>1?"s":"")+'</div></div>'
+    +'<div class="exkpi"><div class="l">Spent against it</div><div class="v">'+lakh(taSet)+'</div><div class="s">'+(taSet/tb*100).toFixed(1)+'% of budget used</div></div>'
+    +'<div class="exkpi"><div class="l">'+(tb-taSet>=0?"Remaining":"Over budget")+'</div><div class="v">'+lakh(Math.abs(tb-taSet))+'</div><div class="s">'+inr(Math.abs(tb-taSet))+'</div></div>'
+    +'</div>';
+  h+='<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px;color:var(--exv-ink)"><tr><th style="text-align:left">Classification</th><th class="n">Budget</th>'
+    +'<th class="n">Actual (net)</th><th class="n">Remaining</th><th style="text-align:left;width:32%">Used</th></tr>'
+    +rows.map(r=>{ const has=r.budget!=null&&r.budget>0, rem=has?r.budget-r.actual:null;
+      return '<tr data-tip="<b>'+exAttr(r.cls)+'</b><br>Budget: '+(has?inr(r.budget):"not set")+'<br>Spent (net): '+inr(r.actual)
+        +(has?'<br>'+(rem>=0?"Remaining: ":"Over by: ")+inr(Math.abs(rem)):"")+'">'
+        +'<td><i style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;background:'+expColor(r.cls)+'"></i>'+esc(r.cls)+'</td>'
+        +'<td class="n">'+(has?inr(r.budget):'<span style="color:var(--exv-muted)">—</span>')+'</td>'
+        +'<td class="n">'+inr(r.actual)+'</td>'
+        +'<td class="n"'+(has&&rem<0?' style="font-weight:700"':'')+'>'+(has?(rem<0?"−":"")+inr(Math.abs(rem)):'<span style="color:var(--exv-muted)">—</span>')+'</td>'
+        +'<td>'+bar(r)+'</td></tr>'; }).join("")
+    +'<tr style="font-weight:700"><td>Total</td><td class="n">'+(set.length?inr(tb):"—")+'</td><td class="n">'+inr(ta)+'</td>'
+    +'<td class="n">'+(set.length?(tb-taSet<0?"−":"")+inr(Math.abs(tb-taSet)):"—")+'</td><td></td></tr></table></div></div>';
+  return h;
 }
 
 /* ---------- date-wise table, grouped by month with subtotals ---------- */
