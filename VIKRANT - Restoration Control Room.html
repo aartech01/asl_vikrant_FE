@@ -548,7 +548,7 @@ this is a planning and control tool, not a design or a professional cost certifi
     <label>Date by <select id="expFDateBy"><option value="date">Voucher date</option><option value="invoiceDate">Invoice (spend) date</option></select></label>
     <input id="expFQ" placeholder="Search party, ledger, description, voucher…" style="flex:1 1 200px;min-width:0;max-width:420px">
     <label title="The plot purchase and registry advance are one-off and dwarf everything else in the charts">
-      <input type="checkbox" id="expFBig" checked> Hide one-off items ≥ ₹10 lakh in charts</label>
+      <input type="checkbox" id="expFBig" checked> Cut off one-off items ≥ ₹10 lakh in time charts</label>
   </div>
   <div id="expReport"></div>
   <h3 style="margin-top:18px">All entries, date-wise</h3>
@@ -3911,34 +3911,57 @@ function exRoundRight(x,y,w,h,r){ r=Math.min(r,h/2,w); return "M"+x+","+y+"H"+(x
 function exWidth(el){ return Math.max(300,(el&&el.clientWidth)||680); }
 
 function chartMonthly(el,rows){
+  /* rows = every entry in view. With "hide one-offs" on, items ≥ ₹10 L are still counted in the
+     month's total, but drawn as a hatched segment cut off at the top so smaller months stay readable. */
+  const cut=EXPF.hideBig;
   const months=[...new Set(rows.map(e=>expWhen(e).slice(0,7)).filter(Boolean))].sort();
   if(!months.length){ el.innerHTML='<div class="small">No entries.</div>'; return; }
-  const classes=EXP_CLASSES.filter(c=>rows.some(e=>expClass(e.classification)===c))
-    .concat([...new Set(rows.map(e=>expClass(e.classification)))].filter(c=>EXP_CLASSES.indexOf(c)<0));
-  const M={}; months.forEach(m=>{ M[m]={}; classes.forEach(c=>M[m][c]=0); });
-  rows.forEach(e=>{ const m=expWhen(e).slice(0,7); if(M[m]) M[m][expClass(e.classification)]+=expTot(e); });
-  const tot=m=>classes.reduce((s,c)=>s+M[m][c],0);
-  const W=exWidth(el), H=230, L=52, R=10, T=22, B=26, pw=W-L-R, ph=H-T-B;
-  const mx=exNiceMax(Math.max(...months.map(tot)));
+  const isBig=e=>cut&&expTot(e)>=EXP_BIG;
+  const classes=EXP_CLASSES.filter(c=>rows.some(e=>!isBig(e)&&expClass(e.classification)===c))
+    .concat([...new Set(rows.filter(e=>!isBig(e)).map(e=>expClass(e.classification)))].filter(c=>EXP_CLASSES.indexOf(c)<0));
+  const M={}, BIG={}, BIGL={}; months.forEach(m=>{ M[m]={}; classes.forEach(c=>M[m][c]=0); BIG[m]=0; BIGL[m]=[]; });
+  rows.forEach(e=>{ const m=expWhen(e).slice(0,7); if(!M[m]) return;
+    if(isBig(e)){ BIG[m]+=expTot(e); BIGL[m].push(e); } else M[m][expClass(e.classification)]+=expTot(e); });
+  const runTot=m=>classes.reduce((s,c)=>s+M[m][c],0), tot=m=>runTot(m)+BIG[m];
+  const anyBig=months.some(m=>BIG[m]>0);
+  const W=exWidth(el), H=240, L=52, R=10, T=anyBig?34:22, B=26, pw=W-L-R, ph=H-T-B;
+  const mx=exNiceMax(Math.max(...months.map(cut?runTot:tot))*(anyBig?1.15:1));
   const slot=pw/months.length, bw=Math.min(56,slot*0.55);
-  let s='<svg width="'+W+'" height="'+H+'" role="img" aria-label="Monthly spend by classification">';
+  const bigCol=months.reduce((c,m)=>c||(BIGL[m][0]?expColor(BIGL[m][0].classification):null),null)||"var(--s1)";
+  let s='<svg width="'+W+'" height="'+H+'" role="img" aria-label="Monthly spend by classification">'
+    +'<defs><pattern id="exHatch" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)">'
+    +'<rect width="7" height="7" fill="'+bigCol+'" opacity=".28"/><rect width="3.5" height="7" fill="'+bigCol+'"/></pattern></defs>';
   for(let i=0;i<=4;i++){ const v=mx*i/4, y=T+ph-ph*i/4;
     s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="var(--exv-grid)" stroke-width="1"/>'
       +'<text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end">₹'+exShort(v)+'</text>'; }
   months.forEach((m,i)=>{
     const x=L+slot*i+(slot-bw)/2; let y=T+ph;
     const segs=classes.filter(c=>M[m][c]>0);
-    segs.forEach((c,j)=>{ const h=ph*M[m][c]/mx; const top=j===segs.length-1;
+    const monthTip='<br>Month total: <b>'+inr(tot(m))+'</b>';
+    segs.forEach((c,j)=>{ const h=ph*M[m][c]/mx; const top=j===segs.length-1&&!BIG[m];
       const gap=j>0?2:0, hh=Math.max(0,h-gap); y-=h;
-      const tipTxt='<b>'+exAttr(expMonthLabel(m))+'</b><br>'+exAttr(c)+': '+inr(M[m][c])+'<br>Month total: '+inr(tot(m));
+      const tipTxt='<b>'+exAttr(expMonthLabel(m))+'</b><br>'+exAttr(c)+': '+inr(M[m][c])+monthTip;
       s+=top?'<path d="'+exRoundTop(x,y,bw,hh,4)+'" fill="'+expColor(c)+'" data-tip="'+tipTxt+'"/>'
             :'<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+hh+'" fill="'+expColor(c)+'" data-tip="'+tipTxt+'"/>';
     });
-    s+='<text class="val" x="'+(x+bw/2)+'" y="'+(T+ph-ph*tot(m)/mx-6)+'" text-anchor="middle">₹'+exShort(tot(m))+'</text>'
+    let labelY=T+ph-ph*tot(m)/mx-6;
+    if(BIG[m]){
+      /* cut-off segment: runs from the top of the running stack to the top of the plot, with a break mark */
+      const y0=y-(segs.length?2:0), yTop=T+2, hh=Math.max(14,y0-yTop);
+      const tipTxt='<b>'+exAttr(expMonthLabel(m))+' — one-off items</b><br>'+BIGL[m].map(e=>exAttr((e.desc||e.ledger||"").slice(0,48))+': '+inr(expTot(e))).join("<br>")
+        +'<br>Bar cut off so the other months stay readable.'+monthTip;
+      s+='<path d="'+exRoundTop(x,y0-hh,bw,hh,4)+'" fill="url(#exHatch)" data-tip="'+tipTxt+'"/>';
+      const by=y0-hh/2;   // break mark across the bar
+      s+='<path d="M'+(x-4)+','+(by+3)+' L'+(x+bw+4)+','+(by-5)+' M'+(x-4)+','+(by+9)+' L'+(x+bw+4)+','+(by+1)+'" stroke="var(--exv-surface)" stroke-width="3.5" pointer-events="none"/>';
+      labelY=y0-hh-6;
+    }
+    s+='<text class="val" x="'+(x+bw/2)+'" y="'+labelY+'" text-anchor="middle">₹'+exShort(tot(m))+'</text>'
       +'<text x="'+(x+bw/2)+'" y="'+(H-8)+'" text-anchor="middle">'+expMonthLabel(m)+'</text>';
   });
   s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+(T+ph)+'" y2="'+(T+ph)+'" stroke="var(--exv-muted)" stroke-width="1"/></svg>';
-  el.innerHTML=(classes.length>1?'<div class="exleg">'+classes.map(c=>'<span><i style="background:'+expColor(c)+'"></i>'+esc(c)+'</span>').join("")+'</div>':"")+s;
+  const leg=classes.map(c=>'<span><i style="background:'+expColor(c)+'"></i>'+esc(c)+'</span>')
+    .concat(anyBig?['<span><i style="background:repeating-linear-gradient(45deg,'+bigCol+' 0 3px,transparent 3px 6px);outline:1px solid '+bigCol+'"></i>One-off ≥ ₹10 L (bar cut off)</span>']:[]);
+  el.innerHTML=(leg.length>1?'<div class="exleg">'+leg.join("")+'</div>':"")+s;
   exTipBind(el);
 }
 function chartHBars(el,items,opt){
@@ -3949,10 +3972,10 @@ function chartHBars(el,items,opt){
   let s='<svg width="'+W+'" height="'+H+'" role="img" aria-label="'+exAttr(opt.label||"Breakdown")+'">';
   items.forEach((it,i)=>{ const y=i*rowH+4, w=Math.max(2,pw*it.v/mx);
     const maxC=Math.floor((labW-10)/6.3), lab=it.k.length>maxC?it.k.slice(0,maxC-1)+"…":it.k;
-    const tipTxt='<b>'+exAttr(it.k)+'</b><br>'+inr(it.v)+' · '+(it.v/sum*100).toFixed(1)+'% of shown'+(it.n?'<br>'+it.n+' entr'+(it.n===1?"y":"ies"):"");
+    const tipTxt='<b>'+exAttr(it.k)+'</b><br>'+inr(it.v)+' · '+(it.v/sum*100).toFixed(1)+'% of total (net of GST)'+(it.n?'<br>'+it.n+' entr'+(it.n===1?"y":"ies"):"");
     s+='<text x="'+(labW-8)+'" y="'+(y+14)+'" text-anchor="end">'+esc(lab)+'</text>'
       +'<path d="'+exRoundRight(labW,y+3,w,rowH-10,4)+'" fill="'+(it.c||"var(--s1)")+'"/>'
-      +'<text class="val" x="'+(labW+w+6)+'" y="'+(y+14)+'">₹'+exShort(it.v)+' <tspan style="font-weight:400;fill:var(--exv-muted)">'+(it.v/sum*100).toFixed(0)+'%</tspan></text>'
+      +'<text class="val" x="'+(labW+w+6)+'" y="'+(y+14)+'">₹'+exShort(it.v)+' <tspan style="font-weight:400;fill:var(--exv-muted)">'+(it.v/sum*100<1?"<1":(it.v/sum*100).toFixed(0))+'%</tspan></text>'
       +'<rect x="0" y="'+y+'" width="'+W+'" height="'+rowH+'" fill="transparent" data-tip="'+tipTxt+'"/>';
   });
   el.innerHTML=s+'</svg>'; exTipBind(el);
@@ -4077,10 +4100,10 @@ function drawExpReport(){
     +'</div></div>';
   h+=expBudgetPanel();
   h+='<div class="exgrid">'
-    +'<div class="exv no-invert"><h3>Monthly spend</h3><div class="exsub">Stacked by classification'+(hidden?' · '+hidden+' one-off item(s) ≥ ₹10 L hidden':"")+'</div><div id="exChMonth"></div></div>'
-    +'<div class="exv no-invert"><h3>Running total</h3><div class="exsub">Cumulative spend by date'+(hidden?' · one-offs hidden':"")+'</div><div id="exChCum"></div></div>'
-    +'<div class="exv no-invert"><h3>By classification</h3><div class="exsub">Share of spend shown'+(hidden?' · one-offs hidden':"")+'</div><div id="exChClass"></div></div>'
-    +'<div class="exv no-invert"><h3>Top ledgers</h3><div class="exsub">Where the money goes, by TCSiON ledger'+(hidden?' · one-offs hidden':"")+'</div><div id="exChLedger"></div></div>'
+    +'<div class="exv no-invert"><h3>Monthly spend</h3><div class="exsub">Total incl. GST, stacked by classification'+(hidden?' · one-off items shown hatched and cut off':"")+'</div><div id="exChMonth"></div></div>'
+    +'<div class="exv no-invert"><h3>Running total</h3><div class="exsub">Cumulative spend incl. GST, by date'+(hidden?' · <b>excludes '+lakh(tot-sum(chartRows))+' one-off items</b> (overall '+lakh(tot)+')':"")+'</div><div id="exChCum"></div></div>'
+    +'<div class="exv no-invert"><h3>By classification</h3><div class="exsub">Net of GST, all entries — same figures as the sheet\'s "Budget vs Actuals" tab</div><div id="exChClass"></div></div>'
+    +'<div class="exv no-invert"><h3>Top ledgers</h3><div class="exsub">Net of GST, all entries, by TCSiON ledger</div><div id="exChLedger"></div></div>'
     +'</div>';
   const party={}; chartRows.forEach(e=>{ const k=e.partyName||"(no party)"; party[k]=party[k]||{v:0,n:0}; party[k].v+=expTot(e); party[k].n++; });
   const tp=Object.entries(party).sort((a,b)=>b[1].v-a[1].v).slice(0,8);
@@ -4095,11 +4118,11 @@ function drawExpReport(){
       :'<div class="small">✓ No problems found.</div>')+'</div>';
   el.innerHTML=h;
   exTipBind($("#expBudgetBox"));
-  chartMonthly($("#exChMonth"),chartRows);
+  chartMonthly($("#exChMonth"),rows);
   chartCumulative($("#exChCum"),chartRows);
-  const cls={}; chartRows.forEach(e=>{ const k=expClass(e.classification); cls[k]=cls[k]||{v:0,n:0}; cls[k].v+=expTot(e); cls[k].n++; });
+  const cls={}; rows.forEach(e=>{ const k=expClass(e.classification); cls[k]=cls[k]||{v:0,n:0}; cls[k].v+=expNum(e.amount); cls[k].n++; });
   chartHBars($("#exChClass"),Object.entries(cls).sort((a,b)=>b[1].v-a[1].v).map(([k,o])=>({k,v:o.v,n:o.n,c:expColor(k)})),{label:"Spend by classification"});
-  const led={}; chartRows.forEach(e=>{ const k=e.ledger||"(no ledger)"; led[k]=led[k]||{v:0,n:0}; led[k].v+=expTot(e); led[k].n++; });
+  const led={}; rows.forEach(e=>{ const k=e.ledger||"(no ledger)"; led[k]=led[k]||{v:0,n:0}; led[k].v+=expNum(e.amount); led[k].n++; });
   chartHBars($("#exChLedger"),Object.entries(led).sort((a,b)=>b[1].v-a[1].v).slice(0,8).map(([k,o])=>({k,v:o.v,n:o.n})),{label:"Top ledgers"});
 }
 
