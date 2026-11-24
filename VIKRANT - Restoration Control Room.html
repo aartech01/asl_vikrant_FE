@@ -374,10 +374,23 @@ this is a planning and control tool, not a design or a professional cost certifi
   <p class="small">Derived from the BOQ, spread across each line's phase window. Adjust an activity's dates on the
   Schedule tab and the curve moves with it.</p>
   <h3>Budget vs. actual</h3>
-  <p class="small">Enter what has actually been spent on a BOQ line from its <b>Edit</b> button on the BOQ &amp; cost
-  tab — this table compares it against the planned amount, by trade.</p>
-  <table id="actualTable"></table>
+  <div class="note" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+    <div style="flex:1;min-width:240px;font-size:12px">Actual spend is read straight from the accounts team's
+      <a id="cashSheetLink" target="_blank" rel="noopener"><b>expense sheet</b></a> (every voucher, by classification and
+      by voucher date) and budgets from its <b>Budget vs Actuals</b> tab. It refreshes on its own when this tab opens and
+      every 5 minutes — nothing to type in.
+      <div id="cashSyncMsg" class="small" style="margin-top:4px"></div></div>
+    <button id="cashSyncBtn" class="primary">🔄 Refresh from expense sheet</button>
+  </div>
+  <table id="cashBudgetTable"></table>
+  <div id="boqActualWrap" style="display:none">
+    <h3>BOQ lines with a recorded actual</h3>
+    <p class="small">Amounts entered by hand on BOQ lines (BOQ &amp; cost tab → Edit), compared with plan by trade.</p>
+    <table id="actualTable"></table>
+  </div>
   <h3>Cash flow profile</h3>
+  <p class="small"><b>Planned</b> spreads the BOQ across each activity's dates; <b>Actual paid</b> is what the expense sheet shows was
+  paid that month (incl. GST), so the two can be read side by side.</p>
   <div id="cashChart"></div>
   <table id="cashTable"></table>
   <h3>Payment and retention terms assumed</h3>
@@ -2084,6 +2097,51 @@ function cashMonths(){
   });
   return map;
 }
+/* ---------- actual spend, live from the expense sheet ----------
+   Uses the freshly fetched sheet rows when available (so the cash flow follows the sheet
+   directly, without waiting for the Expenses tab's review step), else the last synced copy.
+   Manual expense entries are included unless they duplicate a sheet row. */
+function cashActuals(){
+  const live=EXP_LAST&&EXP_LAST.sheet&&EXP_LAST.sheet.rows;
+  const dupIds=new Set(((EXP_LAST&&EXP_LAST.diff&&EXP_LAST.diff.manualDup)||[]).map(e=>e.id));
+  const manual=S.expenses.filter(e=>e.source!=="sheet"&&!dupIds.has(e.id));
+  const base=live?live:S.expenses.filter(e=>e.source==="sheet");
+  const rows=base.concat(manual).map(e=>({date:expISO(e.date),cls:expClass(e.classification),
+    net:expNum(e.amount),total:expTot(e)})).filter(r=>r.date);
+  return {rows,live:!!live,at:live?EXP_LAST.sheet.fetchedAt:(S.expenseSync&&S.expenseSync.at),
+    error:EXP_LAST&&EXP_LAST.error, manual:manual.length};
+}
+function drawCashBudget(){
+  const el=$("#cashBudgetTable"); if(!el) return;
+  const A=cashActuals(), B=expBudgetRows();
+  const act={}, paid={};
+  A.rows.forEach(r=>{ act[r.cls]=(act[r.cls]||0)+r.net; paid[r.cls]=(paid[r.cls]||0)+r.total; });
+  const order=B.map(b=>b.cls); Object.keys(act).forEach(k=>{ if(order.indexOf(k)<0) order.push(k); });
+  let tb=0,ta=0,tp=0;
+  let h='<tr><th>Classification</th><th class="n">Budget ₹</th><th class="n">Spent (net) ₹</th><th class="n">Paid incl. GST ₹</th>'
+    +'<th class="n">Remaining ₹</th><th style="width:26%">Used</th></tr>';
+  order.forEach(k=>{
+    const b=(B.find(x=>x.cls===k)||{}).budget, a=act[k]||0, p=paid[k]||0, has=b!=null&&b>0;
+    if(has) tb+=b; ta+=a; tp+=p;
+    const pct=has?a/b*100:null, over=pct!=null&&pct>100;
+    h+='<tr><td><b>'+esc(k)+'</b></td><td class="n">'+(has?inr(b):'<span class="small">not set</span>')+'</td>'
+      +'<td class="n">'+inr(a)+'</td><td class="n">'+inr(p)+'</td>'
+      +'<td class="n">'+(has?'<span style="color:'+(over?"#B80001":"#4E7A33")+'">'+(over?"−":"")+inr(Math.abs(b-a))+(over?" over":"")+'</span>':'<span class="small">—</span>')+'</td>'
+      +'<td>'+(has?'<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#E4E4EA;border-radius:3px;height:12px">'
+        +'<div style="height:12px;border-radius:3px;width:'+Math.min(100,pct)+'%;background:'+(over?"#B80001":pct>=80?"#C99A06":"#4E7A33")+'"></div></div>'
+        +'<span class="small">'+pct.toFixed(0)+'%</span></div>':'<span class="small">no budget set in the sheet</span>')+'</td></tr>';
+  });
+  if(!order.length) h+='<tr><td colspan="6" class="small">No expenses read from the sheet yet.</td></tr>';
+  h+='<tr class="tot"><td>TOTAL</td><td class="n">'+(tb?inr(tb):"—")+'</td><td class="n">'+inr(ta)+'</td><td class="n">'+inr(tp)+'</td>'
+    +'<td class="n">'+(tb?inr(tb-ta):"—")+'</td><td class="small">'+(tb?(ta/tb*100).toFixed(0)+'% of budget':"")+'</td></tr>';
+  el.innerHTML=h;
+  const m=$("#cashSyncMsg");
+  if(m) m.innerHTML=(EXP_CHECKING?'Reading the sheet…'
+    :A.error?'<span style="color:#B80001">⚠ Couldn\'t read the sheet ('+esc(A.error)+') — showing the last synced copy.</span>'
+    :(A.live?'✓ Live from the sheet':'Last synced copy')+(A.at?' · '+esc(new Date(A.at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})):''))
+    +' · '+A.rows.length+' entries'+(A.manual?' (incl. '+A.manual+' added by hand on the Expenses tab)':'');
+  const w=$("#boqActualWrap"); if(w) w.style.display=S.boq.some(b=>b.actualAmt!=null)?"block":"none";
+}
 function drawActualVsPlanned(){
   const el=$("#actualTable"); if(!el) return;
   const trades=[...new Set(S.boq.map(b=>b.trade))].sort();
@@ -2109,24 +2167,32 @@ function drawActualVsPlanned(){
   el.innerHTML=h;
 }
 function drawCash(){
+  drawCashBudget();
   drawActualVsPlanned();
-  const m=cashMonths(), keys=Object.keys(m).sort();
+  const m=cashMonths();
   const t=totals(), onc=(t.grand-t.base)/(t.base||1);
-  let cum=0, mx=Math.max(1,...keys.map(k=>m[k]*(1+onc)));
-  let h='<tr><th>Month</th><th class="n">Works value</th><th class="n">With fees, contingency and GST</th>'
-    +'<th class="n">Cumulative</th><th style="width:38%">Profile</th></tr>';
+  const paidM={}; cashActuals().rows.forEach(r=>{ const k=r.date.slice(0,7); paidM[k]=(paidM[k]||0)+r.total; });
+  const keys=[...new Set(Object.keys(m).concat(Object.keys(paidM)))].sort();
+  const curK=dstr(TODAY).slice(0,7);
+  let cum=0, cumA=0, mx=Math.max(1,...keys.map(k=>Math.max((m[k]||0)*(1+onc),paidM[k]||0)));
+  let h='<tr><th>Month</th><th class="n">Works value</th><th class="n">Planned (with fees, contingency, GST)</th>'
+    +'<th class="n">Actual paid</th><th class="n">Cumulative planned</th><th class="n">Cumulative actual</th>'
+    +'<th style="width:28%">Planned <span style="color:#0C013D">■</span> vs actual <span style="color:#B80001">■</span></th></tr>';
   keys.forEach(k=>{
-    const g=m[k]*(1+onc); cum+=g;
-    const d=new Date(+k.slice(0,4),+k.slice(5)-1,1);
-    h+='<tr><td>'+d.toLocaleDateString("en-GB",{month:"short",year:"numeric"})+'</td>'
-      +'<td class="n">'+inr(m[k])+'</td><td class="n">'+inr(g)+'</td><td class="n">'+lakh(cum)+'</td>'
-      +'<td><div class="tr" style="background:#E4E4EA;border-radius:3px;height:13px">'
-      +'<div style="height:13px;background:#0C013D;border-radius:3px;width:'+(g/mx*100)+'%"></div></div></td></tr>';
+    const w=m[k]||0, g=w*(1+onc), a=paidM[k]||0; cum+=g; cumA+=a;
+    const d=new Date(+k.slice(0,4),+k.slice(5)-1,1), future=k>curK;
+    h+='<tr'+(k===curK?' style="background:#FFFBEA"':'')+'><td>'+d.toLocaleDateString("en-GB",{month:"short",year:"numeric"})+(k===curK?' <span class="small">(now)</span>':'')+'</td>'
+      +'<td class="n">'+inr(w)+'</td><td class="n">'+inr(g)+'</td>'
+      +'<td class="n">'+(future?'<span class="small">—</span>':inr(a))+'</td>'
+      +'<td class="n">'+lakh(cum)+'</td><td class="n">'+(future?'<span class="small">—</span>':lakh(cumA))+'</td>'
+      +'<td><div style="background:#E4E4EA;border-radius:3px;height:7px;margin-bottom:2px"><div style="height:7px;background:#0C013D;border-radius:3px;width:'+(g/mx*100)+'%"></div></div>'
+      +'<div style="background:#E4E4EA;border-radius:3px;height:7px"><div style="height:7px;background:#B80001;border-radius:3px;width:'+(a/mx*100)+'%"></div></div></td></tr>';
   });
   h+='<tr class="tot"><td>TOTAL</td><td class="n">'+inr(t.base)+'</td><td class="n">'+inr(t.grand)
-    +'</td><td class="n">'+lakh(t.grand)+'</td><td></td></tr>';
+    +'</td><td class="n">'+inr(cumA)+'</td><td class="n">'+lakh(t.grand)+'</td><td class="n">'+lakh(cumA)+'</td><td></td></tr>';
   $("#cashTable").innerHTML=h;
-  const peak=keys.reduce((a,k)=>m[k]>m[a]?k:a,keys[0]||"");
+  const pk=Object.keys(m).sort();
+  const peak=pk.reduce((a,k)=>m[k]>m[a]?k:a,pk[0]||"");
   $("#cashChart").innerHTML='<div class="note">Peak month is <b>'
     +(peak?new Date(+peak.slice(0,4),+peak.slice(5)-1,1).toLocaleDateString("en-GB",{month:"long",year:"numeric"}):"—")
     +'</b> at <b>'+(peak?lakh(m[peak]*(1+onc)):"—")+'</b>. Arrange the facility limit against that peak, not against the monthly average.</div>';
@@ -3769,6 +3835,7 @@ function showTab(id){ S.tab=id; save();
   if(id==="exp"){ drawExpenses(); expCheckSheet(); }
   if(id==="sched"){ drawGsStatus(); gsSync(false,true); }
   if(id==="task") gsSync(false,true);
+  if(id==="cash"){ drawCash(); expCheckSheet(false); }
   if(id==="vendor"){ drawChatQuotes(); if(Date.now()-CQ_AT>10*60*1000) chatQuoteSync(true); }
   if(id==="photo"){ drawCpStatus(); if(Date.now()-CP_AT>10*60*1000) chatPhotoSync(true); } }
 
@@ -3878,6 +3945,9 @@ $("#gsAddLink").href=GS_URL;
 $("#gsSyncBtn").onclick=()=>gsSync(true,false);
 $("#cpSyncBtn").onclick=()=>chatPhotoSync(false);
 $("#cqSyncBtn").onclick=()=>chatQuoteSync(false);
+$("#cashSyncBtn").onclick=async()=>{ const b=$("#cashSyncBtn"); b.disabled=true; b.textContent="⏳ Reading the sheet…";
+  const r=await expCheckSheet(true); b.disabled=false; b.textContent="🔄 Refresh from expense sheet"; drawCash();
+  toast(r&&r.error?"Couldn't read the expense sheet: "+r.error:"Cash flow updated from the expense sheet.",!!(r&&r.error)); };
 $("#cqFilter").onchange=drawChatQuotes;
 $("#saveSched").onclick=()=>{ save(); pushState();
   toast(backendConfigured()?"Schedule saved and pushed to the team.":"Schedule saved on this device.",!backendConfigured()); };
@@ -4260,6 +4330,7 @@ async function expCheckSheet(force){
   catch(e){ EXP_LAST={error:e.message}; }
   EXP_CHECKING=false; EXP_CHECKED_AT=Date.now();
   drawExpSyncBar(); drawExpReport();
+  if(S.tab==="cash") drawCash();   // cash flow actuals follow the sheet directly
   return EXP_LAST;
 }
 function drawExpSyncBar(){
@@ -4838,6 +4909,9 @@ expCheckSheet();   // compare against the accounts sheet in the background so th
 /* pull the schedule from the Gantt sheet on open, then every 5 minutes while the page is open */
 gsSync(true,true);
 setInterval(()=>{ if(!anyInputFocused()&&!modalOpen()) gsSync(true,true); },GS_AUTO_MS);
+/* keep the expense-sheet reading fresh too, so Cash flow actuals and the Expenses tab follow the sheet */
+setInterval(()=>{ if(!anyInputFocused()&&!modalOpen()) expCheckSheet(true); },5*60*1000);
+if($("#cashSheetLink")) $("#cashSheetLink").href=EXP_SHEET_URL;
 if(!backendConfigured()){
   setSyncState("offline","set API_BASE near the top of the script to your deployed backend");
 } else {
