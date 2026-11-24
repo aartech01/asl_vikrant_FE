@@ -373,6 +373,8 @@ this is a planning and control tool, not a design or a professional cost certifi
   <h2>Cash flow and fund release</h2>
   <p class="small">Derived from the BOQ, spread across each line's phase window. Adjust an activity's dates on the
   Schedule tab and the curve moves with it.</p>
+  <h3>Cash flow status</h3>
+  <div id="cashStatus"></div>
   <h3>Budget vs. actual</h3>
   <div class="note" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
     <div style="flex:1;min-width:240px;font-size:12px">Actual spend is read straight from the accounts team's
@@ -383,6 +385,9 @@ this is a planning and control tool, not a design or a professional cost certifi
     <button id="cashSyncBtn" class="primary">🔄 Refresh from expense sheet</button>
   </div>
   <table id="cashBudgetTable"></table>
+  <h3>Where the money went — by month</h3>
+  <p class="small">Every entry in the expense sheet (plus any added by hand on the Expenses tab), by voucher month and classification.</p>
+  <div style="overflow-x:auto"><table id="cashClsTable"></table></div>
   <div id="boqActualWrap" style="display:none">
     <h3>BOQ lines with a recorded actual</h3>
     <p class="small">Amounts entered by hand on BOQ lines (BOQ &amp; cost tab → Edit), compared with plan by trade.</p>
@@ -2107,15 +2112,79 @@ function cashActuals(){
   const manual=S.expenses.filter(e=>e.source!=="sheet"&&!dupIds.has(e.id));
   const base=live?live:S.expenses.filter(e=>e.source==="sheet");
   const rows=base.concat(manual).map(e=>({date:expISO(e.date),cls:expClass(e.classification),
-    net:expNum(e.amount),total:expTot(e)})).filter(r=>r.date);
-  return {rows,live:!!live,at:live?EXP_LAST.sheet.fetchedAt:(S.expenseSync&&S.expenseSync.at),
+    net:expNum(e.amount),total:expTot(e),party:e.partyName||""})).filter(r=>r.date);
+  /* sheet rows with no readable voucher date: still real money, counted in totals as "undated" */
+  const undated=((EXP_LAST&&EXP_LAST.sheet&&EXP_LAST.sheet.skipped)||[]).filter(s=>s.amount>0)
+    .map(s=>({date:"",cls:s.cls||"Other Expenses",net:s.net||s.amount,total:s.amount,party:s.party||"",line:s.line,desc:s.desc||s.text}));
+  return {rows,undated,live:!!live,at:live?EXP_LAST.sheet.fetchedAt:(S.expenseSync&&S.expenseSync.at),
     error:EXP_LAST&&EXP_LAST.error, manual:manual.length};
+}
+function drawCashStatus(){
+  const el=$("#cashStatus"); if(!el) return;
+  const A=cashActuals(), all=A.rows.concat(A.undated);
+  const paid=all.reduce((s,r)=>s+r.total,0);
+  const curK=dstr(TODAY).slice(0,7), lastK=dstr(new Date(TODAY.getFullYear(),TODAY.getMonth()-1,1)).slice(0,7);
+  const byM={}; A.rows.forEach(r=>{ const k=r.date.slice(0,7); byM[k]=(byM[k]||0)+r.total; });
+  const t=totals(), onc=(t.grand-t.base)/(t.base||1), m=cashMonths();
+  const planToDate=Object.keys(m).filter(k=>k<=curK).reduce((s,k)=>s+m[k]*(1+onc),0);
+  const planTotal=t.grand;
+  // average monthly burn over the last 3 complete months
+  const last3=[1,2,3].map(i=>dstr(new Date(TODAY.getFullYear(),TODAY.getMonth()-i,1)).slice(0,7));
+  const burn=last3.reduce((s,k)=>s+(byM[k]||0),0)/3;
+  const B=expBudgetRows().filter(b=>b.budget>0), budTot=B.reduce((s,b)=>s+b.budget,0);
+  const budSpent=A.rows.concat(A.undated).filter(r=>B.some(b=>b.cls===r.cls)).reduce((s,r)=>s+r.net,0);
+  const diff=paid-planToDate;
+  const tile=(label,val,sub,col)=>'<div style="flex:1;min-width:150px;border:1px solid #dfe3e8;border-radius:8px;padding:9px 11px;background:#fff">'
+    +'<div class="small" style="color:#57606a">'+label+'</div><div style="font-size:19px;font-weight:700;color:'+(col||"#0C013D")+'">'+val+'</div>'
+    +(sub?'<div class="small" style="color:#57606a">'+sub+'</div>':'')+'</div>';
+  let h='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">'
+    +tile("Paid to date (incl. GST)",lakh(paid),all.length+" entries in the expense sheet")
+    +tile("Planned to date",lakh(planToDate),"of "+lakh(planTotal)+" total plan")
+    +tile(diff>=0?"Ahead of plan by":"Below plan by",lakh(Math.abs(diff)),planToDate?(paid/planToDate*100).toFixed(0)+"% of planned-to-date spent":"",diff>0?"#B80001":"#4E7A33")
+    +tile("This month",lakh(byM[curK]||0),"last month "+lakh(byM[lastK]||0))
+    +tile("Average monthly spend",lakh(burn),"over the last 3 complete months")
+    +(budTot?tile("Budget left",lakh(budTot-budSpent),(budSpent/budTot*100).toFixed(0)+"% of "+lakh(budTot)+" used",budSpent>budTot?"#B80001":null)
+      :tile("Budget left","—","no budgets entered in the sheet yet"))
+    +'</div>';
+  // completeness: everything in the sheet is shown here; say so, and flag what needs attention
+  const notes=[];
+  if(A.undated.length) notes.push('⚠ <b>'+A.undated.length+' sheet entr'+(A.undated.length>1?"ies":"y")+' ('+inr(A.undated.reduce((s,r)=>s+r.total,0))
+    +') have no readable voucher date</b> — counted in the totals above but not in any month. Fix the date in the sheet: '
+    +A.undated.map(u=>'row '+u.line+(u.party?' ('+esc(u.party)+')':'')).join(", ")+'.');
+  const d=EXP_LAST&&EXP_LAST.diff;
+  if(d&&!d.inSync&&!isAdmin()) notes.push('ℹ The sheet has '+(d.added.length+d.changed.length+d.removed.length)
+    +' change(s) not yet saved to the dashboard\'s Expenses list — they <b>are</b> counted here; they\'ll be saved automatically the next time an admin opens the dashboard.');
+  if(EXP_AUTO&&EXP_AUTO.n) notes.push(EXP_AUTO.saved?'✓ '+EXP_AUTO.n+' new or corrected sheet entr'+(EXP_AUTO.n>1?"ies were":"y was")+' added to the Expenses list automatically at '
+      +new Date(EXP_AUTO.at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+'.'
+    :'⚠ New sheet entries were added on this screen but the shared server didn\'t accept the save — click 🔒 and re-enter the admin key.');
+  if(d&&d.manualDup&&d.manualDup.length) notes.push('ℹ '+d.manualDup.length+' hand-entered expense(s) look like duplicates of sheet rows and are left out of these figures (see the Expenses tab).');
+  if(!notes.length&&!A.error) notes.push('✓ Every entry in the expense sheet is included.');
+  h+=notes.map(n=>'<div class="small" style="margin:3px 0">'+n+'</div>').join("");
+  el.innerHTML=h;
+}
+function drawCashCls(){
+  const el=$("#cashClsTable"); if(!el) return;
+  const A=cashActuals(), all=A.rows.concat(A.undated);
+  const cls=[...new Set(all.map(r=>r.cls))].sort((a,b)=>all.filter(r=>r.cls===b).reduce((s,r)=>s+r.total,0)-all.filter(r=>r.cls===a).reduce((s,r)=>s+r.total,0));
+  const months=[...new Set(A.rows.map(r=>r.date.slice(0,7)))].sort();
+  if(A.undated.length) months.push("");
+  if(!all.length){ el.innerHTML='<tr><td class="small">No expenses read from the sheet yet.</td></tr>'; return; }
+  const cell=(k,c)=>all.filter(r=>r.date.slice(0,7)===k&&(c==null||r.cls===c)).reduce((s,r)=>s+r.total,0);
+  let h='<tr><th>Month</th>'+cls.map(c=>'<th class="n" style="min-width:90px">'+esc(c)+'</th>').join("")+'<th class="n">Total</th><th class="n">Cumulative</th></tr>';
+  let cum=0;
+  months.forEach(k=>{ const tot=cell(k); cum+=tot;
+    h+='<tr><td>'+(k?new Date(+k.slice(0,4),+k.slice(5)-1,1).toLocaleDateString("en-GB",{month:"short",year:"numeric"}):'<span style="color:#B80001">No date</span>')+'</td>'
+      +cls.map(c=>{ const v=cell(k,c); return '<td class="n">'+(v?inr(v):'<span class="small">—</span>')+'</td>'; }).join("")
+      +'<td class="n"><b>'+inr(tot)+'</b></td><td class="n">'+lakh(cum)+'</td></tr>'; });
+  h+='<tr class="tot"><td>TOTAL</td>'+cls.map(c=>'<td class="n">'+inr(all.filter(r=>r.cls===c).reduce((s,r)=>s+r.total,0))+'</td>').join("")
+    +'<td class="n">'+inr(cum)+'</td><td></td></tr>';
+  el.innerHTML=h;
 }
 function drawCashBudget(){
   const el=$("#cashBudgetTable"); if(!el) return;
   const A=cashActuals(), B=expBudgetRows();
   const act={}, paid={};
-  A.rows.forEach(r=>{ act[r.cls]=(act[r.cls]||0)+r.net; paid[r.cls]=(paid[r.cls]||0)+r.total; });
+  A.rows.concat(A.undated).forEach(r=>{ act[r.cls]=(act[r.cls]||0)+r.net; paid[r.cls]=(paid[r.cls]||0)+r.total; });
   const order=B.map(b=>b.cls); Object.keys(act).forEach(k=>{ if(order.indexOf(k)<0) order.push(k); });
   let tb=0,ta=0,tp=0;
   let h='<tr><th>Classification</th><th class="n">Budget ₹</th><th class="n">Spent (net) ₹</th><th class="n">Paid incl. GST ₹</th>'
@@ -2167,7 +2236,9 @@ function drawActualVsPlanned(){
   el.innerHTML=h;
 }
 function drawCash(){
+  drawCashStatus();
   drawCashBudget();
+  drawCashCls();
   drawActualVsPlanned();
   const m=cashMonths();
   const t=totals(), onc=(t.grand-t.base)/(t.base||1);
@@ -4172,7 +4243,7 @@ function expFlags(e){ const f=[];
   if(!String(e.voucherNo||"").trim()) f.push("No voucher number");
   if(!String(e.partyName||"").trim()) f.push("No party name");
   return f; }
-let EXP_LAST=null, EXP_CHECKING=false, EXP_CHECKED_AT=0;
+let EXP_LAST=null, EXP_CHECKING=false, EXP_CHECKED_AT=0, EXP_AUTO=null;
 
 function expClass(c){
   c=String(c||"").replace(/\s+/g," ").trim(); if(!c) return "Other Expenses";
@@ -4234,7 +4305,10 @@ async function fetchSheetExpenses(){
     if(row.every(c=>!String(c).trim())) return;
     const date=expISO(g("date"));
     if(!date&&row.some(c=>/^total$/i.test(String(c).trim()))){ sheetTotal=expNum(g("total")); return; }
-    if(!date){ skipped.push({line:hi+i+2,text:row.slice(0,8).filter(Boolean).join(" · ")}); return; }
+    if(!date){ skipped.push({line:hi+i+2,text:row.slice(0,8).filter(Boolean).join(" · "),
+      /* keep the money so the cash flow can still count it (it just can't be placed in a month) */
+      amount:g("total")?expNum(g("total")):expNum(g("amount"))+expNum(g("gst")),net:expNum(g("amount")),
+      cls:expClass(g("classification")),party:g("partyName"),desc:g("desc").replace(/\s+/g," ").trim()}); return; }
     const amount=expNum(g("amount")), gst=expNum(g("gst"));
     rows.push({date,voucherNo:g("voucherNo"),classification:expClass(g("classification")),ledger:g("ledger"),
       partyName:g("partyName"),invoiceNo:g("invoiceNo"),invoiceDate:expISO(g("invoiceDate")),
@@ -4292,7 +4366,7 @@ function expComputeDiff(sheet){
   return {added,changed,removed,manualDup,budgetChanges,
     inSync:!added.length&&!changed.length&&!removed.length&&!budgetChanges.length};
 }
-function expApplySync(sheet,dropManualIds){
+function expApplySync(sheet,dropManualIds,quiet){
   const diff=expComputeDiff(sheet);
   const A=new Map(expKeyed(S.expenses.filter(e=>e.source==="sheet")));
   const stamp=Date.now();
@@ -4310,6 +4384,10 @@ function expApplySync(sheet,dropManualIds){
   /* save to the shared server now and confirm it landed — a silent failure here leaves the
      sync on this screen only, and the next reload brings the old entries back */
   clearTimeout(syncTimer);
+  if(quiet){   // automatic sync: no pop-ups; the Cash flow / Expenses status lines report the outcome
+    return pushState().then(()=>{ EXP_AUTO={at:new Date().toISOString(),n:diff.added.length+diff.changed.length+diff.removed.length,
+      saved:syncState==="live"}; if(S.tab==="cash") drawCash(); });
+  }
   toast("Saving to the server…");
   pushState().then(()=>{
     if(syncState==="live"){ toast("Saved ✓ — everyone now sees "+sheet.rows.length+" sheet entries, "+inr(sheet.rows.reduce((s,r)=>s+r.total,0))); return; }
@@ -4329,6 +4407,10 @@ async function expCheckSheet(force){
   try{ const sheet=await fetchSheetExpenses(); EXP_LAST={sheet,diff:expComputeDiff(sheet)}; }
   catch(e){ EXP_LAST={error:e.message}; }
   EXP_CHECKING=false; EXP_CHECKED_AT=Date.now();
+  /* anything recorded in the sheet but not yet on the dashboard is brought in automatically
+     (new, corrected and removed rows) whenever an admin has the dashboard open — the
+     shared server only accepts saves carrying the admin key. Hand-entered expenses are kept. */
+  if(EXP_LAST.sheet&&!EXP_LAST.diff.inSync&&isAdmin()&&!modalOpen()&&!anyInputFocused()) expApplySync(EXP_LAST.sheet,[],true);
   drawExpSyncBar(); drawExpReport();
   if(S.tab==="cash") drawCash();   // cash flow actuals follow the sheet directly
   return EXP_LAST;
