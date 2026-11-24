@@ -333,11 +333,17 @@ this is a planning and control tool, not a design or a professional cost certifi
 <div class="page" id="p_sched">
   <h2>Execution schedule</h2>
   <div class="note red" id="schedWarn"></div>
-  <div class="tools"><button id="addAct">Add activity</button>
-    <button id="saveSched" class="primary">💾 Save schedule</button></div>
+  <div class="note" id="gsBox" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+    <div style="flex:1;min-width:240px;font-size:12px">Linked to the
+      <a id="gsSheetLink" target="_blank" rel="noopener"><b>Vikrant GANTT LIVE sheet</b> (Register tab)</a>.
+      The team updates the sheet; this schedule pulls it in automatically on open and every 5 minutes.
+      <div id="gsMsg" class="small" style="margin-top:4px"></div></div>
+    <button id="gsSyncBtn" class="primary">🔄 Sync all activities from sheet</button>
+  </div>
+  <div class="tools"><a id="gsAddLink" class="small" target="_blank" rel="noopener">➕ Add or edit an activity in the sheet ↗</a>
+    <button id="saveSched">💾 Save schedule</button></div>
   <div class="tools" style="align-items:center">
-    <label class="small">Phase <select id="gFilterPhase"><option value="">All</option>
-      <option value="1">Phase 1</option><option value="2">Phase 2</option></select></label>
+    <label class="small">Workstream <select id="gFilterPhase"><option value="">All</option></select></label>
     <label class="small">Vendor / owner <select id="gFilterOwner"><option value="">All</option></select></label>
     <label class="small">Status <select id="gFilterStatus"><option value="">All</option>
       <option value="critical">Critical</option><option value="delayed">Delayed</option>
@@ -347,9 +353,9 @@ this is a planning and control tool, not a design or a professional cost certifi
   </div>
   <div class="gantt" id="gantt"></div>
   <h3>Activity list</h3>
-  <p class="small">Edit any cell below and the Gantt chart above updates and saves right away &mdash; no extra step
-  needed. Use <b>Save schedule</b> only if you want to push your changes to the team immediately instead of
-  waiting a second or two.</p>
+  <p class="small">Activities come from the sheet and are matched by their ID (A01, A02 …), so syncing any number
+  of times never creates a duplicate: an existing ID is updated, a new ID is added once, and an ID deleted from
+  the sheet is removed here. To change an activity, edit it in the sheet and click <b>Sync</b>.</p>
   <table id="actTable"></table>
 </div>
 
@@ -1698,6 +1704,10 @@ function cpm(){
 /* on-track/delayed/critical is computed fresh from dates+status each draw, not stored — so it can
    never drift from what the schedule table actually says */
 function actState(a){
+  if(a.sheetId){   // the sheet's own Status column is the authority for synced rows
+    if(/^done|^complete/i.test(a.status||"")) return "done";
+    if(/hold/i.test(a.status||"")) return "critical";
+  }
   if(a.pct>=100) return "done";
   const finish=dadd(dparse(a.start),a.days);
   if(finish<TODAY) return "delayed";        // should have finished by now and hasn't
@@ -1706,16 +1716,24 @@ function actState(a){
 }
 function drawGantt(){
   const fPhase=$("#gFilterPhase")?.value||"", fOwner=$("#gFilterOwner")?.value||"", fStatus=$("#gFilterStatus")?.value||"";
+  const grpSel=$("#gFilterPhase");
+  if(grpSel){
+    const grps=[...new Set(S.acts.map(actGroup))].sort();
+    grpSel.innerHTML='<option value="">All</option>'+grps.map(g=>'<option'+(fPhase===g?" selected":"")+'>'+esc(g)+'</option>').join("");
+  }
   const ownerSel=$("#gFilterOwner");
   if(ownerSel){
     const owners=[...new Set(S.acts.map(a=>a.owner).filter(Boolean))].sort();
     const cur=ownerSel.value;
     ownerSel.innerHTML='<option value="">All</option>'+owners.map(o=>'<option'+(cur===o?" selected":"")+'>'+esc(o)+'</option>').join("");
   }
-  const acts=S.acts.filter(a=>
-    (!fPhase||String(a.phase)===fPhase) && (!fOwner||a.owner===fOwner) && (!fStatus||actState(a)===fStatus));
-  const starts=(acts.length?acts:S.acts).map(a=>dparse(a.start));
-  const ends=(acts.length?acts:S.acts).map(a=>dadd(dparse(a.start),a.days));
+  /* rows with no dates in the sheet can't be drawn as bars — they still show in the list below */
+  const dated=S.acts.filter(a=>!a.nodates);
+  const acts=dated.filter(a=>
+    (!fPhase||actGroup(a)===fPhase) && (!fOwner||a.owner===fOwner) && (!fStatus||actState(a)===fStatus));
+  const base=acts.length?acts:(dated.length?dated:[{start:dstr(TODAY),days:1}]);
+  const starts=base.map(a=>dparse(a.start));
+  const ends=base.map(a=>dadd(dparse(a.start),a.days));
   let min=new Date(Math.min.apply(null,starts.concat([TODAY])));
   let max=new Date(Math.max.apply(null,ends.concat([TODAY])));
   min=new Date(min.getFullYear(),min.getMonth(),1);
@@ -1732,7 +1750,8 @@ function drawGantt(){
   acts.forEach(a=>{
     const s=dparse(a.start), off=Math.floor(days(min,s)/7), len=Math.max(1,Math.ceil(a.days/7));
     const state=actState(a), cls=state+(a.phase===2?" p2":"");
-    body+='<tr><td>'+esc(a.name)+(state==="done"?' <span style="color:#4E7A33">✓</span>':'')+'</td>'
+    body+='<tr><td>'+(a.sheetId?'<span class="small" style="color:#57606a">'+esc(a.sheetId)+'</span> ':'')
+      +esc(a.name)+(state==="done"?' <span style="color:#4E7A33">✓</span>':'')+'</td>'
       +'<td class="small">'+esc(a.owner)+'</td>';
     for(let i=0;i<weeks;i++){
       body+='<td class="cell'+(mLab[i]?" m0":"")+'">';
@@ -1745,6 +1764,7 @@ function drawGantt(){
   });
   $("#gantt").innerHTML='<table>'+hdr+body+'</table>'
     +(acts.length?"":'<div class="small" style="padding:8px">No activities match this filter.</div>');
+  if(S.acts.some(a=>a.sheetId)){ drawSheetSummary(); return; }
   const d1=days(TODAY,OPS);
   const p1=S.acts.filter(a=>a.phase===1&&dadd(dparse(a.start),a.days)>OPS);
   $("#schedWarn").innerHTML='<b>Schedule reality check.</b> '+d1+' days remain to the 17 September operations start. '
@@ -1754,6 +1774,7 @@ function drawGantt(){
     +'Note also that Phase 2 ends March 2027 while the stated launch is 1 April 2028 — that twelve-month gap needs an explanation before this goes to the board.';
 }
 function drawActs(){
+  if(S.acts.some(a=>a.sheetId)){ drawSheetActs(); return; }
   let h='<tr><th>Activity</th><th>Area</th><th>Start</th><th class="n">Days</th><th>Finish</th><th>Phase</th>'
     +'<th>Critical</th><th class="n">% done</th><th>Owner</th><th></th></tr>';
   S.acts.forEach(a=>{
@@ -1782,6 +1803,166 @@ function drawActs(){
   bind("[data-apc]",(a,t)=>a.pct=parseInt(t.value)||0); bind("[data-ao]",(a,t)=>a.owner=t.value);
   document.querySelectorAll("[data-adel]").forEach(b=>{b.onclick=()=>{
     S.acts=S.acts.filter(x=>x.id!==b.dataset.adel); save(); redraw();};});
+}
+
+/* ---------- schedule: mirrored from the Vikrant GANTT LIVE sheet (Register tab) ----------
+   The sheet is the single source of truth. It is read as CSV (shared "anyone with the link can
+   view"), so no Google sign-in is needed. Every row is keyed by its sheet ID (A01, A02 …):
+   an ID already here is updated in place, a new ID is added once, and an ID no longer in the sheet
+   is removed — so syncing any number of times, from any number of browsers, never duplicates.
+   Activities entered by hand before the link existed are moved to S.actsArchive, not deleted. */
+const GS_SHEET={id:"1jZ9NzOt0-uslLFlQhreIHCqf00hR-exrwALPEL8G9vU",gid:"2029887911"};
+const GS_URL="https://docs.google.com/spreadsheets/d/"+GS_SHEET.id+"/edit#gid="+GS_SHEET.gid;
+const GS_FIELDS=["name","stream","owner","start","days","finish","target","basis","status","pct","remarks","nodates","sheetRow"];
+const GS_AUTO_MS=5*60*1000;
+let GS_BUSY=false, GS_AT=0, GS_ERR="";
+const actGroup=a=>a.stream||("Phase "+(a.phase||1));
+const GS_MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function gsISO(s){
+  s=String(s==null?"":s).trim(); if(!s) return "";
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");
+  m=s.match(/^(\d{1,2})[-\s\/.]([A-Za-z]{3,})[-\s\/.,]*(\d{2,4})$/);
+  if(m){ const mi=GS_MON.findIndex(x=>x.toLowerCase()===m[2].slice(0,3).toLowerCase());
+    if(mi>=0){ let y=+m[3]; if(y<100) y+=2000; return y+"-"+String(mi+1).padStart(2,"0")+"-"+m[1].padStart(2,"0"); } }
+  m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);   // Indian dd/mm/yyyy
+  if(m){ let y=+m[3]; if(y<100) y+=2000; return y+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"); }
+  return "";
+}
+const gsFmt=iso=>{ if(!iso) return "—"; const p=iso.split("-"); return (+p[2])+" "+GS_MON[+p[1]-1]+" "+p[0].slice(2); };
+
+async function gsFetch(){
+  const r=await fetch("https://docs.google.com/spreadsheets/d/"+GS_SHEET.id+"/export?format=csv&gid="+GS_SHEET.gid,{cache:"no-store"});
+  if(!r.ok) throw new Error("the sheet returned HTTP "+r.status);
+  const text=await r.text();
+  if(/^\s*</.test(text)) throw new Error("the sheet is not shared as 'anyone with the link can view'");
+  const grid=parseCSV(text);
+  const hi=grid.findIndex(row=>/^id$/i.test(String(row[0]||"").trim()));
+  if(hi<0) throw new Error('could not find the "ID" header row on the Register tab');
+  const H=grid[hi].map(h=>String(h).trim().toLowerCase()), col=re=>H.findIndex(h=>re.test(h));
+  const C={stream:col(/^phase/),name:col(/^activity/),owner:col(/^owner/),start:col(/^start/),target:col(/^target/),
+    finish:col(/actual|forecast/),basis:col(/basis/),status:col(/^status/),pct:col(/complete/),remarks:col(/remark|evidence/)};
+  const sd=grid.slice(0,hi).find(row=>/status\s*date/i.test(String(row[0]||"")));
+  const rows=[], dups=[], seen=new Set();
+  grid.slice(hi+1).forEach((row,i)=>{
+    const g=k=>C[k]>=0?String(row[C[k]]==null?"":row[C[k]]).trim():"";
+    const id=String(row[0]||"").trim().toUpperCase();
+    if(!id) return;
+    if(seen.has(id)){ dups.push(id); return; }   // the same ID twice in the sheet: keep the first
+    seen.add(id);
+    let start=gsISO(g("start")), finish=gsISO(g("finish"))||gsISO(g("target"));
+    const nodates=!start;
+    if(!start) start=finish||dstr(TODAY);
+    if(!finish||finish<start) finish=start;
+    const dur=Math.max(1,days(dparse(start),dparse(finish)));
+    rows.push({id:"gs_"+id,sheetId:id,sheetRow:hi+i+2,name:g("name")||"(unnamed activity)",stream:g("stream"),
+      owner:g("owner"),start,days:dur,finish,target:gsISO(g("target")),basis:g("basis"),
+      status:g("status")||"Pending",pct:Math.max(0,Math.min(100,parseFloat(g("pct"))||0)),
+      remarks:g("remarks").replace(/\s+/g," "),nodates,phase:1,area:"All",crit:false});
+  });
+  return {rows,dups,statusDate:sd?String(sd[1]||"").trim():"",fetchedAt:new Date().toISOString()};
+}
+
+/* merge the fetched rows into S.acts; returns what changed */
+function gsApply(res){
+  const byId={}; S.acts.forEach(a=>{ if(a.sheetId&&!byId[a.sheetId]) byId[a.sheetId]=a; });
+  const added=[],updated=[]; let same=0;
+  const next=res.rows.map(r=>{
+    const cur=byId[r.sheetId];
+    if(!cur){ added.push(r.sheetId); return r; }
+    delete byId[r.sheetId];
+    if(GS_FIELDS.some(f=>String(cur[f])!==String(r[f]))){ GS_FIELDS.forEach(f=>cur[f]=r[f]); updated.push(r.sheetId); }
+    else same++;
+    return cur;
+  });
+  const removed=Object.keys(byId);
+  const manual=S.acts.filter(a=>!a.sheetId);
+  const dupsHere=S.acts.filter(a=>a.sheetId).length-(next.length-added.length)-removed.length;
+  if(manual.length) S.actsArchive=(S.actsArchive||[]).concat(manual);
+  const changed=added.length||updated.length||removed.length||manual.length||dupsHere>0;
+  S.acts=next;
+  S.gsMeta={at:res.fetchedAt,statusDate:res.statusDate,dups:res.dups,
+    last:changed?{at:res.fetchedAt,added,updated,removed,archived:manual.length}:(S.gsMeta&&S.gsMeta.last)||null};
+  return {changed,added,updated,removed,same,archived:manual.length};
+}
+
+async function gsSync(force,quiet){
+  if(GS_BUSY) return;
+  if(!force&&Date.now()-GS_AT<60000) return;
+  GS_BUSY=true; drawGsStatus();
+  const btn=$("#gsSyncBtn"); if(btn){ btn.disabled=true; btn.textContent="⏳ Syncing…"; }
+  try{
+    const res=await gsFetch();
+    const d=gsApply(res);
+    GS_AT=Date.now(); GS_ERR="";
+    if(d.changed){
+      save(); redraw();
+      logChange("Schedule synced from Gantt sheet: "+d.added.length+" added, "+d.updated.length+" updated, "
+        +d.removed.length+" removed"+(d.archived?", "+d.archived+" hand-entered activities archived":""));
+    }
+    if(!quiet||d.changed) toast(d.changed
+      ?"Schedule synced — "+d.added.length+" added, "+d.updated.length+" updated, "+d.removed.length+" removed."
+      :"Schedule is already up to date with the sheet ("+res.rows.length+" activities).");
+  }catch(e){
+    GS_ERR=e.message||String(e);
+    if(!quiet) toast("Could not sync from the Gantt sheet: "+GS_ERR,true);
+  }finally{
+    GS_BUSY=false;
+    if(btn){ btn.disabled=false; btn.textContent="🔄 Sync all activities from sheet"; }
+    drawGsStatus();
+  }
+}
+
+function drawGsStatus(){
+  const el=$("#gsMsg"); if(!el) return;
+  const m=S.gsMeta||{};
+  const t=iso=>iso?new Date(iso).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+  let h="";
+  if(GS_BUSY) h="Checking the sheet…";
+  else if(GS_ERR) h='<span style="color:#B80001"><b>Last sync failed:</b> '+esc(GS_ERR)+'</span>';
+  else if(m.at) h='✓ Up to date as of <b>'+esc(t(GS_AT?new Date(GS_AT).toISOString():m.at))+'</b>'
+    +(m.statusDate?' · sheet status date '+esc(m.statusDate):'')+' · '+S.acts.filter(a=>a.sheetId).length+' activities';
+  else h="Not synced yet.";
+  if(m.last&&!GS_BUSY) h+='<br>Last change '+esc(t(m.last.at))+': '+m.last.added.length+' added, '
+    +m.last.updated.length+' updated, '+m.last.removed.length+' removed'
+    +(m.last.updated.length?' <span style="color:#57606a">('+esc(m.last.updated.slice(0,8).join(", "))+(m.last.updated.length>8?" …":"")+')</span>':'');
+  if(m.dups&&m.dups.length&&!GS_BUSY) h+='<br><span style="color:#7A5C00">⚠ The sheet uses these IDs more than once — only the first row of each is used: '
+    +esc([...new Set(m.dups)].join(", "))+'. Give each row its own ID.</span>';
+  el.innerHTML=h;
+}
+
+function drawSheetSummary(){
+  const sa=S.acts.filter(a=>a.sheetId);
+  const n=s=>sa.filter(a=>actState(a)===s).length;
+  const late=sa.filter(a=>actState(a)!=="done"&&a.target&&dparse(a.target)<TODAY);
+  const avg=sa.length?Math.round(sa.reduce((s,a)=>s+(a.pct||0),0)/sa.length):0;
+  const el=$("#schedWarn");
+  el.classList.toggle("red",late.length>0);
+  el.innerHTML='<b>Progress from the sheet.</b> '+sa.length+' activities — <b>'+n("done")+'</b> done, '
+    +sa.filter(a=>actState(a)!=="done"&&/progress/i.test(a.status)).length+' in progress, '
+    +sa.filter(a=>actState(a)!=="done"&&!/progress/i.test(a.status)).length+' pending / on hold. Average '+avg+'% complete. '
+    +(late.length?'<b>'+late.length+' past their target date:</b> '
+      +late.slice(0,6).map(a=>esc(a.sheetId+" "+a.name)).join("; ")+(late.length>6?' and '+(late.length-6)+' more.':'.'):'Nothing is past its target date.');
+}
+
+function drawSheetActs(){
+  const pill=a=>{ const s=a.status||""; const c=/^done|^complete/i.test(s)?"g":/hold/i.test(s)?"r":/progress/i.test(s)?"":"a";
+    return '<span class="pill '+c+'">'+esc(s||"—")+'</span>'; };
+  let h='<tr><th>ID</th><th>Workstream</th><th style="min-width:220px">Activity</th><th>Owner</th><th>Start</th>'
+    +'<th>Finish</th><th>Target</th><th>Status</th><th class="n">%</th><th style="min-width:240px">Remarks</th><th></th></tr>';
+  S.acts.forEach(a=>{
+    const late=actState(a)!=="done"&&a.target&&dparse(a.target)<TODAY;
+    h+='<tr><td><b>'+esc(a.sheetId||"")+'</b></td><td class="small">'+esc(a.stream||"")+'</td>'
+      +'<td>'+esc(a.name)+'</td><td class="small">'+esc(a.owner||"")+'</td>'
+      +'<td class="small">'+(a.nodates?'<span style="color:#7A5C00">no date</span>':gsFmt(a.start))+'</td>'
+      +'<td class="small">'+(a.nodates?'—':gsFmt(a.finish))+(a.basis&&/forecast/i.test(a.basis)?' <span class="small" title="'+attr(a.basis)+'">(fcst)</span>':'')+'</td>'
+      +'<td class="small"'+(late?' style="color:#B80001;font-weight:600" title="Past target"':'')+'>'+gsFmt(a.target)+'</td>'
+      +'<td>'+pill(a)+'</td><td class="n">'+(a.pct||0)+'%</td>'
+      +'<td class="small" style="max-width:380px">'+esc(a.remarks||"")+'</td>'
+      +'<td>'+(a.sheetRow?'<a class="small" target="_blank" rel="noopener" title="Open this row in the sheet" href="'
+        +attr(GS_URL+"&range=A"+a.sheetRow)+'">sheet ↗</a>':'')+'</td></tr>';
+  });
+  $("#actTable").innerHTML=h;
 }
 
 /* ---------- approvals ---------- */
@@ -3337,7 +3518,8 @@ function showTab(id){ S.tab=id; save();
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.t===id));
   document.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.id==="p_"+id));
   positionTabIndicator(); 
-  if(id==="exp"){ drawExpenses(); expCheckSheet(); } }
+  if(id==="exp"){ drawExpenses(); expCheckSheet(); }
+  if(id==="sched"){ drawGsStatus(); gsSync(false,true); } }
 function positionTabIndicator(){
   const on=document.querySelector(".tab.on"), ind=document.getElementById("tabIndicator");
   if(!on||!ind) return;
@@ -3396,8 +3578,9 @@ $("#resetBoq").onclick=()=>{
       toast("BOQ reset to computed defaults."); }
   });
 };
-$("#addAct").onclick=()=>{ S.acts.push({id:"a"+Date.now(),name:"New activity",area:"All",
-  start:dstr(new Date()),days:7,phase:1,crit:false,owner:"",pct:0}); save(); redraw(); };
+$("#gsSheetLink").href=GS_URL;
+$("#gsAddLink").href=GS_URL;
+$("#gsSyncBtn").onclick=()=>gsSync(true,false);
 $("#saveSched").onclick=()=>{ save(); pushState();
   toast(backendConfigured()?"Schedule saved and pushed to the team.":"Schedule saved on this device.",!backendConfigured()); };
 $("#linkFileBtn").onclick=linkFileForAutosave;
@@ -4351,6 +4534,9 @@ startEditLockObserver();
 storageLine();
 tryReconnectFileOnBoot();
 expCheckSheet();   // compare against the accounts sheet in the background so the Expenses tab shows sync status
+/* pull the schedule from the Gantt sheet on open, then every 5 minutes while the page is open */
+gsSync(true,true);
+setInterval(()=>{ if(!anyInputFocused()&&!modalOpen()) gsSync(true,true); },GS_AUTO_MS);
 if(!backendConfigured()){
   setSyncState("offline","set API_BASE near the top of the script to your deployed backend");
 } else {
