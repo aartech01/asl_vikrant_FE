@@ -486,6 +486,20 @@ this is a planning and control tool, not a design or a professional cost certifi
   the numbers before saving. <b>PDF and scanned/photographed</b> quotes are attached as a reference file; type
   the rate, delivery and terms in yourself.</p>
 
+  <h3>📥 Quotes from Google Chat</h3>
+  <div class="note" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+    <div style="flex:1;min-width:240px;font-size:12px">Every quotation posted in the site's
+      <a href="https://chat.google.com/room/AAQAdEiPJJU" target="_blank" rel="noopener"><b>Google Chat room</b></a>
+      (messages or files mentioning a quote, quotation, offer, proforma / PI, estimate, price list, tender or bid) lands
+      here once — site photos and other chat are left out. Review each: <b>Add to comparison</b> or <b>Dismiss</b>.
+      <div id="cqMsg" class="small" style="margin-top:4px"></div></div>
+    <button id="cqSyncBtn" class="primary">🔄 Update quotes from Google Chat</button>
+  </div>
+  <div class="tools"><label class="small">Show <select id="cqFilter">
+    <option value="new">New — to review</option><option value="added">Added to comparison</option>
+    <option value="dismissed">Dismissed</option><option value="">All</option></select></label></div>
+  <div id="cqList" style="margin-bottom:16px"></div>
+
   <h3>Vendors</h3>
   <div class="tools">
     <input id="vName" placeholder="Vendor / contractor name" style="width:220px">
@@ -742,7 +756,7 @@ function renderAdminLock(){
    interception block below), and a MutationObserver re-applies it to anything rendered after
    (modals, re-drawn tables) without touching every individual render function. */
 const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn",
-  "pUpArea","cmpArea","bulkArea","bulkKind","gFilterPhase","gFilterOwner","gFilterStatus","tSrc"]);
+  "pUpArea","cmpArea","bulkArea","bulkKind","gFilterPhase","gFilterOwner","gFilterStatus","tSrc","cqFilter"]);
 const VIEWONLY_LOCK_BTNS=new Set(["mapUpload","addZone","delZone","addRow","newArea","resetBoq","addRate",
   "addAct","saveSched","addAppr","addRisk","addTaskTop","dlAdd","mSave","kSave",
   "vAdd","qSave","qFilePick","dlESave","dlEDel","qESave","qEDel"]);
@@ -2586,6 +2600,7 @@ function drawVendors(){
   if(qrk) qrk.innerHTML='<option value="">— item not on the rate card —</option>'
     +Object.keys(D).map(k=>'<option value="'+k+'">'+esc(D[k].d)+' ('+esc(D[k].u)+')</option>').join("");
   drawQuoteCompare();
+  drawChatQuotes();
 }
 function toggleQItemFree(){
   const k=$("#qRateKey").value;
@@ -2681,6 +2696,10 @@ async function deleteQuote(id){
   if(!confirm('Delete the quote from "'+q.vendorName+'" for "'+q.itemDesc+'"?'))return;
   S.quotes=S.quotes.filter(x=>x.id!==id);
   logChange('Deleted quote from "'+q.vendorName+'"'); save(); drawVendors();
+  if(q.fromChat){   // its chat message goes back to "to review" instead of being lost
+    const cq=cqAll().find(x=>x.id===q.fromChat); if(cq) cqSetStatus(cq,"new",null).catch(()=>{});
+    return;   // the file belongs to the chat import — keep it for when it is re-added
+  }
   if(q.fileId && backendConfigured()){
     try{ await fetch(API_BASE+"/api/quotes/"+encodeURIComponent(q.fileId),{method:"DELETE",headers:adminHeaders()}); }
     catch(e){ /* metadata is already gone locally; an orphaned file in storage isn't harmful */ }
@@ -2780,6 +2799,149 @@ function exportQuoteCompare(){
   downloadText("ASL Vikrant vendor comparison — "+dstr(new Date())+".csv",csv,"text/csv");
   toast("Comparison downloaded.");
 }
+/* ---------- Vendor quotes from Google Chat ----------
+   The backend picks out only quote-related chat messages (and copies their files) into
+   S.chatQuotes, one record per chat message, so repeat syncs never duplicate. This tab is
+   the review inbox: "Add to comparison" turns one into a normal quote (vendor, item, rate,
+   file pre-filled), "Dismiss" hides it. Status changes are written straight to the server. */
+let CQ_BUSY=false, CQ_AT=0, CQ_MSG="";
+const cqAll=()=>Array.isArray(S.chatQuotes)?S.chatQuotes:[];
+function cqVendorMatch(q){
+  const hay=((q.text||"")+" "+(q.files||[]).map(f=>f.name).join(" ")+" "+(q.vendorGuess||"")).toLowerCase();
+  const g=String(q.vendorGuess||"").toLowerCase();
+  return S.vendors.find(v=>v.name&&hay.includes(v.name.toLowerCase()))
+    ||(g?S.vendors.find(v=>v.name&&(v.name.toLowerCase().includes(g)||g.includes(v.name.toLowerCase()))):null)||null;
+}
+function drawChatQuotes(){
+  const box=$("#cqList"); if(!box) return;
+  const all=cqAll().slice().sort((a,b)=>String(b.time||"").localeCompare(String(a.time||"")));
+  const f=$("#cqFilter")?$("#cqFilter").value:"new";
+  const list=f?all.filter(q=>(q.status||"new")===f):all;
+  const nNew=all.filter(q=>(q.status||"new")==="new").length;
+  if($("#cqMsg")) $("#cqMsg").innerHTML=CQ_MSG||(all.length?'<b>'+nNew+' new to review</b> · '+all.length+' quotes from Chat in total'
+    :'No quotes imported from Chat yet — click the button.');
+  box.innerHTML=list.length?list.map(q=>{
+    const st=q.status||"new", v=cqVendorMatch(q);
+    const vname=v?v.name:(q.vendorGuess||"");
+    const files=(q.files||[]).map(f=>f.url
+      ?(/^image\//i.test(f.contentType||"")
+        ?'<a href="'+attr(f.url)+'" target="_blank" rel="noopener"><img src="'+attr(f.url)+'" class="no-invert" loading="lazy" style="height:70px;border-radius:5px;border:1px solid #dfe3e8;margin:4px 6px 0 0" alt="'+attr(f.name)+'"></a>'
+        :'<a class="pill" style="margin:4px 6px 0 0;display:inline-block;text-decoration:none" href="'+attr(f.url)+'" target="_blank" rel="noopener">📄 '+esc(f.name)+' ↗</a>')
+      :'<span class="pill r" style="margin:4px 6px 0 0;display:inline-block" title="'+attr(f.error||"")+'">⚠ '+esc(f.name)+' (not copied)</span>').join("");
+    const linked=st==="added"&&q.quoteId&&S.quotes.find(x=>x.id===q.quoteId);
+    return '<div style="border:1px solid #dfe3e8;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:'+(st==="new"?"#FFFDF5":"#F6F6F6")+'">'
+      +'<div class="small" style="color:#57606a">'+(q.time?esc(new Date(q.time).toLocaleString("en-GB",{day:"numeric",month:"short",year:"2-digit",hour:"2-digit",minute:"2-digit"})):"")
+      +(q.sender?' · 💬 '+esc(q.sender):'')
+      +(vname?' · vendor: <b style="color:#0C013D">'+esc(vname)+'</b>'+(v?' <span class="pill g" title="Matches a vendor in your list">in list</span>':' <span class="pill a" title="Guessed from the message — not in your vendor list yet">new?</span>'):'')
+      +(q.amount?' · <b style="color:#0C013D">'+inr(q.amount)+'</b>':'')+'</div>'
+      +(q.text?'<div style="font-size:12.5px;color:#0C013D;margin-top:4px;white-space:pre-wrap">'+esc(q.text.length>400?q.text.slice(0,400)+" …":q.text)+'</div>':'')
+      +(files?'<div>'+files+'</div>':'')
+      +'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
+      +(st==="new"?'<button class="sm primary" data-cqadd="'+attr(q.id)+'">➕ Add to comparison</button><button class="sm" data-cqdis="'+attr(q.id)+'">Dismiss</button>'
+        :st==="added"?'<span class="pill g">✓ Added to comparison'+(linked?' — '+esc(linked.itemDesc.slice(0,40)):'')+'</span>'
+        :'<span class="pill">Dismissed</span> <button class="sm" data-cqnew="'+attr(q.id)+'">Restore</button>')
+      +'</div></div>';
+  }).join(""):'<div class="small">'+(f==="new"?"Nothing new to review.":"Nothing here.")+'</div>';
+  const byId=id=>cqAll().find(x=>x.id===id);
+  document.querySelectorAll("[data-cqadd]").forEach(b=>{b.onclick=()=>openChatQuoteAdd(byId(b.dataset.cqadd));});
+  document.querySelectorAll("[data-cqdis]").forEach(b=>{b.onclick=()=>cqSetStatus(byId(b.dataset.cqdis),"dismissed").catch(e=>toast(e.message,true));});
+  document.querySelectorAll("[data-cqnew]").forEach(b=>{b.onclick=()=>cqSetStatus(byId(b.dataset.cqnew),"new").catch(e=>toast(e.message,true));});
+}
+async function cqSetStatus(q,status,quoteId){
+  if(!q) return;
+  if(!isAdmin()) throw new Error("View only — click 🔒 above and enter the admin key to edit.");
+  const r=await fetch(API_BASE+"/api/chat-quotes/status",{method:"PATCH",
+    headers:Object.assign({"Content-Type":"application/json"},adminHeaders()),body:JSON.stringify({id:q.id,status,quoteId})});
+  if(r.status===401) throw new Error("Admin key rejected — click 🔒 to re-enter it");
+  if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||("HTTP "+r.status)); }
+  q.status=status; if(quoteId!==undefined) q.quoteId=quoteId;
+  try{ localStorage.setItem(LSK,JSON.stringify(S)); }catch(e){}
+  drawChatQuotes();
+}
+function openChatQuoteAdd(q){
+  if(!q) return;
+  if(!isAdmin()){ toast("View only — click 🔒 above and enter the admin key to edit.",true); return; }
+  const D=RATEDEF(), v=cqVendorMatch(q);
+  const file=(q.files||[]).find(f=>f.url)||null;
+  const firstLine=String(q.text||"").split(/\n/)[0].replace(/\s+/g," ").trim();
+  const desc=(firstLine||(file?file.name.replace(/\.[a-z0-9]+$/i,""):"Quotation from chat")).slice(0,90);
+  openModal('<div style="font-family:'+BRAND.fontTitle+';font-size:19px;color:#0C013D;text-transform:uppercase">Add chat quote to comparison</div>'
+    +'<div class="small" style="margin:4px 0 10px">'+esc(q.sender||"")+(q.time?' · '+esc(new Date(q.time).toLocaleDateString("en-GB")):'')
+      +(file?' · <a href="'+attr(file.url)+'" target="_blank" rel="noopener">open '+esc(file.name)+' ↗</a>':'')+'</div>'
+    +fRow("Vendor",'<select id="cqVendor" style="width:100%">'
+      +S.vendors.map(x=>'<option value="'+x.id+'"'+(v&&v.id===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")
+      +'<option value="__new"'+(!v?" selected":"")+'>➕ New vendor…</option></select>')
+    +'<div id="cqNewV">'+fRow("New vendor name",'<input id="cqVName" style="width:100%" value="'+attr(v?"":(q.vendorGuess||""))+'">')+'</div>'
+    +fRow("Item (rate card)",'<select id="cqRateKey" style="width:100%"><option value="">— item not on the rate card —</option>'
+      +Object.keys(D).map(k=>'<option value="'+k+'">'+esc(D[k].d)+' ('+esc(D[k].u)+')</option>').join("")+'</select>')
+    +fRow("Item description (if not on rate card)",'<input id="cqItem" style="width:100%" value="'+attr(desc)+'">')
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">'
+    +fRow("Rate ₹",'<input class="num" id="cqRate" style="width:100%" value="'+attr(q.amount||"")+'">')
+    +fRow("Unit",'<input id="cqUnit" style="width:100%" value="lump sum">')
+    +fRow("Delivery, days",'<input class="num" id="cqDel" style="width:100%">')+'</div>'
+    +fRow("Meets spec",'<label class="small" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="cqOk" checked> Meets spec</label>')
+    +fRow("Terms / notes",'<input id="cqTerms" style="width:100%" value="'+attr("From Google Chat"+(q.sender?" ("+q.sender+")":""))+'">')
+    +'<div style="margin-top:6px;display:flex;gap:8px"><button class="primary" id="cqSave">Add to comparison</button><button id="cqCancel">Cancel</button></div>');
+  const tog=()=>{ $("#cqNewV").style.display=$("#cqVendor").value==="__new"?"block":"none"; };
+  $("#cqVendor").onchange=tog; tog();
+  $("#cqRateKey").onchange=()=>{ const k=$("#cqRateKey").value; if(k){ $("#cqUnit").value=D[k].u; } };
+  $("#cqCancel").onclick=closeModal;
+  $("#cqSave").onclick=async()=>{
+    let vendor=S.vendors.find(x=>x.id===$("#cqVendor").value);
+    if(!vendor){
+      const name=$("#cqVName").value.trim(); if(!name){ toast("Enter the vendor's name.",true); return; }
+      vendor=S.vendors.find(x=>x.name.toLowerCase()===name.toLowerCase());   // never create the same vendor twice
+      if(!vendor){ vendor={id:"v"+Date.now(),name,contact:""}; S.vendors.push(vendor); logChange('Added vendor "'+name+'" (from Chat)'); }
+    }
+    const rateKey=$("#cqRateKey").value||null;
+    const itemDesc=rateKey?D[rateKey].d:$("#cqItem").value.trim();
+    if(!itemDesc){ toast("Describe the item, or pick one from the rate card.",true); return; }
+    const rate=parseFloat($("#cqRate").value);
+    if(!rate||rate<=0){ toast("Enter the quoted rate (open the file to read it).",true); return; }
+    const existing=S.quotes.find(x=>x.fromChat===q.id);   // one comparison row per chat quote
+    const nq=existing||{id:"qt"+Date.now(),addedAt:new Date().toISOString(),fromChat:q.id};
+    Object.assign(nq,{vendorId:vendor.id,vendorName:vendor.name,rateKey,itemDesc,
+      unit:$("#cqUnit").value.trim()||(rateKey?D[rateKey].u:""),rate,deliveryDays:parseFloat($("#cqDel").value)||null,
+      compliant:$("#cqOk").checked,terms:$("#cqTerms").value.trim(),
+      fileUrl:file?file.url:null,fileId:file?file.id:null,fileName:file?file.name:null});
+    if(!existing) S.quotes.push(nq);
+    logChange('Added quote from "'+vendor.name+'" for "'+itemDesc.slice(0,50)+'" (from Chat)');
+    save(); closeModal(); drawVendors();
+    try{ await cqSetStatus(q,"added",nq.id); toast("Added to the comparison."); }
+    catch(e){ toast("Quote added, but its chat status didn't save: "+e.message,true); }
+  };
+}
+async function chatQuoteSync(quiet){
+  if(!backendConfigured()){ if(!quiet) toast("No backend configured yet.",true); return; }
+  if(CQ_BUSY) return; CQ_BUSY=true;
+  const btn=$("#cqSyncBtn"); if(btn){ btn.disabled=true; btn.textContent="⏳ Checking Chat…"; }
+  let total=0, failed=[], guard=0;
+  try{
+    while(guard++<200){
+      CQ_MSG="Checking the Chat room for quotes…"+(total?" "+total+" new so far.":""); drawChatQuotes();
+      const r=await fetch(API_BASE+"/api/chat-quotes/sync",{method:"POST"});
+      const d=await r.json().catch(()=>({}));
+      if(r.status===409&&d.busy){ await new Promise(ok=>setTimeout(ok,4000)); continue; }
+      if(!r.ok) throw new Error(d.error||("HTTP "+r.status));
+      total+=d.added||0; failed=failed.concat(d.failed||[]);
+      if(d.added){ lastPulledAt=null; await pullState(); }
+      if(!d.remaining) break;
+    }
+    CQ_AT=Date.now(); CQ_MSG="";
+    drawChatQuotes();
+    const nNew=cqAll().filter(q=>(q.status||"new")==="new").length;
+    $("#cqMsg").innerHTML='✓ Up to date as of '+new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})
+      +' — '+(total?'<b>'+total+' new quotes</b> found. ':'no new quotes. ')+'<b>'+nNew+' to review</b> · '+cqAll().length+' from Chat in total.'
+      +(failed.length?'<br><span style="color:#B80001">'+failed.length+' file(s) could not be copied: '+esc(failed.slice(0,3).map(f=>f.name).join("; "))+'</span>':'');
+    if(!quiet||total) toast(total?total+" new quotes found in Google Chat.":"Quotes are already up to date with Google Chat.");
+  }catch(e){
+    CQ_MSG='<span style="color:#B80001"><b>Could not update quotes:</b> '+esc(e.message)+'</span>'; drawChatQuotes(); CQ_MSG="";
+    if(!quiet) toast("Could not update quotes: "+e.message,true);
+  }finally{
+    CQ_BUSY=false; if(btn){ btn.disabled=false; btn.textContent="🔄 Update quotes from Google Chat"; }
+  }
+}
+
 /* ---------- daily site log ---------- */
 function drawDailyLog(){
   const el=$("#dailyLogList"); if(!el) return;
@@ -3607,6 +3769,7 @@ function showTab(id){ S.tab=id; save();
   if(id==="exp"){ drawExpenses(); expCheckSheet(); }
   if(id==="sched"){ drawGsStatus(); gsSync(false,true); }
   if(id==="task") gsSync(false,true);
+  if(id==="vendor"){ drawChatQuotes(); if(Date.now()-CQ_AT>10*60*1000) chatQuoteSync(true); }
   if(id==="photo"){ drawCpStatus(); if(Date.now()-CP_AT>10*60*1000) chatPhotoSync(true); } }
 
 /* ---------- Photos: pull every photo posted in the site's Google Chat room ----------
@@ -3714,6 +3877,8 @@ $("#gsSheetLink").href=GS_URL;
 $("#gsAddLink").href=GS_URL;
 $("#gsSyncBtn").onclick=()=>gsSync(true,false);
 $("#cpSyncBtn").onclick=()=>chatPhotoSync(false);
+$("#cqSyncBtn").onclick=()=>chatQuoteSync(false);
+$("#cqFilter").onchange=drawChatQuotes;
 $("#saveSched").onclick=()=>{ save(); pushState();
   toast(backendConfigured()?"Schedule saved and pushed to the team.":"Schedule saved on this device.",!backendConfigured()); };
 $("#linkFileBtn").onclick=linkFileForAutosave;
