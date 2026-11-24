@@ -415,6 +415,13 @@ this is a planning and control tool, not a design or a professional cost certifi
   <h2>Site photographs by area</h2>
   <p class="small">Load the survey photos once and tag each to an area. They then appear inside that area's panel on the
   site plan, and in the exported report under the right heading.</p>
+  <div class="note" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+    <div style="flex:1;min-width:240px;font-size:12px">Linked to the site's
+      <a href="https://chat.google.com/room/AAQAdEiPJJU" target="_blank" rel="noopener"><b>Google Chat room</b></a>.
+      Every photo posted there is copied here once — clicking again only brings in new ones, never duplicates.
+      <div id="cpMsg" class="small" style="margin-top:4px"></div></div>
+    <button id="cpSyncBtn" class="primary">🔄 Update photos from Google Chat</button>
+  </div>
   <div class="tools">
     <button id="pUpload" class="primary">Choose photos from a folder</button>
     <button id="pCam">Open camera</button>
@@ -2306,6 +2313,9 @@ function drawPhotos(){
       :p.kind==="after"?'<span style="position:absolute;bottom:5px;left:5px;background:#4E7A33;color:#fff;font-size:9px;padding:1px 6px;border-radius:9px">AFTER</span>':'')
     +'</div>'
     +'<div class="small" style="padding:4px 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'
+    +(p.source==="chat"?'<div class="small" style="padding:1px 6px 0;color:#57606a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'
+      +attr(p.caption||"")+'">💬 '+esc(p.sender||"Chat")+(p.takenAt?' · '+esc(new Date(p.takenAt).toLocaleDateString("en-GB",{day:"numeric",month:"short"})):'')
+      +(p.caption?' · '+esc(p.caption):'')+'</div>':'')
     +'<select data-pa="'+p.id+'" style="width:calc(100% - 12px);margin:5px 6px 3px;font-size:11px">'
     +'<option value="">Untagged</option>'
     +AREAKEYS().map(a=>'<option'+(p.area===a?" selected":"")+'>'+esc(a)+'</option>').join("")
@@ -3519,7 +3529,52 @@ function showTab(id){ S.tab=id; save();
   document.querySelectorAll(".page").forEach(p=>p.classList.toggle("on",p.id==="p_"+id));
   positionTabIndicator(); 
   if(id==="exp"){ drawExpenses(); expCheckSheet(); }
-  if(id==="sched"){ drawGsStatus(); gsSync(false,true); } }
+  if(id==="sched"){ drawGsStatus(); gsSync(false,true); }
+  if(id==="photo"){ drawCpStatus(); if(Date.now()-CP_AT>10*60*1000) chatPhotoSync(true); } }
+
+/* ---------- Photos: pull every photo posted in the site's Google Chat room ----------
+   The backend does the work (it holds the saved Google connection) and imports in batches,
+   so this just keeps calling until nothing is left, refreshing the grid as photos land.
+   The backend remembers each chat attachment it has imported, so repeat clicks never duplicate. */
+let CP_BUSY=false, CP_AT=0, CP_MSG="";
+function drawCpStatus(){
+  const el=$("#cpMsg"); if(!el) return;
+  const n=S.photos.filter(p=>p.source==="chat").length;
+  el.innerHTML=CP_MSG||(n?n+' photos from Chat so far.':'No Chat photos imported yet — click the button.');
+}
+async function chatPhotoSync(quiet){
+  if(!backendConfigured()){ if(!quiet) toast("No backend configured yet.",true); return; }
+  if(CP_BUSY) return; CP_BUSY=true;
+  const btn=$("#cpSyncBtn"); if(btn){ btn.disabled=true; btn.textContent="⏳ Updating photos…"; }
+  let total=0, failed=[], guard=0;
+  try{
+    while(guard++<300){
+      CP_MSG="Checking the Chat room…"+(total?' '+total+' new photos added so far.':''); drawCpStatus();
+      const r=await fetch(API_BASE+"/api/chat-photos/sync",{method:"POST"});
+      const d=await r.json().catch(()=>({}));
+      if(r.status===409&&d.busy){ await new Promise(ok=>setTimeout(ok,4000)); continue; }
+      if(!r.ok) throw new Error(d.error||("HTTP "+r.status));
+      total+=d.imported||0; failed=failed.concat(d.failed||[]);
+      if(d.imported){ lastPulledAt=null; await pullState(); }
+      if(d.remaining){ CP_MSG=total+' new photos added — '+d.remaining+' more still coming…'; drawCpStatus(); }
+      if(!d.remaining||!d.imported) break;   // done, or the rest keep failing
+    }
+    CP_AT=Date.now();
+    const n=S.photos.filter(p=>p.source==="chat").length;
+    CP_MSG='✓ Up to date as of '+new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})
+      +' — '+(total?'<b>'+total+' new photos</b> added. ':'no new photos. ')+n+' photos from Chat in total.'
+      +(failed.length?'<br><span style="color:#B80001">'+failed.length+' could not be copied: '
+        +esc(failed.slice(0,3).map(f=>f.name+' ('+f.error+')').join("; "))+'</span>':'');
+    if(!quiet||total) toast(total?total+" new photos added from Google Chat.":"Photos are already up to date with Google Chat.");
+  }catch(e){
+    CP_MSG='<span style="color:#B80001"><b>Could not update photos:</b> '+esc(e.message)+'</span>';
+    if(!quiet) toast("Could not update photos: "+e.message,true);
+  }finally{
+    CP_BUSY=false;
+    if(btn){ btn.disabled=false; btn.textContent="🔄 Update photos from Google Chat"; }
+    drawCpStatus(); if(S.tab==="photo") drawPhotos();
+  }
+}
 function positionTabIndicator(){
   const on=document.querySelector(".tab.on"), ind=document.getElementById("tabIndicator");
   if(!on||!ind) return;
@@ -3581,6 +3636,7 @@ $("#resetBoq").onclick=()=>{
 $("#gsSheetLink").href=GS_URL;
 $("#gsAddLink").href=GS_URL;
 $("#gsSyncBtn").onclick=()=>gsSync(true,false);
+$("#cpSyncBtn").onclick=()=>chatPhotoSync(false);
 $("#saveSched").onclick=()=>{ save(); pushState();
   toast(backendConfigured()?"Schedule saved and pushed to the team.":"Schedule saved on this device.",!backendConfigured()); };
 $("#linkFileBtn").onclick=linkFileForAutosave;
