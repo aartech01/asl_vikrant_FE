@@ -396,8 +396,19 @@ this is a planning and control tool, not a design or a professional cost certifi
   <h2>Work items and task list</h2>
   <p class="small">Every task added from an area panel appears here. A task with an amount also creates a BOQ line,
   so the cost model and the work list never drift apart.</p>
+  <div class="note" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+    <div style="flex:1;min-width:240px;font-size:12px">Every activity in the
+      <a id="wtSheetLink" target="_blank" rel="noopener"><b>Gantt sheet</b></a> appears here automatically (marked 📅) and
+      updates whenever the sheet changes. Name, owner, date and status come from the sheet; you can set the area and add a
+      cost. Items you add yourself (✍️) stay exactly as you enter them.
+      <div id="wtMsg" class="small" style="margin-top:4px"></div></div>
+    <button id="wtSyncBtn" class="primary">🔄 Sync work items now</button>
+  </div>
   <div class="tools">
     <button id="addTaskTop">Add work item</button>
+    <label style="margin-left:10px">Source
+      <select id="tSrc"><option value="">All</option><option value="sheet">📅 From Gantt sheet</option>
+      <option value="manual">✍️ Added manually</option></select></label>
     <label style="margin-left:10px">Show
       <select id="tFilter"><option value="">All areas</option></select></label>
     <label style="margin-left:10px" title="Turn on to type directly into the table"><input type="checkbox" id="inlineChk2"> quick edit in table</label>
@@ -731,7 +742,7 @@ function renderAdminLock(){
    interception block below), and a MutationObserver re-applies it to anything rendered after
    (modals, re-drawn tables) without touching every individual render function. */
 const VIEWONLY_KEEP=new Set(["boqFind","grpBy","tFilter","tStat","inlineChk","mapIn","photoIn","fileIn","camIn",
-  "pUpArea","cmpArea","bulkArea","bulkKind","gFilterPhase","gFilterOwner","gFilterStatus"]);
+  "pUpArea","cmpArea","bulkArea","bulkKind","gFilterPhase","gFilterOwner","gFilterStatus","tSrc"]);
 const VIEWONLY_LOCK_BTNS=new Set(["mapUpload","addZone","delZone","addRow","newArea","resetBoq","addRate",
   "addAct","saveSched","addAppr","addRisk","addTaskTop","dlAdd","mSave","kSave",
   "vAdd","qSave","qFilePick","dlESave","dlEDel","qESave","qEDel"]);
@@ -1893,6 +1904,44 @@ function gsApply(res){
   return {changed,added,updated,removed,same,archived:manual.length};
 }
 
+/* ---------- Work items mirror the schedule's sheet activities ----------
+   Every sheet activity (A01, A02 …) is also a work item, keyed by its sheet ID, so the
+   Work items tab updates itself on every sheet sync with no duplicates. Name, owner,
+   target date and status always come from the sheet; the area and any cost/BOQ line
+   you attach here are yours and are kept. Hand-added work items are never touched. */
+function guessArea(name){
+  const n=String(name||"").toLowerCase();
+  const keys=AREAKEYS().filter(k=>k!=="Site"&&k!=="Other").sort((a,b)=>b.length-a.length);
+  const hit=keys.find(k=>n.includes(k.toLowerCase()));
+  if(hit) return hit;
+  if(/\boffice\b/.test(n)){ const o=keys.find(k=>/office/i.test(k)); if(o) return o; }
+  return "Site";
+}
+const taskStatusFromSheet=s=>/^done|^complete/i.test(s)?"Done":/hold|block/i.test(s)?"Blocked":/progress/i.test(s)?"In progress":"Not started";
+function syncTasksFromActs(){
+  const acts=S.acts.filter(a=>a.sheetId);
+  if(!acts.length) return {changed:false,added:0,updated:0,removed:0};
+  const byId={}; S.tasks.forEach(t=>{ if(t.sheetId&&!byId[t.sheetId]) byId[t.sheetId]=t; });
+  let added=0, updated=0;
+  const synced=acts.map(a=>{
+    let t=byId[a.sheetId];
+    const v={desc:a.name,owner:a.owner||"",due:a.nodates?"":a.finish,status:taskStatusFromSheet(a.status||""),
+      pct:a.pct||0,stream:a.stream||"",sheetRow:a.sheetRow,phase:1};
+    if(!t){ t={id:"wt_"+a.sheetId,sheetId:a.sheetId,area:guessArea(a.name),boqId:null}; Object.assign(t,v); added++; }
+    else if(Object.keys(v).some(k=>String(t[k])!==String(v[k]))){ Object.assign(t,v); updated++; }
+    delete byId[a.sheetId];
+    const b=t.boqId&&S.boq.find(x=>x.id===t.boqId);   // keep an attached BOQ line in step
+    if(b){ const bs=t.status==="Blocked"?"Not started":t.status;
+      if(b.desc!==t.desc||b.owner!==t.owner||b.status!==bs){ b.desc=t.desc; b.owner=t.owner; b.status=bs; updated++; } }
+    return t;
+  });
+  const removed=Object.keys(byId).length;   // activity deleted from the sheet: its work item goes too (BOQ line is kept)
+  const dupes=S.tasks.filter(t=>t.sheetId).length-synced.length+added-removed;
+  const changed=!!(added||updated||removed||dupes>0);
+  if(changed) S.tasks=S.tasks.filter(t=>!t.sheetId).concat(synced);
+  return {changed,added,updated,removed};
+}
+
 async function gsSync(force,quiet){
   if(GS_BUSY) return;
   if(!force&&Date.now()-GS_AT<60000) return;
@@ -1901,7 +1950,10 @@ async function gsSync(force,quiet){
   try{
     const res=await gsFetch();
     const d=gsApply(res);
+    const tk=syncTasksFromActs();
     GS_AT=Date.now(); GS_ERR="";
+    if(tk.changed&&!d.changed){ save(); redraw();
+      logChange("Work items synced from Gantt sheet: "+tk.added+" added, "+tk.updated+" updated, "+tk.removed+" removed"); }
     if(d.changed){
       save(); redraw();
       logChange("Schedule synced from Gantt sheet: "+d.added.length+" added, "+d.updated.length+" updated, "
@@ -1916,7 +1968,7 @@ async function gsSync(force,quiet){
   }finally{
     GS_BUSY=false;
     if(btn){ btn.disabled=false; btn.textContent="🔄 Sync all activities from sheet"; }
-    drawGsStatus();
+    drawGsStatus(); if(S.tab==="task") drawTasks();
   }
 }
 
@@ -2120,6 +2172,14 @@ function drawTasks(){
   let rows=S.tasks.slice();
   if(fa.value) rows=rows.filter(t=>t.area===fa.value);
   if(fs.value) rows=rows.filter(t=>t.status===fs.value);
+  const fsrc=$("#tSrc")?$("#tSrc").value:"";
+  if(fsrc) rows=rows.filter(t=>fsrc==="sheet"?!!t.sheetId:!t.sheetId);
+  const nSheet=S.tasks.filter(t=>t.sheetId).length;
+  if($("#wtMsg")) $("#wtMsg").innerHTML=nSheet
+    ?nSheet+' items from the sheet · '+(S.tasks.length-nSheet)+' added manually'
+      +(GS_AT?' · last checked '+new Date(GS_AT).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):'')
+      +(GS_ERR?' · <span style="color:#B80001">last sync failed: '+esc(GS_ERR)+'</span>':'')
+    :'Not synced with the sheet yet.';
   let h='<tr><th style="width:26%">Work to be done</th><th>Area</th><th class="n">Amount ₹</th><th>Phase</th>'
     +'<th>Person allotted</th><th>Target date</th><th>Status</th><th></th></tr>';
   if(!fa.value){
@@ -2130,9 +2190,24 @@ function drawTasks(){
   if(!rows.length) h+='<tr><td colspan="8" class="small">No work items yet. Use a button above, or the add form in any area panel on the Site plan tab.</td></tr>';
   rows.forEach(t=>{
     const b=S.boq.find(x=>x.id===t.boqId);
+    if(t.sheetId){   // synced from the sheet: area and cost are editable here, the rest is edited in the sheet
+      const pill=t.status==="Done"?"g":(t.status==="Blocked"?"r":(t.status==="In progress"?"":"a"));
+      const late=t.status!=="Done"&&t.due&&dparse(t.due)<TODAY;
+      h+='<tr><td><span class="pill" title="From the Gantt sheet">📅 '+esc(t.sheetId)+'</span> '+esc(t.desc)
+        +(t.stream?'<div class="small" style="color:#57606a">'+esc(t.stream)+'</div>':'')+'</td>'
+        +'<td><select data-tarea="'+t.id+'" style="font-size:11px">'+AREAKEYS().map(a=>'<option'+(t.area===a?" selected":"")+'>'+esc(a)+'</option>').join("")+'</select></td>'
+        +'<td class="n">'+(b?inr(amt(b)):'<button class="sm" data-tc="'+t.id+'">add cost</button>')+'</td>'
+        +'<td>P'+(t.phase||1)+'</td>'
+        +'<td>'+(t.owner?esc(t.owner):'<span class="small">unassigned</span>')+'</td>'
+        +'<td'+(late?' style="color:#B80001;font-weight:600" title="Past this date and not done"':'')+'>'+(t.due?esc(gsFmt(t.due)):'<span class="small">—</span>')+'</td>'
+        +'<td><span class="pill '+pill+'">'+esc(t.status)+'</span> <span class="small">'+(t.pct||0)+'%</span></td>'
+        +'<td style="white-space:nowrap">'+(t.sheetRow?'<a class="small" target="_blank" rel="noopener" title="Edit this item in the sheet" href="'
+          +attr(GS_URL+"&range=A"+t.sheetRow)+'">edit in sheet ↗</a>':'')+'</td></tr>';
+      return;
+    }
     if(!S.inline){
       const pill=t.status==="Done"?"g":(t.status==="Blocked"?"r":"a");
-      h+='<tr><td>'+(t.desc?esc(t.desc):'<span class="small">(untitled)</span>')+'</td>'
+      h+='<tr><td><span title="Added manually">✍️</span> '+(t.desc?esc(t.desc):'<span class="small">(untitled)</span>')+'</td>'
         +'<td>'+esc(t.area)+'</td>'
         +'<td class="n">'+(b?inr(amt(b)):'<span class="small">—</span>')+'</td>'
         +'<td>P'+(t.phase||1)+'</td>'
@@ -2166,6 +2241,7 @@ function drawTasks(){
   b("[data-tp]",(t,e)=>{t.phase=+e.value; const x=S.boq.find(y=>y.id===t.boqId); if(x)x.phase=+e.value;});
   b("[data-to]",(t,e)=>{t.owner=e.value; const x=S.boq.find(y=>y.id===t.boqId); if(x)x.owner=e.value;});
   b("[data-tu]",(t,e)=>t.due=e.value);
+  b("[data-tarea]",(t,e)=>{t.area=e.value; const x=S.boq.find(y=>y.id===t.boqId); if(x)x.area=e.value;});
   b("[data-ts]",(t,e)=>{t.status=e.value; const x=S.boq.find(y=>y.id===t.boqId);
     if(x)x.status=(e.value==="Done")?"Done":(e.value==="In progress"?"In progress":"Not started");});
   b("[data-tv]",(t,e)=>{const x=S.boq.find(y=>y.id===t.boqId);
@@ -3530,6 +3606,7 @@ function showTab(id){ S.tab=id; save();
   positionTabIndicator(); 
   if(id==="exp"){ drawExpenses(); expCheckSheet(); }
   if(id==="sched"){ drawGsStatus(); gsSync(false,true); }
+  if(id==="task") gsSync(false,true);
   if(id==="photo"){ drawCpStatus(); if(Date.now()-CP_AT>10*60*1000) chatPhotoSync(true); } }
 
 /* ---------- Photos: pull every photo posted in the site's Google Chat room ----------
@@ -3669,7 +3746,10 @@ $("#fileIn").onchange=e=>{ const f=e.target.files[0]; if(!f) return;
   r.readAsText(f); e.target.value=""; };
 $("#addTaskTop").onclick=()=>{ S.tasks.push({id:"t"+Date.now(),area:S.sel,desc:"New work item",
   owner:"",due:"",status:"Not started",boqId:null,phase:1}); save(); redraw(); };
-$("#tFilter").onchange=drawTasks; $("#tStat").onchange=drawTasks;
+$("#tFilter").onchange=drawTasks; $("#tStat").onchange=drawTasks; $("#tSrc").onchange=drawTasks;
+$("#wtSheetLink").href=GS_URL;
+$("#wtSyncBtn").onclick=async()=>{ const b=$("#wtSyncBtn"); b.disabled=true; b.textContent="⏳ Syncing…";
+  await gsSync(true,false); b.disabled=false; b.textContent="🔄 Sync work items now"; drawTasks(); };
 $("#pDiag").onclick=photoDiag;
 $("#pCam").onclick=openCam;
 $("#camShot").onclick=camCapture;
